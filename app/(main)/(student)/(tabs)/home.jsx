@@ -1,133 +1,64 @@
+import { useState, useEffect,useRef } from 'react'
 import { Alert,StyleSheet, Text, View, ActivityIndicator,Image,TouchableOpacity,TextInput } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import Svg, {Circle} from 'react-native-svg'
 import { useUser } from '@clerk/clerk-expo'
-import { useState, useEffect } from 'react'
 import { Link } from 'expo-router'
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps'
-import axios from 'axios'
-import { doc,updateDoc } from 'firebase/firestore'
+import MapView, { Marker, AnimatedRegion } from 'react-native-maps'
+import MapViewDirections from 'react-native-maps-directions'
+import { doc,updateDoc,onSnapshot } from 'firebase/firestore'
 import {DB} from '../../../../firebaseConfig'
 import { useStudentData } from '../../../stateManagment/StudentState'
 import colors from '../../../../constants/Colors'
 import logo from '../../../../assets/images/logo.jpeg'
 
-const GOOGLE_MAPS_APIKEY = 'google maps api key'
-
 const home = () => {
-  const { isLoaded } = useUser()
-  const [driverLocation, setDriverLocation] = useState(null)
-  const [routeCoordinates, setRouteCoordinates] = useState([])
-  const [loadingRoutes,setLoadingRoutes] = useState(false)
-  const [isCanceling, setIsCanceling] = useState(false);
-  const [cancelText, setCancelText] = useState('');
 
-  const {students,fetchingStudentsLoading,assignedToDriver,fetchingAssignedToDriversLoading} = useStudentData()
+  const GOOGLE_MAPS_APIKEY = 'google maps key'
+
+  const {students,fetchingStudentsLoading,driverFirebaseId,fetchingdriverLoading} = useStudentData()
+
+  const markerRef = useRef(null)
+  const animatedDriverLocation = useRef(new AnimatedRegion({
+    latitude: 0,
+    longitude: 0,
+    latitudeDelta: 0.005,
+    longitudeDelta: 0.005,
+  })).current;
+
+  const { isLoaded } = useUser()
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [cancelText, setCancelText] = useState('')
+  const [driverCurrentLocation, setDriverCurrentLocation] = useState(null);
+  const [driverCurrentLocationLoading, setDriverCurrentLocationLoading] = useState(true);
+  const [destination, setDestination] = useState(null);
+
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
   }
 
-  useEffect(() => {
-    if(
-      !students[0]?.driver_id || 
-      !students[0]?.picked_up || 
-      fetchingAssignedToDriversLoading || 
-      fetchingStudentsLoading || 
-      students[0]?.student_trip_status === 'at home' || 
-      students[0]?.student_trip_status === 'at school'
-    ) {
-      return;
-    }
-
-    const trackDriver = async () => {
-      setLoadingRoutes(true)
-      try {
-        if (assignedToDriver[students[0].driver_id]?.current_location) {
-          setDriverLocation(assignedToDriver[students[0].driver_id]?.current_location);
+  const markerIcon = () => {
+    return(
+      <Svg height={20} width={20}>
+        <Circle
+          cx="10"
+          cy="10"
+          r="10"
+          fill="rgba(57, 136, 251, 0.28)"
+          stroke="transparent"
+        />
+        <Circle
+          cx="10"
+          cy="10"
+          r="6"
+          fill="rgba(57, 137, 252, 1)"
+          stroke="#fff"
+          strokeWidth="2"
+        />
+      </Svg>
+    )
+  }
   
-          // Determine the destination based on the student's trip status
-          let destinationCoords;
-          if (students[0]?.student_trip_status === 'going to school') {
-            destinationCoords = students[0]?.student_school_location;
-          } else if (students[0]?.student_trip_status === 'going to home') {
-            destinationCoords = students[0]?.student_home_location?.coords;
-          }
-  
-          // Fetch route if there's a valid destination and driver location
-          if (destinationCoords && assignedToDriver[students[0].driver_id]?.current_location) {
-          fetchRoute(assignedToDriver[students[0].driver_id]?.current_location, destinationCoords);
-          }
-  
-        }
-      } catch (error) {
-        createAlert('حدث خطأ أثناء تحديث الموقع')
-        setLoadingRoutes(false)
-      }finally{
-        setLoadingRoutes(false)
-      }
-    }
-    trackDriver();
-  }, [
-      students[0]?.driver_id,
-      students[0]?.picked_up,
-      fetchingAssignedToDriversLoading,
-      fetchingStudentsLoading,
-      students[0]?.student_trip_status,
-      assignedToDriver
-]);
-
-// Function to get route between driver and student
-  const fetchRoute = async (startingPoint, nextDestinationCoords) => {
-    try {
-      const response = await axios.get(
-        `https://maps.googleapis.com/maps/api/directions/json?origin=${startingPoint.latitude},${startingPoint.longitude}&destination=${nextDestinationCoords.latitude},${nextDestinationCoords.longitude}&key=${GOOGLE_MAPS_APIKEY}`
-      );
-
-      if (response.data.routes.length) {
-        const points = decodePolyline(response.data.routes[0].overview_polyline.points);
-        setRouteCoordinates(points);
-      }
-    } catch (error) {
-      createAlert('حدث خطأ أثناء تحديث الموقع')
-    }
-  };
-
-// Function to decode the polyline points from Google Directions API
-  const decodePolyline = (encoded) => {
-    let points = [];
-    let index = 0;
-    let len = encoded.length;
-    let lat = 0;
-    let lng = 0;
-  
-    while (index < len) {
-      let b, shift = 0, result = 0;
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-         result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
-  
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
-  
-      points.push({
-        latitude: lat / 1e5,
-        longitude: lng / 1e5
-      });
-    }
-  
-    return points;
-  };
-
 // Function to handle canceling the trip
   const handleCancelTrip = async () => {
     if (cancelText.trim() === 'نعم') {
@@ -152,8 +83,109 @@ const home = () => {
     setCancelText('');
   }
 
+  // Fetch driver location
+  useEffect(() => {
+    if (students[0]?.driver_id && driverFirebaseId) {
+      const driverRef = doc(DB, 'drivers', driverFirebaseId)
+  
+      const unsubscribe = onSnapshot(
+        driverRef,
+        (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data();
+            if (data.current_location) {
+              const newLocation = data.current_location;
+
+              setDriverCurrentLocation(newLocation)
+              
+              // Animate driver marker to the new location
+              animatedDriverLocation.timing({
+                latitude: newLocation.latitude,
+                longitude: newLocation.longitude,
+                duration: 1000,
+                useNativeDriver: false,
+              }).start();
+
+              setDriverCurrentLocationLoading(false)
+            }
+          } else {
+            console.log("Driver document doesn't exist or lacks location.")
+            setDriverCurrentLocationLoading(false)
+          }
+        },
+        (error) => {
+          console.error('Error fetching driver location:', error)
+          setDriverCurrentLocationLoading(false)
+        }
+      );
+  
+      return () => unsubscribe();
+    }
+    setDriverCurrentLocationLoading(false)
+  }, [students[0]?.driver_id, driverFirebaseId, driverCurrentLocation]);
+
+  useEffect(() => {
+    // Set destination based on student trip status
+    if (students[0]?.student_trip_status === 'going to school') {
+      setDestination(students[0]?.student_school_location);
+    } else if (students[0]?.student_trip_status === 'going to home') {
+      setDestination(students[0]?.student_home_location.coords);
+    }
+  }, [students[0]?.student_trip_status, students[0]?.student_school_location, students[0]?.student_home_location]);
+
+    // Function to show only one-time route calculation
+    const renderDirections = () => {
+      if (driverCurrentLocation && destination) {
+        return (
+          <MapViewDirections
+            origin={driverCurrentLocation}
+            destination={destination}
+            optimizeWaypoints={true}
+            apikey={GOOGLE_MAPS_APIKEY}
+            strokeWidth={4}
+            strokeColor="blue"
+            onError={(error) => console.log(error)}
+          />
+        );
+      }
+      return null;
+    };
+
+    // Return map and marker based on the trip status
+    const renderMap = () => (
+      <MapView
+        provider="google"
+        region={{
+          latitude: driverCurrentLocation?.latitude || 0,
+          longitude: driverCurrentLocation?.longitude || 0,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        }}
+        style={styles.map}
+      >
+        {renderDirections()}
+
+        <Marker.Animated
+          ref={markerRef}
+          coordinate={animatedDriverLocation}
+          title="السائق"
+        >
+          <View>
+            {markerIcon()}
+          </View>
+        </Marker.Animated>
+  
+        <Marker
+          key={`Destination ${students[0]?.id}`}
+          coordinate={destination}
+          title={students[0]?.student_trip_status === 'going to school' ? 'المدرسة' : 'المنزل'}
+          pinColor="red"
+        />
+      </MapView>
+    );
+
   // Wait untill data load
-  if (loadingRoutes||fetchingStudentsLoading || fetchingAssignedToDriversLoading || !isLoaded) {
+  if (fetchingStudentsLoading || fetchingdriverLoading || driverCurrentLocationLoading || !isLoaded) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -181,8 +213,9 @@ const home = () => {
       </SafeAreaView>
     )
   }
+  
 
-if(!students[0].driver_id) {
+if(!students[0]?.driver_id) {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.finding_driver_container}>
@@ -195,7 +228,7 @@ if(!students[0].driver_id) {
     )
   }
 
-  if(students[0].driver_id && students[0]?.student_trip_status === 'at home') {
+  if(students[0]?.driver_id && students[0]?.student_trip_status === 'at home') {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
@@ -232,7 +265,7 @@ if(!students[0].driver_id) {
     )
   }
 
-  if(students[0].driver_id && students[0]?.student_trip_status === 'at school') {
+  if(students[0]?.driver_id && students[0]?.student_trip_status === 'at school') {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
@@ -244,52 +277,38 @@ if(!students[0].driver_id) {
     )
   }
 
-  if(students[0].driver_id && (students[0]?.student_trip_status === 'going to school' || students[0]?.student_trip_status === 'going to home')) {
-    return(
-      <SafeAreaView style={styles.container}>
-        <View style={styles.student_map_container}>
-        <MapView
-        provider={PROVIDER_DEFAULT}
-        initialRegion={{
-          latitude: assignedToDriver[students[0].driver_id].current_location.latitude || 0,
-          longitude: assignedToDriver[students[0].driver_id].current_location.longitude || 0,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }}
-        style={styles.map}
-        userInterfaceStyle="light"
-        showsUserLocation
-        >
-  
-        {students[0].student_school_location && students[0]?.student_trip_status === 'going to school' && (
-          <Marker
-            key={`مدرسة ${students[0]?.id}`}
-            coordinate={students[0]?.student_school_location}
-            title={'المدرسة'}
-          />
-        )}
-  
-        {students[0].student_home_location?.coords && students[0]?.student_trip_status === 'going to home' && (
-          <Marker
-            key={`منزل ${students[0]?.id}`}
-            coordinate={students[0].student_home_location.coords}
-            title={'المنزل'}
-          />
-        )}
-  
-        {routeCoordinates.length > 0 && (
-          <Polyline
-            coordinates={routeCoordinates}
-            strokeColor="blue"
-            strokeWidth={4}
-          />
-        )}
-  
-        </MapView>
+
+// If the student is going to school
+if(students[0]?.driver_id && students[0]?.student_trip_status === 'going to school'){
+  return(
+    <SafeAreaView style={styles.container}>
+      <View style={styles.student_route_status_container}>
+        <View style={styles.student_route_status_box}>
+          <Text style={styles.student_route_status_text}>الطالب في الطريق الى المدرسة</Text>
         </View>
-      </SafeAreaView>
-    )
-  }
+      </View>
+      <View style={styles.student_map_container}>
+        {renderMap()}
+      </View>
+    </SafeAreaView>
+  )
+}
+
+// If the student is going to school or going to home
+if(students[0]?.driver_id && students[0]?.student_trip_status === 'going to home') {
+  return(
+    <SafeAreaView style={styles.container}>
+      <View style={styles.student_route_status_container}>
+        <View style={styles.student_route_status_box}>
+          <Text style={styles.student_route_status_text}>{students[0].picked_up ? 'الطالب في الطريق الى المنزل' : 'السائق في الاتجاه اليك'}</Text>
+        </View>
+      </View>
+      <View style={styles.student_map_container}>
+        {renderMap()}
+      </View>
+    </SafeAreaView>
+  )
+}
 }
 export default home;
 
@@ -361,7 +380,7 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },
   student_box:{
-    backgroundColor:'#16B1FF',
+    backgroundColor:colors.PRIMARY,
     width:250,
     padding:10,
     borderRadius:15,
@@ -375,7 +394,7 @@ const styles = StyleSheet.create({
     color:colors.WHITE,
   },
   cancel_trip_btn:{
-    backgroundColor:'#FF4C51',
+    backgroundColor:colors.BLUE,
     width:250,
     padding:10,
     borderRadius:15,
@@ -445,8 +464,8 @@ const styles = StyleSheet.create({
     color:colors.WHITE,
   },
   student_map_container:{
-    width:'100%',
-    height:'100%',
+    width:500,
+    height:800,
     position:'relative',
   },
   student_route_status_container:{

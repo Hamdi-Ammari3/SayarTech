@@ -13,8 +13,8 @@ const StudentHomePage = ({student}) => {
 
   const {fetchingStudentsLoading,fetchingdriverLoading,driverFirebaseId} = useStudentData()
 
-  const GOOGLE_MAPS_APIKEY = 'google maps api key'
-  const mapRef = useRef(null)
+  const GOOGLE_MAPS_APIKEY = 'google maps key'
+  
   const markerRef = useRef(null)
   const animatedDriverLocation = useRef(new AnimatedRegion({
     latitude: 0,
@@ -54,26 +54,7 @@ const StudentHomePage = ({student}) => {
       </Svg>
     )
   }
-/*
-const markerIcon = () => {
-  return(
-    <Svg 
-    height = {20}
-    width = {20}
-  >
-  <Ellipse
-    cx="10"
-    cy="10"
-    rx="10"
-    ry="10"
-    fill="rgba(57, 137, 252, 1)"
-    stroke="#fff"
-    strokeWidth="1"
-  />
-  </Svg>
-  )
-}
-*/
+
   // Fetch driver location
   useEffect(() => {
     if (student.driver_id && driverFirebaseId) {
@@ -124,16 +105,6 @@ const markerIcon = () => {
     }
   }, [student.student_trip_status, student.student_school_location, student.student_home_location]);
 
-  useEffect(() => {
-    // Fit both markers in the map view
-    if (mapRef.current && driverCurrentLocation && destination) {
-      mapRef.current.fitToCoordinates([driverCurrentLocation, destination], {
-        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-        animated: true,
-      });
-    }
-  }, [driverCurrentLocation, destination]);
-
   // Function to show only one-time route calculation
   const renderDirections = () => {
     if (driverCurrentLocation && destination) {
@@ -155,7 +126,6 @@ const markerIcon = () => {
   // Return map and marker based on the trip status
   const renderMap = () => (
     <MapView
-      ref={mapRef}
       provider="google"
       region={{
         latitude: driverCurrentLocation?.latitude || 0,
@@ -164,7 +134,6 @@ const markerIcon = () => {
         longitudeDelta: 0.005,
       }}
       style={styles.map}
-      userInterfaceStyle="light"
     >
       {renderDirections()}
 

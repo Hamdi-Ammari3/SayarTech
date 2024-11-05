@@ -341,7 +341,7 @@ const handleCityChange = (city) => {
             data={cities}
             labelField="name"
             valueField="name"
-            placeholder= 'الدائرة القضائية'
+            placeholder= 'القضاء'
             value={studentCity}
             onChange={item => {
             handleCityChange(item.name)
