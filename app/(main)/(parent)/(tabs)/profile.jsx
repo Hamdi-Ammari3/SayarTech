@@ -12,6 +12,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useStudentData } from '../../../stateManagment/StudentState'
 
 const profile = () => {
+  const [signOutLoading,setSignOutLoading] = useState(false)
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
   const { signOut } = useAuth()
   const {user} = useUser()
@@ -25,10 +26,13 @@ const profile = () => {
 
   const handleSignOut = async () => {
     try {
+      setSignOutLoading(true)
       await signOut();
       router.replace('/(auth)/login')
     } catch (error) {
       createAlert('خطأ أثناء تسجيل الخروج')
+    } finally {
+      setSignOutLoading(false)
     }
   };
 
@@ -84,7 +88,7 @@ const profile = () => {
 
 
 //Loading 
-  if (fetchingStudentsLoading || fetchingUserDataLoading || fetchingdriverLoading || deleteAccountLoading) {
+  if (fetchingStudentsLoading || fetchingUserDataLoading || fetchingdriverLoading || deleteAccountLoading || signOutLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -115,7 +119,11 @@ const profile = () => {
       </View>
         <FlatList
         data={students}
-        renderItem={({item}) => <StudentCard item={item} drivers={driver} fetchingDriversLoading={fetchingdriverLoading}/>}
+        renderItem={({item}) => <StudentCard 
+          item={item}
+          drivers={driver} 
+          fetchingDriversLoading={fetchingdriverLoading}
+        />}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.flatList_style}
         ListEmptyComponent={() => (

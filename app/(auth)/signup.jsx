@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react'
-import { Text, View,StyleSheet,Image, Alert,Platform } from 'react-native'
+import { Text, View,StyleSheet,Image, Alert,Platform,TouchableOpacity,TextInput,Modal } from 'react-native'
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useSignUp } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 import { Dropdown } from 'react-native-element-dropdown'
+import { generate } from 'referral-codes';
 import CustomeButton from '../../components/CustomeButton'
 import CustomeInput from '../../components/CustomeInput'
 import logo from '../../assets/images/logo.jpeg'
@@ -29,6 +30,10 @@ export default function SignUpScreen() {
   const [isSigningUp, setIsSigningUp] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [timer, setTimer] = useState(60)
+  const [showReferralModal,setShowReferralModal] = useState(false)
+  const [referralCode,setReferralCode] = useState('')
+  const [referredByFriend,setReferredByFriend] = useState(false)
+  const [friendReferralCode, setFriendReferralCode] = useState('')
   const [expoPushToken, setExpoPushToken] = useState('')
   const [notification, setNotification] = useState(false)
   const notificationListener = useRef()
@@ -108,6 +113,20 @@ useEffect(() => {
     setCompteOwner(owner)
   }
 
+  const generateReferralCode = (phone) => {
+    // Get the last 2 digits of the phone number
+    const lastTwoDigits = phone.slice(-2);
+
+  // Generate a 4-character code using the referral-codes library
+    const randomCode = generate({
+      length: 4,
+      count: 1,
+    })[0];
+
+    // Combine the random code with the last 2 digits of the phone number
+    return `${randomCode}${lastTwoDigits}`;
+  }
+
   const onSignUpPress = async () => {
     if (!isLoaded || isSigningUp) return
 
@@ -119,6 +138,10 @@ useEffect(() => {
     setIsSigningUp(true); // Start loading
 
     try {
+      // Generate the user's referral code
+      const newReferralCode = generateReferralCode(phone);
+      setReferralCode(newReferralCode);
+
       await signUp.create({
         phoneNumber:`+216${phone}`,
       });
@@ -149,7 +172,11 @@ useEffect(() => {
         user_family_name: userFamilyName,
         compte_owner_type:compteOwner,
         phone_number:`+216${phone}`,
-        user_notification_token: expoPushToken
+        user_notification_token: expoPushToken,
+        user_referral_code:referralCode,
+        referred_by_friend:referredByFriend,
+        friend_referral_code:friendReferralCode || null,
+        user_signup_data: new Date()
       }
 
       const docRef = await addDoc(userInfoCollectionRef,userData)
@@ -157,6 +184,23 @@ useEffect(() => {
     } catch (error) {
       createAlert('يوجد خلل الرجاء المحاولة مرة ثانية')
     }
+  }
+
+// Update referredByFriend based on the friendReferralCode input
+  useEffect(() => {
+    setReferredByFriend(friendReferralCode.trim() !== '');
+  }, [friendReferralCode]);
+
+// Press no for referred by friend
+  const closeReferredBy = () => {
+    setReferredByFriend(false)
+    setFriendReferralCode('')
+    setShowReferralModal(false)
+  }
+
+  // Press Yes for referred by friend
+  const confirmReferredBy = () => {
+    setShowReferralModal(false)
   }
 
   const onPressVerify = async () => {
@@ -250,6 +294,35 @@ useEffect(() => {
             keyboardType='numeric'
             onChangeText={(text) => setPhone(text)}
           />
+          <TouchableOpacity style={styles.referralBtn} onPress={() => setShowReferralModal(true)}>
+            <Text style={styles.link_text}>هل تمت دعوتك من قبل صديق؟</Text>
+          </TouchableOpacity>
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={showReferralModal}
+            onRequestClose={() => setShowReferralModal(false)}
+          >
+            <View style={styles.rfCode_modal_container}>
+              <View style={styles.rfCode_modal_box}>
+                <TextInput
+                  style={styles.rfCode_input}
+                  value={friendReferralCode}
+                  onChangeText={setFriendReferralCode}
+                  placeholder="ادخل الكود"
+                />
+                <View style={styles.rfCode_btn_container}>
+                  <TouchableOpacity style={styles.deny_rfCode_btn} onPress={closeReferredBy}>
+                    <Text style={styles.deny_rfCode_btn_text}>لا</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.add_rfCode_btn} onPress={confirmReferredBy}>
+                    <Text style={styles.add_rfCode_btn_text}>اضف</Text>
+                  </TouchableOpacity>
+                </View>
+                
+              </View>
+            </View>
+          </Modal>
           <CustomeButton 
             title="تسجيل" 
             onPressHandler={onSignUpPress} 
@@ -330,6 +403,76 @@ const styles = StyleSheet.create({
     textAlign:'center',
     fontSize:14
   },
+  referralBtn:{
+    width:280,
+    height:50,
+    marginBottom:10,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center',
+  },
+  referralBtnText:{
+    fontFamily:'Cairo_400Regular',
+    fontSize:14,
+  },
+  rfCode_modal_container:{
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  rfCode_modal_box:{
+    width: 280,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+  },
+  rfCode_input:{
+    width:160,
+    height:50,
+    marginBottom:10,
+    borderWidth:1,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+    color:colors.BLACK,
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular'
+  },
+  rfCode_btn_container:{
+    width:160,
+    flexDirection:'row',
+    justifyContent:'space-between'
+  },
+  add_rfCode_btn:{
+    width:70,
+    height:50,
+    marginBottom:10,
+    backgroundColor:colors.PRIMARY,
+    borderRadius:15,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'  
+  },
+  add_rfCode_btn_text:{
+    fontFamily:'Cairo_700Bold',
+    color:colors.WHITE
+  },  
+  deny_rfCode_btn:{
+    width:70,
+    height:50,
+    marginBottom:10,
+    borderWidth:1,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'  
+  },
+  deny_rfCode_btn_text:{
+    fontFamily:'Cairo_700Bold',
+    color:colors.PRIMARY
+  },  
   link_text:{
     fontFamily:'Cairo_700Bold',
     fontSize:13,

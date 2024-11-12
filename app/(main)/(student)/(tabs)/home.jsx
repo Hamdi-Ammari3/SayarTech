@@ -14,7 +14,7 @@ import logo from '../../../../assets/images/logo.jpeg'
 
 const home = () => {
 
-  const GOOGLE_MAPS_APIKEY = 'google maps key'
+  const GOOGLE_MAPS_APIKEY = ''
 
   const {students,fetchingStudentsLoading,driverFirebaseId,fetchingdriverLoading} = useStudentData()
 

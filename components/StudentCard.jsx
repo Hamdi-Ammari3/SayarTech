@@ -18,27 +18,27 @@ const ChildCard = ({ item,drivers,fetchingDriversLoading }) => {
         <Text style={styles.student_info_text}>{item.student_school}</Text>
         <Text style={styles.student_info_text}>{item.student_full_name}</Text>
       </View>
-      {drivers[item.driver_id] && (
+      {drivers && (
         <View style={styles.driver_car_box}>
 
           <View style={styles.driver_info}>
             <View style={styles.photo_box}>
-              <Image source={{uri:drivers[item.driver_id].driver_personal_image}} style={styles.image}/>
+              <Image source={{uri:drivers.driver_personal_image}} style={styles.image}/>
             </View>
             <View style={styles.related_info_box}>
-              <Text style={styles.driver_name}>{drivers[item.driver_id].driver_full_name}</Text>
-              <Text style={styles.driver_name}>{drivers[item.driver_id].driver_family_name}</Text>
+              <Text style={styles.driver_name}>{drivers.driver_full_name}</Text>
+              <Text style={styles.driver_name}>{drivers.driver_family_name}</Text>
             </View>
           </View>
 
           <View style={styles.driver_info}>
             <View style={styles.photo_box}>
-              <Image source={{uri:drivers[item.driver_id].driver_car_image}} style={styles.image}/>
+              <Image source={{uri:drivers.driver_car_image}} style={styles.image}/>
             </View>
             <View style={styles.related_info_box}>
-              <Text style={styles.car_name}>{drivers[item.driver_id].driver_car_plate}</Text>
-              <Text style={styles.car_name}>{drivers[item.driver_id].driver_car_model}</Text>
-              <Text style={styles.car_name}>{drivers[item.driver_id].driver_car_type}</Text>
+              <Text style={styles.car_name}>{drivers.driver_car_plate}</Text>
+              <Text style={styles.car_name}>{drivers.driver_car_model}</Text>
+              <Text style={styles.car_name}>{drivers.driver_car_type}</Text>
             </View>
           </View>
         </View>
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     margin:10,
     paddingVertical:10,
     alignItems:'center',
-    backgroundColor:'#F6F8FA',
+    backgroundColor:colors.GRAY,
     borderRadius:15
   },
   student_info_box:{

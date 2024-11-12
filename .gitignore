@@ -15,6 +15,7 @@ google-services.json
 eas.json
 app.json
 firebaseConfig.js
+mapStyle.json
 # macOS
 .DS_Store
 

@@ -11,6 +11,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useStudentData } from '../../../stateManagment/StudentState'
 
 const profile = () => {
+  const [signOutLoading,setSignOutLoading] = useState(false)
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
   const { signOut } = useAuth()
   const {user} = useUser()
@@ -24,10 +25,13 @@ const profile = () => {
 
   const handleSignOut = async () => {
     try {
+      setSignOutLoading(true)
       await signOut();
       router.replace('/(auth)/login')
     } catch (error) {
       createAlert('Error signing out')
+    } finally {
+      setSignOutLoading(false)
     }
   };
 
@@ -82,7 +86,7 @@ const profile = () => {
    };
 
 //Loading user data
-  if (fetchingStudentsLoading || fetchingUserDataLoading || fetchingAssignedToDriversLoading || deleteAccountLoading) {
+  if (fetchingStudentsLoading || fetchingUserDataLoading || fetchingAssignedToDriversLoading || deleteAccountLoading || signOutLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>

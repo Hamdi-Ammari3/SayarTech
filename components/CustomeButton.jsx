@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View,TouchableOpacity,ActivityIndicator } from 'react-native'
+import { StyleSheet, Text,TouchableOpacity,ActivityIndicator } from 'react-native'
 import colors from '../constants/Colors'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
@@ -25,7 +25,7 @@ const CustomeButton = ({title,icon,iconType,onPressHandler,disabledStatus,loadin
             </TouchableOpacity>
         )}
     </>
-  )
+    )
 }
 
 export default CustomeButton
@@ -51,16 +51,3 @@ const styles = StyleSheet.create({
         color:colors.WHITE
     }
 })
-
-/*
-<CustomeButton 
-            title={'أضف'}
-            onPressHandler={addNewDriverHandler}
-            disabledStatus={!userData || !location || !carModel || !carPlate}
-          />
-          <Text style={styles.location_warning_text}>* يرجى التأكد من ادخال جميع البيانات</Text>
-          <CustomeButton 
-            title={'الغاء'}
-            onPressHandler={clearFormHandler}
-          />
-*/

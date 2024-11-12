@@ -4,5 +4,6 @@ export default {
   TERTIARY: '#ABBAE0',
   BLACK: '#000',
   WHITE: "#FFF",
+  GRAY:'#F6F8FA',
   BLUE: '#16B1FF',
 }

@@ -22,6 +22,7 @@ const styles = StyleSheet.create({
         borderWidth:1,
         borderColor:colors.PRIMARY,
         borderRadius:15,
+        color:colors.BLACK,
         textAlign:'center',
         fontFamily:'Cairo_400Regular'
     },

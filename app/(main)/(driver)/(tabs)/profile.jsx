@@ -12,6 +12,7 @@ import { useDriverData } from '../../../stateManagment/DriverContext'
 import AssignedStudents from '../../../../components/AssignedStudents'
 
 const profile = () => {
+  const [signOutLoading,setSignOutLoading] = useState(false)
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
   const { signOut } = useAuth()
   const {user} = useUser()
@@ -25,10 +26,13 @@ const profile = () => {
 
   const handleSignOut = async () => {
     try {
+      setSignOutLoading(true)
       await signOut();
       router.replace('/(auth)/login')
     } catch (error) {
       createAlert('حدث خطأ أثناء تسجيل الخروج')
+    } finally {
+      setSignOutLoading(false)
     }
   };
 
@@ -83,7 +87,7 @@ const profile = () => {
    };
 
   // Loading or fetching user type state
-  if (fetchingUserDataLoading || deleteAccountLoading) {
+  if (fetchingUserDataLoading || deleteAccountLoading || signOutLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>

@@ -1,22 +1,24 @@
-import { Alert, StyleSheet, Text, View,ActivityIndicator,ScrollView } from 'react-native'
+import { Alert, StyleSheet, Text, View,ActivityIndicator,ScrollView,TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import React,{useEffect, useState} from 'react'
+import React,{useEffect, useState, useRef} from 'react'
 import { useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'
 import CustomeInput from '../../../../components/CustomeInput'
-import CustomeButton from '../../../../components/CustomeButton'
 import {DB} from '../../../../firebaseConfig'
 import { addDoc , collection,onSnapshot } from 'firebase/firestore'
 import * as Location from 'expo-location'
 import haversine from 'haversine'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useUser } from '@clerk/clerk-expo'
+import Ionicons from '@expo/vector-icons/Ionicons'
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import { Dropdown } from 'react-native-element-dropdown'
 import { useStudentData } from '../../../stateManagment/StudentState'
 
 const addData = () => {
   const { user } = useUser()
   const router = useRouter()
+  const scrollViewRef = useRef()
 
   const [studentSex,setStudentSex] = useState('')
   const [studentSchool,setStudentSchool] = useState('')
@@ -65,15 +67,15 @@ const addData = () => {
   }
 
 // Get the current location
-const getLocation = async () => {
-  let { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') {
-    createAlert('عذراً، لا يمكننا الوصول إلى موقعك بدون إذن');
-    return;
+  const getLocation = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      createAlert('عذراً، لا يمكننا الوصول إلى موقعك بدون إذن');
+      return;
+    }
+    let location = await Location.getCurrentPositionAsync({});
+    setLocation(location)
   }
-  let location = await Location.getCurrentPositionAsync({});
-  setLocation(location)
-}
 
 // Handle school name change
   const handleSchoolChange = (schoolName) => {
@@ -97,7 +99,7 @@ const getLocation = async () => {
   }, [studentSchool])
 
 //Calculate home - school distance
-const calculateDistance = () => {
+  const calculateDistance = () => {
     if (location && schoolLocation) {
       const start = {
         latitude: location.coords.latitude,
@@ -118,27 +120,27 @@ const calculateDistance = () => {
   }, [schoolLocation, location])
 
 //Get the driver birth date
-const showDatePicker = () => {
-  setShowPicker(true);
-};
+  const showDatePicker = () => {
+    setShowPicker(true);
+  };
 
 // Handle the Date Change
- const handleDateChange = (event, selectedDate) => {
-  if (event.type === "set") {
-    const currentDate = selectedDate || studentBirthDate;
-    setStudentBirthDate(currentDate);
-    setDateSelected(true);
-  }
-  setShowPicker(false);
-};
+  const handleDateChange = (event, selectedDate) => {
+    setShowPicker(false);
+    if (event.type === "set") {
+      const currentDate = selectedDate || studentBirthDate;
+      setStudentBirthDate(currentDate);
+      setDateSelected(true);
+    }
+  };
 
 //Handle the state change
-const handleStateChange = (state) => {
-  setStudentState(state);
-};
+  const handleStateChange = (state) => {
+    setStudentState(state);
+  };
 
 // Fetch Cities based on selected Province (State)
-const fetchCities = (selectedState) => {
+  const fetchCities = (selectedState) => {
   const schoolInfoCollectionRef = collection(DB, 'states')
     const unsubscribe = onSnapshot(
       schoolInfoCollectionRef,
@@ -152,12 +154,18 @@ const fetchCities = (selectedState) => {
         }
     )
     return () => unsubscribe();
-};
+  };
 
 // Handle the city change
-const handleCityChange = (city) => {
-  setStudentCity(city);
-}
+  const handleCityChange = (city) => {
+    setStudentCity(city);
+  }
+
+// Scroll down to the bottom of the screen
+  const scrollToNextInput = (fieldIndex) => {
+    const offsetY = fieldIndex * 170; // Adjust this based on the height of your input fields
+    scrollViewRef.current.scrollTo({ y: offsetY, animated: true });
+  };
 
 //Adding new student
   const addNewStudentHandler = async () => {
@@ -268,12 +276,12 @@ const handleCityChange = (city) => {
       <Text style={styles.title}>اضافة بيانات</Text>
         <ScrollView 
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.form} 
+          contentContainerStyle={styles.form}
+          ref={scrollViewRef}
         >
-          <CustomeButton
-            title={dateSelected ? studentBirthDate.toLocaleDateString() : 'تاريخ الميلاد'}
-            onPressHandler={showDatePicker} 
-          />
+          <TouchableOpacity style={styles.fullButton} onPress={showDatePicker}>
+            <Text style={styles.fullBtnText}>{dateSelected ? studentBirthDate.toLocaleDateString() : 'تاريخ الميلاد'}</Text>
+          </TouchableOpacity>
           {showPicker && (
             <DateTimePicker
               value={studentBirthDate}
@@ -322,8 +330,9 @@ const handleCityChange = (city) => {
             handleSchoolChange(item.name)
             }}
           />
-          <Dropdown
-            style={styles.dropdown}
+          <View style={styles.HalfContainer}>
+            <Dropdown
+            style={styles.dropdownHalf}
             placeholderStyle={styles.dropdownStyle}
             selectedTextStyle={styles.dropdownStyle}
             data={states}
@@ -335,9 +344,9 @@ const handleCityChange = (city) => {
               handleStateChange(item.name)
               fetchCities(item.name);
              }}
-          />
-          <Dropdown
-            style={styles.dropdown}
+            />
+            <Dropdown
+            style={styles.dropdownHalf}
             placeholderStyle={styles.dropdownStyle}
             selectedTextStyle={styles.dropdownStyle}
             data={cities}
@@ -348,7 +357,8 @@ const handleCityChange = (city) => {
             onChange={item => {
             handleCityChange(item.name)
              }}
-          />
+            />
+          </View>
           <CustomeInput 
             placeholder={'الحي'}
             value={studentStreet}
@@ -358,14 +368,19 @@ const handleCityChange = (city) => {
             placeholder={'اقرب نقطة دالة'}
             value={homeAdress}
             onChangeText={(text) => setHomeAdress(text)}
+            onSubmitEditing={() => scrollToNextInput(1)} // Move to the next input
           />
-          <CustomeButton
-            title={location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}
-            icon={true}
-            iconType={location !== null ? 'done' : 'location'}
-            onPressHandler={getLocation}
-            disabledStatus={location !== null}
-          />
+          <Text style={styles.address_warning_text}>مثلا قرب جامع الرحمة</Text>
+          <TouchableOpacity style={styles.fullButton} onPress={getLocation} disabled={location !== null}>
+            <>
+              {location !== null ? (
+                  <FontAwesome6 name="circle-check" size={24} style={styles.icon} />
+              ) : (
+                  <Ionicons name="location-outline" size={24} style={styles.icon} />
+              )}
+            </>
+            <Text style={styles.fullBtnText}>{location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}</Text>
+          </TouchableOpacity>
           <View style={styles.location_msg_view}>
             {distance ? (
               <Text style={styles.location_warning_text}>المسافة بين منزل الطالب و المدرسة: {distance} كلم</Text>
@@ -373,16 +388,15 @@ const handleCityChange = (city) => {
               <Text style={styles.location_warning_text}>التطبيق يسجل موقعك الحالي كعنوان للمنزل لذا يرجى التواجد في المنزل عند التسجيل و تفعيل خدمة تحديد الموقع الخاصة بالهاتف</Text>
             )}
           </View>
-          <CustomeButton 
-            title={'أضف'}
-            onPressHandler={addNewStudentHandler}
-            disabledStatus={!studentSchool || !studentBirthDate || !studentSex || !carType}
-          />
+          <View style={styles.HalfContainer}>
+            <TouchableOpacity style={styles.halfButton} onPress={addNewStudentHandler} disabled={!studentSchool || !studentBirthDate || !studentSex || !carType || !studentState || !studentCity || !homeAdress || !location || !distance}>
+              <Text style={styles.btnText}>اضف</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.halfButtonClearForm} onPress={clearFormHandler}>
+              <Text style={styles.btnTextClearForm}>الغاء</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.location_warning_text}>* يرجى التأكد من ادخال جميع البيانات</Text>
-          <CustomeButton 
-            title={'الغاء'}
-            onPressHandler={clearFormHandler}
-          />
         </ScrollView>          
     </SafeAreaView>
   )
@@ -415,34 +429,72 @@ const styles = StyleSheet.create({
     borderColor:colors.PRIMARY,
     borderRadius:15,
   },
+  HalfContainer:{
+    width:280,
+    flexDirection:'row-reverse',
+    justifyContent:'space-between'
+  },
+  dropdownHalf:{
+    width:135,
+    height:50,
+    borderWidth:1,
+    marginBottom:10,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+  },
   dropdownStyle:{
     fontFamily:'Cairo_400Regular',
     textAlign:'center',
     fontSize:14
   },
-  age_sex_input_container:{
-    flexDirection:'row',
+  fullButton:{
     width:280,
+    height:50,
+    marginBottom:10,
+    borderColor:colors.PRIMARY,
+    borderWidth:1,
+    borderRadius:15,
+    flexDirection:'row',
     alignItems:'center',
-    justifyContent:'space-between'
+    justifyContent:'center'
+  },  
+  fullBtnText:{
+    fontFamily:'Cairo_400Regular',
+    fontSize:15,
+    color:colors.BLACK
   },
-  age_input:{
+  icon:{
+    marginRight:10,
+  },
+  halfButton:{
     width:135,
     height:50,
     marginBottom:10,
-    borderWidth:1,
-    borderColor:colors.PRIMARY,
+    backgroundColor:colors.PRIMARY,
     borderRadius:15,
-    textAlign:'center',
-    fontFamily:'Cairo_400Regular'
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'
   },
-  sex_dropdown:{
+  btnText:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:15,
+    color:colors.WHITE
+  },
+  halfButtonClearForm:{
     width:135,
     height:50,
-    borderWidth:1,
     marginBottom:10,
-    borderColor:colors.PRIMARY,
+    backgroundColor:colors.GRAY,
     borderRadius:15,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  btnTextClearForm:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:15,
+    color:colors.BLACK
   },
   location_msg_view:{
     width:280,
@@ -454,6 +506,12 @@ const styles = StyleSheet.create({
     fontSize:11,
     textAlign:'center',
     marginBottom:10,
+  },
+  address_warning_text:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:11,
+    textAlign:'center',
+    marginBottom:20,
   },
   map: {
     width: '95%',

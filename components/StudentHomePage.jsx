@@ -13,14 +13,14 @@ const StudentHomePage = ({student}) => {
 
   const {fetchingStudentsLoading,fetchingdriverLoading,driverFirebaseId} = useStudentData()
 
-  const GOOGLE_MAPS_APIKEY = 'google maps key'
+  const GOOGLE_MAPS_APIKEY = ''
   
   const markerRef = useRef(null)
   const animatedDriverLocation = useRef(new AnimatedRegion({
     latitude: 0,
     longitude: 0,
-    latitudeDelta: 0.005,
-    longitudeDelta: 0.005,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
   })).current;
 
   const [isCanceling, setIsCanceling] = useState(false);
@@ -130,8 +130,8 @@ const StudentHomePage = ({student}) => {
       region={{
         latitude: driverCurrentLocation?.latitude || 0,
         longitude: driverCurrentLocation?.longitude || 0,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
       }}
       style={styles.map}
     >
@@ -213,7 +213,7 @@ if(student.driver_id && student.student_trip_status === 'at home') {
     <SafeAreaView style={styles.container}>
       <View style={styles.student_container}>
         <View style={styles.student_box}>
-          <Text style={styles.student_text}>الطالب وصل المنزل 😴</Text>
+          <Text style={styles.student_text}>الطالب في المنزل 😴</Text>
         </View>
         {!student.tomorrow_trip_canceled && (
           <View>
@@ -251,7 +251,7 @@ if(student.driver_id && student.student_trip_status === 'at school') {
     <SafeAreaView style={styles.container}>
       <View style={styles.student_container}>
         <View style={styles.student_box}>
-          <Text style={styles.student_text}>الطالب وصل المدرسة 📖</Text>
+          <Text style={styles.student_text}>الطالب في المدرسة 📖</Text>
         </View>
       </View>
     </SafeAreaView>
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },
   student_box:{
-    backgroundColor:colors.PRIMARY,
+    backgroundColor:colors.GRAY,
     width:250,
     padding:10,
     borderRadius:15,
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
-    color:colors.WHITE,
+    color:colors.BLACK,
   },
   cancel_trip_btn:{
     backgroundColor:colors.BLUE,
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     justifyContent:'space-around',
   },
   confirm_cancel_btn:{
-    backgroundColor:'#16B1FF',
+    backgroundColor:colors.BLUE,
     width:100,
     padding:10,
     borderRadius:15,
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   },
   deny_cancel_btn:{
     borderWidth:1,
-    borderColor:'#16B1FF',
+    borderColor:colors.BLUE,
     width:100,
     padding:10,
     borderRadius:15,
@@ -393,20 +393,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
     color:'#16B1FF'
-  },
-  student_name_container:{
-    backgroundColor:'#16B1FF',
-    width:250,
-    padding:10,
-    borderRadius:15,
-    alignItems:'center',
-    justifyContent:'center'
-  },
-  student_name:{
-    textAlign:'center',
-    fontFamily: 'Cairo_400Regular',
-    fontSize:13,
-    color:colors.WHITE,
   },
   student_map_container:{
     width:500,

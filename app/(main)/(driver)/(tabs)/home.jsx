@@ -1,7 +1,7 @@
 import { Alert,StyleSheet, Text, View, ActivityIndicator, TouchableOpacity,ScrollView, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useUser } from '@clerk/clerk-expo'
-import { useState,useEffect } from 'react'
+import { useState,useEffect,useRef } from 'react'
 import * as Location from 'expo-location'
 import MapView, { Marker } from 'react-native-maps'
 import MapViewDirections from 'react-native-maps-directions'
@@ -17,23 +17,31 @@ import Feather from '@expo/vector-icons/Feather'
 const Home = () => {
   const {fetchingUserDataLoading,driverData,fetchingDriverDataLoading,assignedStudents,fetchingAssignedStudetns} = useDriverData()
 
-  const GOOGLE_MAPS_APIKEY = 'google maps key'
+  const GOOGLE_MAPS_APIKEY = ''
+
+  const mapRef = useRef(null)
 
   const { isLoaded,user } = useUser()
   const [sortedStudents, setSortedStudents] = useState([])
+  const [pickedUpStudentsState,setPickedUpStudentsState] = useState([])
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0)
   const [displayFinalStation,setDisplayFinalStation] = useState(false)
   const [currentTrip, setCurrentTrip] = useState('first')
   const [isMarkingStudent, setIsMarkingStudent] = useState(false)
   const [checkingPickedUpStudents, setCheckingPickedUpStudents] = useState(false)
   const [checkingStudentId, setCheckingStudentId] = useState(null)
-  const [finishingTrip, setFinishingTrip] = useState(false)
   const [cancelTodayTrip, setCancelTodayTrip] = useState(false)
   const[ pickedUpStudentsFromHome, setPickedUpStudentsFromHome] = useState([])
+  const [finishingTrip, setFinishingTrip] = useState(false)
+  const [mapReady, setMapReady] = useState(false);
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
   }
+
+  const handleMapReady = () => {
+    setMapReady(true);
+  };
 
   // Fetch the driver's current location
   useEffect(() => {
@@ -50,11 +58,13 @@ const Home = () => {
           {
             accuracy: Location.Accuracy.High,
             distanceInterval: 50,
-            timeInterval: 10000,
+            timeInterval: 5000,
           },
-          (newLocation) => {
+          async (newLocation) => {
             const { latitude, longitude } = newLocation.coords;
-            saveLocationToFirebase(latitude, longitude);
+
+            //Save to Firebase
+            await saveLocationToFirebase(latitude, longitude);
           }
         );
       };
@@ -152,7 +162,7 @@ useEffect(() => {
         title: title,
         body: body,
       };
-  
+
       await fetch('https://exp.host/--/api/v2/push/send', {
         method: 'POST',
         headers: {
@@ -162,6 +172,7 @@ useEffect(() => {
         },
         body: JSON.stringify(message),
       });
+
     } catch (error) {
       console.error("Error sending notification:", error);
     }
@@ -196,7 +207,6 @@ useEffect(() => {
 
     } catch (error) {
       alert('حدث خطأ اثناء بدء الرحلة') 
-      console.log(error)
     }
   }
 
@@ -233,6 +243,7 @@ useEffect(() => {
         setSortedStudents([]);
         setCancelTodayTrip(false)
         setPickedUpStudentsFromHome([])
+        setMapReady(false)
       }
     } catch (error) {
       alert('حدث خطأ اثناء انهاء الرحلة')
@@ -251,6 +262,7 @@ const handlesecondTripStart = async () => {
 
     // Update students status (students picked up from school)
     const pickedUpStudents = assignedStudents.filter(student => student.picked_from_school === true);
+    setPickedUpStudentsState(pickedUpStudents)
     for (const student of pickedUpStudents) {
       const studentDoc = doc(DB, 'students', student.id);
       await updateDoc(studentDoc, {
@@ -279,6 +291,40 @@ const handlesecondTripStart = async () => {
     alert('حدث خطأ اثناء بدء الرحلة')
   }
 };
+
+// fit coordinate function
+useEffect(() => {
+  const fitCoordinatesForCurrentTrip = () => {
+    if (!mapReady || !mapRef.current || !driverData[0]?.current_location) return;
+
+    let destination = null;
+
+    if (currentTrip === 'first' && sortedStudents) {
+      destination = sortedStudents[currentStudentIndex]?.student_home_location?.coords;
+    } else if (currentTrip === 'second' && pickedUpStudentsState) {
+      destination = pickedUpStudentsState[currentStudentIndex]?.student_home_location?.coords;
+    }
+
+    if (destination) {
+      mapRef.current.fitToCoordinates(
+        [driverData[0]?.current_location, destination],
+        {
+          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+          animated: true,
+        }
+      );
+    }
+  };
+
+  fitCoordinatesForCurrentTrip();
+}, [
+  mapReady,
+  driverData[0]?.current_location,
+  currentTrip,
+  sortedStudents,
+  pickedUpStudentsState,
+  currentStudentIndex,
+]);
 
 // Click the button to finish the second trip
 const handlesecondTripFinish = async () => {
@@ -316,9 +362,11 @@ const handlesecondTripFinish = async () => {
     setCheckingStudentId(null)
     setCancelTodayTrip(false)
     setPickedUpStudentsFromHome([])
+    setMapReady(false)
     
   } catch (error) {
     alert('حدث خطأ اثناء انهاء الرحلة')
+    setFinishingTrip(false)
   } finally {
     setFinishingTrip(false)
   }
@@ -375,6 +423,20 @@ const markStudent = async (status) => {
             setCancelTodayTrip(true)
           }
         }
+
+        if (mapRef.current && driverData[0]?.current_location) {
+          const nextDestination = nextStudent.id === 'school' ? nextStudent.school_coords : nextStudent.student_home_location?.coords;
+
+          if (nextDestination) {
+            mapRef.current.fitToCoordinates(
+              [driverData[0]?.current_location, nextDestination],
+              {
+                edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+                animated: true,
+              }
+            );
+          }
+        }
       }
 
    } catch (error) {
@@ -385,6 +447,7 @@ const markStudent = async (status) => {
   }
 };
 
+// mark students from school
 const HandleMarkStudentFromSchool = async (studentId, status) => {
   try {
     // Update the student's status in the database
@@ -401,6 +464,7 @@ const HandleMarkStudentFromSchool = async (studentId, status) => {
   }
 };
 
+//mark absent students
 const handleMarkAbsentStudent = (studentId) => {
   setCheckingStudentId(studentId);
 }
@@ -414,7 +478,8 @@ if( fetchingUserDataLoading ||
     fetchingDriverDataLoading  || 
     fetchingAssignedStudetns || 
     !isLoaded || 
-    finishingTrip) {
+    finishingTrip
+    ) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.spinner_error_container}>
@@ -541,13 +606,13 @@ if( driverData[0].first_trip_status === "started" && driverData[0].second_trip_s
                   style={styles.pick_button_accepted} 
                   onPress={() => markStudent(true)} 
                   disabled={isMarkingStudent}>
-                  <Text style={styles.pick_button_text}>صعد</Text>
+                  <Text style={styles.pick_button_text}>{isMarkingStudent ? '...' :'صعد'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.pick_button_denied} 
                   onPress={() => markStudent(false)} 
                   disabled={isMarkingStudent}>
-                  <Text style={styles.pick_button_text}>لم يصعد</Text>
+                  <Text style={styles.pick_button_text}>{isMarkingStudent ? '...' :'لم يصعد'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -579,15 +644,17 @@ if( driverData[0].first_trip_status === "started" && driverData[0].second_trip_s
       </>
       {!cancelTodayTrip && (
         <MapView
+        ref={mapRef}
+        onMapReady={handleMapReady}
         provider="google"
-        region={{
+        initialRegion={{
           latitude: driverData[0]?.current_location?.latitude,
           longitude: driverData[0]?.current_location?.longitude,
           latitudeDelta: 0.005,
           longitudeDelta: 0.005,
         }}
+        loadingEnabled={true}
         showsUserLocation={true}
-        followsUserLocation={true}
         style={styles.map}
         userInterfaceStyle="light"
         >
@@ -598,12 +665,12 @@ if( driverData[0].first_trip_status === "started" && driverData[0].second_trip_s
           destination={displayFinalStation ? currentStudent?.school_coords : currentStudent?.student_home_location?.coords}
           optimizeWaypoints={true} // Optimize route for efficiency
           apikey={GOOGLE_MAPS_APIKEY}
-          strokeWidth={4}
+          strokeWidth={3}
           strokeColor="blue"
           onError={(error) => console.log(error)}
         />
-        
 
+        {/* Student's home marker */}
         {currentStudent?.student_home_location?.coords && !displayFinalStation && (
           <Marker
             coordinate={getCoordinates(currentStudent?.student_home_location?.coords)}
@@ -612,7 +679,7 @@ if( driverData[0].first_trip_status === "started" && driverData[0].second_trip_s
           />
         )}
 
-
+        {/* School marker */}
         {currentStudent?.school_coords && displayFinalStation && (
           <Marker
             coordinate={getCoordinates(currentStudent?.school_coords)}
@@ -641,7 +708,7 @@ if(driverData[0].second_trip_status === "started" && driverData[0].first_trip_st
                   style={styles.pick_button_accepted} 
                   onPress={() => markStudent(true)} 
                   disabled={isMarkingStudent}>
-                  <Text style={styles.pick_button_text}>نزل</Text>
+                  <Text style={styles.pick_button_text}>{isMarkingStudent ? '...' : 'نزل'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -660,15 +727,16 @@ if(driverData[0].second_trip_status === "started" && driverData[0].first_trip_st
       </>
       {!displayFinalStation && (
        <MapView
+        ref={mapRef}
+        onMapReady={handleMapReady}
         provider="google"
-        region={{
+        initialRegion={{
           latitude: driverData[0]?.current_location?.latitude,
           longitude: driverData[0]?.current_location?.longitude,
           latitudeDelta: 0.005,
           longitudeDelta: 0.005,
         }}
         showsUserLocation={true}
-        followsUserLocation={true}
         style={styles.map}
         userInterfaceStyle="light"
         >
@@ -677,9 +745,9 @@ if(driverData[0].second_trip_status === "started" && driverData[0].first_trip_st
         <MapViewDirections
           origin={driverData[0]?.current_location}
           destination={displayFinalStation ? currentStudent?.driver_home_coords : currentStudent?.student_home_location?.coords}
-          optimizeWaypoints={true} // Optimize route for efficiency
+          optimizeWaypoints={true}
           apikey={GOOGLE_MAPS_APIKEY}
-          strokeWidth={4}
+          strokeWidth={3}
           strokeColor="blue"
           onError={(error) => console.log(error)}
         />
