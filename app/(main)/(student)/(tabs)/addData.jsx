@@ -47,10 +47,11 @@ const addData = () => {
     {name:'انثى'}
   ]
 
+  //Cars type array
   const cars = [
-    {name: 'سيارة خاصة صالون ', type: 'private car 4 places', seats: 4 },
-    {name:'سيارة خاصة ٧ راكب ',type:'private car 7 places', seats:7},
-    {name:'ستاركس ',type:'starex',seats:11},
+    {name: 'سيارة صالون ٥ راكب', type: 'private car 4 places', seats: 5 },
+    {name:'سيارة خاصة ٧ راكب',type:'private car 7 places', seats:7},
+    {name:'ستاركس',type:'starex',seats:11},
     {name:'باص صغير ١٢ راكب',type:'minu-bus',seats:12},
     {name:'باص متوسط ١٤ راكب',type:'medium-bus',seats:14},
     {name:'باص كبير ٣٠ راكب',type:'large-bus',seats:30}
@@ -65,17 +66,35 @@ const addData = () => {
   const handleCarChange = (vehicle) => {
     setCarType(vehicle)
   }
-
-// Get the current location
   const getLocation = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      createAlert('عذراً، لا يمكننا الوصول إلى موقعك بدون إذن');
-      return;
-    }
-    let location = await Location.getCurrentPositionAsync({});
-    setLocation(location)
-  }
+    // Step 1: Provide a prominent disclosure
+    Alert.alert(
+      "مطلوب إذن الموقع",
+      "يستخدم تطبيق Sayartech بيانات موقعك للمساعدة في حفظ عنوان منزلك. يضمن ذلك توفير خدمات التوصيل والاستلام بدقة. لن يتم جمع بيانات موقعك في الخلفية ولن يتم مشاركتها مع أطراف خارجية.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "OK",
+          onPress: async () => {
+            // Step 2: Request permission after the user accepts the disclosure
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+              createAlert('عذراً، لا يمكننا الوصول إلى موقعك بدون إذن');
+              return;
+            }
+
+            // Step 3: Get and save the location
+            let location = await Location.getCurrentPositionAsync({});
+            setLocation(location);
+
+          },
+        },
+      ]
+    );
+  };
 
 // Handle school name change
   const handleSchoolChange = (schoolName) => {
@@ -188,6 +207,7 @@ const addData = () => {
         student_family_name:userData.user_family_name,
         student_user_id:userData.user_id,
         student_phone_number:userData.phone_number,
+        student_user_notification_token:userData.user_notification_token,
         student_birth_date:studentBirthDate,
         student_sex:studentSex,
         student_state:studentState,

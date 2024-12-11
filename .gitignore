@@ -11,6 +11,7 @@ npm-debug.*
 web-build/
 .idea/
 .vscode/
+app_origin.json
 google-services.json
 eas.json
 app.json

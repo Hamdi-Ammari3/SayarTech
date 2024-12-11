@@ -2,6 +2,7 @@ import React,{useState,useEffect,useRef} from 'react'
 import { Alert,StyleSheet, Text, View, TextInput,ActivityIndicator,TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, {Circle} from 'react-native-svg'
+import haversine from 'haversine'
 import MapView, { Marker ,AnimatedRegion } from 'react-native-maps'
 import MapViewDirections from 'react-native-maps-directions'
 import { doc,updateDoc,onSnapshot } from 'firebase/firestore'
@@ -12,23 +13,25 @@ import colors from '../constants/Colors'
 const StudentHomePage = ({student}) => {
 
   const {fetchingStudentsLoading,fetchingdriverLoading,driverFirebaseId} = useStudentData()
-
   const GOOGLE_MAPS_APIKEY = ''
-  
+  const mapRef = useRef(null)
   const markerRef = useRef(null)
+
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [cancelText, setCancelText] = useState('');
+  const [driverOriginLocation,setDriverOriginLocation] = useState(null)
+  const [destination, setDestination] = useState(null);
+  const [driverCurrentLocation, setDriverCurrentLocation] = useState(null);
+  const [driverCurrentLocationLoading, setDriverCurrentLocationLoading] = useState(true);
+  const [mapReady, setMapReady] = useState(false)
+
   const animatedDriverLocation = useRef(new AnimatedRegion({
     latitude: 0,
     longitude: 0,
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   })).current;
-
-  const [isCanceling, setIsCanceling] = useState(false);
-  const [cancelText, setCancelText] = useState('');
-  const [driverCurrentLocation, setDriverCurrentLocation] = useState(null);
-  const [driverCurrentLocationLoading, setDriverCurrentLocationLoading] = useState(true);
-  const [destination, setDestination] = useState(null);
-
+  
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
   }
@@ -55,6 +58,10 @@ const StudentHomePage = ({student}) => {
     )
   }
 
+  const handleMapReady = () => {
+    setMapReady(true);
+  };
+
   // Fetch driver location
   useEffect(() => {
     if (student.driver_id && driverFirebaseId) {
@@ -69,6 +76,9 @@ const StudentHomePage = ({student}) => {
               const newLocation = data.current_location;
 
               setDriverCurrentLocation(newLocation)
+
+              // Check if the driver has moved 1000 meters or more
+              checkAndUpdateOriginLocation(newLocation)
               
               // Animate driver marker to the new location
               animatedDriverLocation.timing({
@@ -96,21 +106,76 @@ const StudentHomePage = ({student}) => {
     setDriverCurrentLocationLoading(false)
   }, [student.driver_id, driverFirebaseId, driverCurrentLocation]);
 
+  // Function to check and update the origin location
+  let lastOriginUpdateTime = Date.now();
+
+  const checkAndUpdateOriginLocation = (currentLocation) => {
+    
+    if (!currentLocation?.latitude || !currentLocation?.longitude) {
+      return;
+    }
+    
+    if (!driverOriginLocation) {
+      // Set the initial origin if it's not set yet
+      setDriverOriginLocation(currentLocation)
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastOriginUpdateTime < 50000) return; // Prevent updates within 50 seconds
+
+    // Calculate the distance between the current location and the origin
+    const distance = haversine(driverOriginLocation, currentLocation, { unit: "meter" });
+  
+    if (isNaN(distance)) {
+      return;
+    }
+  
+    if (distance > 8000) {
+      setDriverOriginLocation(currentLocation)
+      lastOriginUpdateTime = now;
+    }
+  };
+
+  // Set destination based on student trip status
   useEffect(() => {
-    // Set destination based on student trip status
     if (student.student_trip_status === 'going to school') {
       setDestination(student.student_school_location);
+      setDriverOriginLocation(driverCurrentLocation)
     } else if (student.student_trip_status === 'going to home') {
       setDestination(student.student_home_location.coords);
+      setDriverOriginLocation(driverCurrentLocation)
     }
-  }, [student.student_trip_status, student.student_school_location, student.student_home_location]);
+  }, [student.student_trip_status]);
+
+  // fit coordinate function
+  const fitCoordinatesForCurrentTrip = () => {
+    if (!mapReady || !mapRef.current || !driverOriginLocation) return;
+    
+    if (driverOriginLocation && destination) {
+      mapRef.current.fitToCoordinates(
+        [driverOriginLocation, destination],
+        {
+          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+          animated: true,
+        }
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (mapReady && driverOriginLocation && destination) {
+      fitCoordinatesForCurrentTrip();
+    }
+  }, [mapReady,destination]);
+  
 
   // Function to show only one-time route calculation
   const renderDirections = () => {
-    if (driverCurrentLocation && destination) {
+    if (driverOriginLocation && destination) {
       return (
         <MapViewDirections
-          origin={driverCurrentLocation}
+          origin={driverOriginLocation}
           destination={destination}
           optimizeWaypoints={true}
           apikey={GOOGLE_MAPS_APIKEY}
@@ -126,13 +191,16 @@ const StudentHomePage = ({student}) => {
   // Return map and marker based on the trip status
   const renderMap = () => (
     <MapView
+      ref={mapRef}
+      onMapReady={handleMapReady}
       provider="google"
-      region={{
+      initialRegion={{
         latitude: driverCurrentLocation?.latitude || 0,
         longitude: driverCurrentLocation?.longitude || 0,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
       }}
+      loadingEnabled={true}
       style={styles.map}
     >
       {renderDirections()}

@@ -72,7 +72,7 @@ export default function Page() {
     // Sign out from any existing session before signing in
     await handleSignOut()
     setIsSigningIn(true); // Start loading
-      
+    
     try {
       const {supportedFirstFactors} = await signIn.create({
         identifier: `+216${phone}`

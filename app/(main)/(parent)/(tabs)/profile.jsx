@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert,StyleSheet, Text, View,FlatList,ActivityIndicator,TouchableOpacity } from 'react-native'
+import { Alert,StyleSheet, Text, View,FlatList,ActivityIndicator,TouchableOpacity,Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Link,useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'
@@ -86,6 +86,14 @@ const profile = () => {
     }
   };
 
+  const openPrivacyPolicy = () => {
+    Linking.openURL('https://sayartech.com/privacy-policy');
+  };
+  
+  const openTermsOfUse = () => {
+    Linking.openURL('https://sayartech.com/terms-of-use');
+  };
+
 
 //Loading 
   if (fetchingStudentsLoading || fetchingUserDataLoading || fetchingdriverLoading || deleteAccountLoading || signOutLoading) {
@@ -101,10 +109,12 @@ const profile = () => {
    return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+
         <View style={styles.user_info}>
           <Text style={styles.user_info_text}>{userData.user_full_name}</Text>
           <Text style={styles.user_info_text}>{userData.phone_number}</Text>
         </View>
+
         <View style={styles.button_container}>
           <TouchableOpacity style={styles.logout_button} onPress={handleSignOut}>
             <Text style={styles.logout_text}>خروج</Text>
@@ -113,6 +123,15 @@ const profile = () => {
           <TouchableOpacity style={styles.delete_button} onPress={confirmDeleteAccount}>
             <Text style={styles.delete_text}>مسح الحساب</Text>
             <MaterialIcons name="delete-outline" size={24} color="#898989" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.privacy_button_container}>
+          <TouchableOpacity style={styles.privacy_button} onPress={openPrivacyPolicy}>
+            <Text style={styles.privacy_button_text}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.privacy_button} onPress={openTermsOfUse}>
+            <Text style={styles.privacy_button_text}>Terms of Use</Text>
           </TouchableOpacity>
         </View>
         
@@ -206,8 +225,28 @@ const styles = StyleSheet.create({
     fontSize:14,
     marginRight:10
   },
+  privacy_button_container:{
+    width:340,
+    height:85,
+    alignItems:'center',
+    justifyContent:'space-between',
+  },
+  privacy_button:{
+    width:250,
+    height:35,
+    backgroundColor:'#F6F8FA',
+    borderRadius:7,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  privacy_button_text:{
+    fontFamily: 'Cairo_400Regular',
+    fontSize:14,
+    marginBottom:5
+  },
   flatList_style:{
-    marginTop:30,
+    marginTop:10,
     paddingBottom:40,
   },
   no_registered_students: {

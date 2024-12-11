@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert,StyleSheet, Text, View,ActivityIndicator,TouchableOpacity } from 'react-native'
+import { Alert,StyleSheet, Text, View,ActivityIndicator,TouchableOpacity,Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'
@@ -85,6 +85,14 @@ const profile = () => {
      }
    };
 
+   const openPrivacyPolicy = () => {
+    Linking.openURL('https://sayartech.com/privacy-policy');
+  };
+  
+  const openTermsOfUse = () => {
+    Linking.openURL('https://sayartech.com/terms-of-use');
+  };
+
 //Loading user data
   if (fetchingStudentsLoading || fetchingUserDataLoading || fetchingAssignedToDriversLoading || deleteAccountLoading || signOutLoading) {
     return (
@@ -99,6 +107,7 @@ const profile = () => {
    return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+
         <View style={styles.user_info}>
           <Text style={styles.user_info_text}>{userData.user_full_name}</Text>
           <Text style={styles.user_info_text}>{userData.phone_number}</Text>
@@ -112,6 +121,15 @@ const profile = () => {
           <TouchableOpacity style={styles.delete_button} onPress={confirmDeleteAccount}>
             <Text style={styles.delete_text}>مسح الحساب</Text>
             <MaterialIcons name="delete-outline" size={24} color="#898989" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.privacy_button_container}>
+          <TouchableOpacity style={styles.privacy_button} onPress={openPrivacyPolicy}>
+            <Text style={styles.privacy_button_text}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.privacy_button} onPress={openTermsOfUse}>
+            <Text style={styles.privacy_button_text}>Terms of Use</Text>
           </TouchableOpacity>
         </View>
 
@@ -186,6 +204,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo_400Regular',
     fontSize:14,
     marginRight:10
+  },
+  privacy_button_container:{
+    width:340,
+    height:85,
+    alignItems:'center',
+    justifyContent:'space-between',
+  },
+  privacy_button:{
+    width:250,
+    height:35,
+    backgroundColor:'#F6F8FA',
+    borderRadius:7,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  privacy_button_text:{
+    fontFamily: 'Cairo_400Regular',
+    fontSize:14,
+    marginBottom:5
   },
   logout_text:{
     fontFamily:'Cairo_700Bold',
