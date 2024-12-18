@@ -3,7 +3,7 @@ import React from 'react'
 
 const AssignedStudents = ({item}) => {
 
-  const birthdate = new Date(item.student_birth_date.seconds * 1000)
+  const birthdate = new Date(item.birth_date.seconds * 1000)
   
   const calculateAge = (birthdate) => {
     const today = new Date();
@@ -30,12 +30,12 @@ const AssignedStudents = ({item}) => {
     <View style={styles.container}>
 
       <View style={styles.student_info_box}>
-        <Text style={styles.student_info_text}>{item.student_full_name}</Text>
-        <Text style={styles.student_info_text}>{item.student_family_name}</Text>
+        <Text style={styles.student_info_text}>{item.name}</Text>
+        <Text style={styles.student_info_text}>{item.family_name}</Text>
       </View>
 
       <Text style={styles.student_info_text}>{userAge} سنة</Text>
-      <Text style={styles.student_info_text}>{item.student_school}</Text> 
+      <Text style={styles.student_info_text}>{item.school_name}</Text> 
 
       <View style={styles.student_info_box}>
         <Text style={styles.student_info_text}>{item.student_street}</Text>
@@ -45,7 +45,7 @@ const AssignedStudents = ({item}) => {
         <Text style={styles.student_info_text}>{item.student_state}</Text> 
       </View>
         
-        <Text style={styles.student_info_text}>{item.student_home_address}</Text>
+        <Text style={styles.student_info_text}>{item.home_address}</Text>
       
 
     </View>

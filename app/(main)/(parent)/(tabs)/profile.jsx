@@ -18,7 +18,7 @@ const profile = () => {
   const {user} = useUser()
   const router = useRouter()
 
-  const {userData,fetchingUserDataLoading,students,fetchingStudentsLoading,driver,fetchingdriverLoading} = useStudentData()
+  const {userData,fetchingUserDataLoading,students,fetchingStudentsLoading} = useStudentData()
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
@@ -96,7 +96,7 @@ const profile = () => {
 
 
 //Loading 
-  if (fetchingStudentsLoading || fetchingUserDataLoading || fetchingdriverLoading || deleteAccountLoading || signOutLoading) {
+  if (fetchingStudentsLoading || fetchingUserDataLoading || deleteAccountLoading || signOutLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -136,24 +136,21 @@ const profile = () => {
         </View>
         
       </View>
-        <FlatList
-        data={students}
-        renderItem={({item}) => <StudentCard 
-          item={item}
-          drivers={driver} 
-          fetchingDriversLoading={fetchingdriverLoading}
-        />}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.flatList_style}
-        ListEmptyComponent={() => (
-          <View style={styles.no_registered_students}>
-            <Text style={styles.no_student_text}>ليس لديك طلاب مسجلين بالتطبيق</Text>
-            <Link href="/addData" style={styles.link_container}>
-              <Text style={styles.link_text}>اضف الآن</Text>
-            </Link>
-          </View>
-        )}
-        />
+
+      <FlatList
+      data={students}
+      renderItem={({item}) => <StudentCard item={item}/>}
+      keyExtractor={item => item.id}
+      contentContainerStyle={styles.flatList_style}
+      ListEmptyComponent={() => (
+        <View style={styles.no_registered_students}>
+          <Text style={styles.no_student_text}>ليس لديك طلاب مسجلين بالتطبيق</Text>
+          <Link href="/addData" style={styles.link_container}>
+            <Text style={styles.link_text}>اضف الآن</Text>
+          </Link>
+        </View>
+      )}
+      />
     </SafeAreaView>
   )
 }

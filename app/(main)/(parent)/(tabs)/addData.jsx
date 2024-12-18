@@ -1,13 +1,12 @@
-import { Alert, StyleSheet, Text, View,TouchableOpacity,ActivityIndicator,ScrollView } from 'react-native'
+import { Alert, StyleSheet, Text, View,TouchableOpacity,ActivityIndicator, FlatList, Switch } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import React,{useEffect, useState, useRef} from 'react'
+import React,{useEffect, useState} from 'react'
 import { useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'
 import CustomeInput from '../../../../components/CustomeInput'
 import {DB} from '../../../../firebaseConfig'
 import { addDoc , collection,onSnapshot } from 'firebase/firestore'
 import * as Location from 'expo-location'
-import haversine from 'haversine'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
@@ -18,35 +17,58 @@ import { useStudentData } from '../../../stateManagment/StudentState'
 const addData = () => {
   const { user } = useUser()
   const router = useRouter()
-  const scrollViewRef = useRef()
+  const {userData,fetchingUserDataLoading,schools,fetchingSchoolsLoading,states,fetchingState} = useStudentData()
+
+  const totalSteps = 3;
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [studentFullName,setStudentFullName] = useState('')
+  const [studentBirthDate,setStudentBirthDate] = useState(new Date())
   const [studentSex,setStudentSex] = useState('')
   const [studentSchool,setStudentSchool] = useState('')
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [currentPicker, setCurrentPicker] = useState({ day: null, field: null });
   const [location, setLocation] = useState(null)
   const [homeAdress,setHomeAdress] = useState('')
   const [studentState,setStudentState] = useState('')
   const [cities,setCities] = useState([])
   const [studentCity,setStudentCity] = useState('')
   const [studentStreet,setStudentStreet] = useState('')
-  const [schoolLocation, setSchoolLocation] = useState(null)
-  const [distance, setDistance] = useState(null)
   const [carType,setCarType] = useState('')
-  const [addingNewStudentLoading,setAddingNewStudentLoading] = useState(false)
-  const [studentBirthDate,setStudentBirthDate] = useState(new Date())
-  const [dateSelected, setDateSelected] = useState(false)
+  const [schoolLocation, setSchoolLocation] = useState(null)
   const [showPicker,setShowPicker] = useState(false)
-
-  const {userData,fetchingUserDataLoading,schools,fetchingSchoolsLoading,states,fetchingState} = useStudentData()
+  const [dateSelected, setDateSelected] = useState(false)
+  const [addingNewStudentLoading,setAddingNewStudentLoading] = useState(false)
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
   }
 
+  //Get the student birth date
+  const showDatePicker = () => {
+    setShowPicker(true);
+  };
+  
+  // Handle the BirthDate Change
+  const handleDateChange = (event, selectedDate) => {
+    setShowPicker(false);
+    if (event.type === "set") {
+      const currentDate = selectedDate || studentBirthDate;
+      setStudentBirthDate(currentDate);
+      setDateSelected(true);
+    }
+  }
+
+  // Student Sex
   const sex = [
     { name: 'ذكر'},
     {name:'انثى'}
   ]
+
+  // Handle student sex change
+  const handleStudentSex = (sexType) => {
+    setStudentSex(sexType)
+  }
 
   //Cars type array
   const cars = [
@@ -58,17 +80,90 @@ const addData = () => {
     {name:'باص كبير ٣٠ راكب',type:'large-bus',seats:30}
   ]
 
-// Handle student sex change
-const handleStudentSex = (sexType) => {
-  setStudentSex(sexType)
-}
-
-// Handle the car type change
+  // Handle the car type change
   const handleCarChange = (vehicle) => {
     setCarType(vehicle)
   }
 
+  // Handle school name change
+  const handleSchoolChange = (schoolName) => {
+    setStudentSchool(schoolName)
+  }
 
+  // Set school location based on school name
+  useEffect(() => {
+    if (studentSchool) {
+      const selectedSchool = schools.find((school) => school.name === studentSchool)
+      if (selectedSchool) {
+        setSchoolLocation({
+          latitude: selectedSchool.latitude,
+          longitude: selectedSchool.longitude,
+        })
+      } else {
+        setSchoolLocation(null)
+      }
+    }
+  }, [studentSchool])
+
+  // School time table
+  const [schoolTimetable, setSchoolTimetable] = useState([
+    { day: "الاثنين", active: false, startTime: null, endTime: null },
+    { day: "الثلاثاء", active: false, startTime: null, endTime: null },
+    { day: "الاربعاء", active: false, startTime: null, endTime: null },
+    { day: "الخميس", active: false, startTime: null, endTime: null },
+    { day: "الجمعة", active: false, startTime: null, endTime: null },
+    { day: "السبت", active: false, startTime: null, endTime: null },
+    { day: "الاحد", active: false, startTime: null, endTime: null },
+  ]);
+  
+  // Open the time-table picker
+  const handleTimeSelect = (day, field) => {
+    setCurrentPicker({ day, field });
+    setPickerVisible(true);
+  };
+  
+  // Change student time-table
+  const handlePickerChange = (event, selectedTime) => {
+    setPickerVisible(false);
+    if (event.type === "set" && selectedTime) {
+      setSchoolTimetable((prev) =>
+        prev.map((item) =>
+          item.day === currentPicker.day
+            ? { ...item, [currentPicker.field]: selectedTime }
+            : item
+        )
+      );
+    }
+  };
+
+  //Handle the state change
+  const handleStateChange = (state) => {
+    setStudentState(state);
+  };
+
+  // Fetch Cities based on selected Province (State)
+  const fetchCities = (selectedState) => {
+    const schoolInfoCollectionRef = collection(DB, 'states')
+      const unsubscribe = onSnapshot(
+        schoolInfoCollectionRef,
+        async(querySnapshot) => {
+          const stateData = querySnapshot.docs
+            .map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }))
+            setCities(stateData.find((state) => state.name === selectedState).cities)
+        }
+      )
+    return () => unsubscribe();
+  };
+
+  // Handle the city change
+  const handleCityChange = (city) => {
+    setStudentCity(city);
+  }
+
+  // Get student home location
   const getLocation = async () => {
     // Step 1: Provide a prominent disclosure
     Alert.alert(
@@ -88,126 +183,53 @@ const handleStudentSex = (sexType) => {
               createAlert('عذراً، لا يمكننا الوصول إلى موقعك بدون إذن');
               return;
             }
-
+  
             // Step 3: Get and save the location
             let location = await Location.getCurrentPositionAsync({});
             setLocation(location);
-
+  
           },
         },
       ]
     );
   };
 
-/*
-// Get the current location
-  const getLocation = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      createAlert('عذراً، لا يمكننا الوصول إلى موقعك بدون إذن');
-      return;
-    }
-    let location = await Location.getCurrentPositionAsync({});
-    setLocation(location)
-  }
-*/
-// Handle school name change
-  const handleSchoolChange = (schoolName) => {
-    setStudentSchool(schoolName)
-    setDistance(null)
-  }
-
-  // Set school location based on school name
-  useEffect(() => {
-    if (studentSchool) {
-      const selectedSchool = schools.find((school) => school.name === studentSchool)
-      if (selectedSchool) {
-        setSchoolLocation({
-          latitude: selectedSchool.latitude,
-          longitude: selectedSchool.longitude,
-        })
-      } else {
-        setSchoolLocation(null)
-      }
-    }
-  }, [studentSchool])
-
-//Calculate home - school distance
-  const calculateDistance = () => {
-    if (location && schoolLocation) {
-      const start = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      }
-      const end = schoolLocation
-
-      const dist = haversine(start, end, { unit: 'km' })
-      setDistance(dist.toFixed(2))
-    }
-  }
-
-// trigger distance calculation whenever the home / school location changes
-  useEffect(() => {
-    if (location && schoolLocation) {
-      calculateDistance()
-    }
-  }, [schoolLocation, location])
-
-//Get the driver birth date
-  const showDatePicker = () => {
-    setShowPicker(true);
+  // Go to next page
+  const handleNext = () => {
+    if (currentPage < totalSteps) setCurrentPage(currentPage + 1);
   };
 
-// Handle the Date Change
-  const handleDateChange = (event, selectedDate) => {
-    setShowPicker(false);
-    if (event.type === "set") {
-      const currentDate = selectedDate || studentBirthDate;
-      setStudentBirthDate(currentDate);
-      setDateSelected(true);
-    }
-  }
-
-//Handle the state change
-  const handleStateChange = (state) => {
-    setStudentState(state);
+  // Return to previous page
+  const handlePrevious = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
-// Fetch Cities based on selected Province (State)
-  const fetchCities = (selectedState) => {
-    const schoolInfoCollectionRef = collection(DB, 'states')
-      const unsubscribe = onSnapshot(
-        schoolInfoCollectionRef,
-        async(querySnapshot) => {
-          const stateData = querySnapshot.docs
-            .map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }))
-            setCities(stateData.find((state) => state.name === selectedState).cities)
-        }
-      )
-    return () => unsubscribe();
-  };
-
-// Handle the city change
-  const handleCityChange = (city) => {
-    setStudentCity(city);
-  }
-
-// Scroll down to the bottom of the screen
-  const scrollToNextInput = (fieldIndex) => {
-    const offsetY = fieldIndex * 170; // Adjust this based on the height of your input fields
-    scrollViewRef.current.scrollTo({ y: offsetY, animated: true });
-  };
-
-//Adding new student
+  //Adding new student
   const addNewStudentHandler = async () => {
+    
     if (!user) {
       createAlert('المستخدم غير معرف')
       return
     }
 
+    // Validate all required fields
+    if (
+      !studentFullName ||
+      !studentBirthDate ||
+      !studentSex ||
+      !carType ||
+      !studentSchool ||
+      !schoolLocation ||
+      schoolTimetable.some((entry) => entry.active && (!entry.startTime || !entry.endTime)) ||
+      !studentState ||
+      !studentCity ||
+      !studentStreet ||
+      !homeAdress
+    ) {
+        createAlert('يرجى ملء جميع الحقول المطلوبة');
+        return;
+      }
+    
     if (!location) {
       createAlert('يرجى تحديد موقعك اولا')
       return
@@ -233,14 +255,10 @@ const handleStudentSex = (sexType) => {
         student_home_location:location,
         student_school:studentSchool,
         student_school_location:schoolLocation,
-        distance_to_school: distance,
+        school_timetable: schoolTimetable,
         student_car_type:carType,
         driver_id:null,
         picked_up:false,
-        dropped_off:false,
-        called_by_driver:false,
-        picked_from_school:false,
-        checked_in_front_of_school:false,
         tomorrow_trip_canceled:false,
         student_trip_status:'at home',
       }
@@ -256,12 +274,21 @@ const handleStudentSex = (sexType) => {
       setLocation(null)
       setStudentSchool('')
       setSchoolLocation(null)
-      setDistance(null)
       setCarType('')
       setStudentState('')
       setStudentCity('')
       setStudentStreet('')
       setHomeAdress('')
+      setSchoolTimetable([
+        { day: "الاثنين", active: false, startTime: null, endTime: null },
+        { day: "الثلاثاء", active: false, startTime: null, endTime: null },
+        { day: "الاربعاء", active: false, startTime: null, endTime: null },
+        { day: "الخميس", active: false, startTime: null, endTime: null },
+        { day: "الجمعة", active: false, startTime: null, endTime: null },
+        { day: "السبت", active: false, startTime: null, endTime: null },
+        { day: "الاحد", active: false, startTime: null, endTime: null },
+      ]);
+      setCurrentPage(1)
 
     } catch (error) {
       createAlert('. يرجى المحاولة مرة أخرى')
@@ -271,21 +298,221 @@ const handleStudentSex = (sexType) => {
     }
   }
 
-  // Clear the form fields
-  const clearFormHandler = () => {
-    setStudentFullName('')
-    setDateSelected(false)
-    setStudentSex('')
-    setLocation(null)
-    setStudentSchool('')
-    setSchoolLocation(null)
-    setDistance(null)
-    setCarType('')
-    setStudentState('')
-    setStudentCity('')
-    setStudentStreet('')
-    setHomeAdress('')
-  }
+  // Utility function to format time as HH:mm
+  const formatTime = (date) => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  // School time-table component
+  const SchoolTimetableComponent = ({ timetable, onUpdate, onTimeSelect }) => {
+    const updateDay = (day, field, value) => {
+      const newTimetable = timetable.map((item) =>
+        item.day === day ? { ...item, [field]: value } : item
+      );
+      onUpdate(newTimetable);
+    };
+  
+    return (
+      <FlatList
+        data={timetable}
+        keyExtractor={(item) => item.day}
+        contentContainerStyle={styles.flatList_style}
+        renderItem={({ item }) => (
+          <View style={styles.dayRow}>
+            {/* Enable/Disable Day */}
+            <Switch
+              value={item.active}
+              onValueChange={(value) => updateDay(item.day, "active", value)}
+            />
+            <Text style={styles.dayText}>{item.day}</Text>
+            {/* Start Time Picker */}
+            <TouchableOpacity
+              style={[styles.timeInput, !item.active && styles.disabledInput]}
+              onPress={() => {
+                if (item.active) {
+                  onTimeSelect(item.day, "startTime");
+                }
+              }}
+              disabled={!item.active}
+            >
+              <Text style={styles.timeText}>{item.active && item.startTime ? formatTime(item.startTime) : "الدخول"}</Text>
+            </TouchableOpacity>
+            <Text style={styles.timeSeparator}>-</Text>
+            {/* End Time Picker */}
+            <TouchableOpacity
+              style={[styles.timeInput, !item.active && styles.disabledInput]}
+              onPress={() => {
+                if (item.active) {
+                  onTimeSelect(item.day, "endTime");
+                }
+              }}
+              disabled={!item.active}
+            >
+              <Text style={styles.timeText}>{item.active && item.endTime ? formatTime(item.endTime) : "الخروج"}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+    );
+  };
+  
+  // Page indicator component
+  const renderPageIndicator = () => {
+    return (
+      <View style={styles.pageIndicatorContainer}>
+        {Array.from({ length: totalSteps }, (_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.pageIndicator,
+              currentPage === index + 1 ? styles.activeIndicator : styles.inactiveIndicator,
+            ]}
+          />
+        ))}
+      </View>
+    );
+  };
+
+  // Render full pages
+  const renderPage = () => {
+    switch (currentPage) {
+      case 1:
+        return (
+          <View>
+            <CustomeInput
+              placeholder="الاسم الكامل"
+              value={studentFullName}
+              onChangeText={(text) => setStudentFullName(text)}
+            />
+            <TouchableOpacity style={styles.fullButton} onPress={showDatePicker}>
+              <Text style={styles.fullBtnText}>
+                {dateSelected ? studentBirthDate.toLocaleDateString() : 'تاريخ الميلاد'}
+              </Text>
+            </TouchableOpacity>
+            {showPicker && (
+              <DateTimePicker
+                value={studentBirthDate}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+                maximumDate={new Date()}
+              />
+            )}
+            <Dropdown
+              style={styles.dropdown}
+              placeholderStyle={styles.dropdownStyle}
+              selectedTextStyle={styles.dropdownStyle}
+              data={sex}
+              labelField="name"
+              valueField="name"
+              placeholder="الجنس"
+              value={studentSex}
+              onChange={item => handleStudentSex(item.name)}
+            />
+            <Dropdown
+              style={styles.dropdown}
+              placeholderStyle={styles.dropdownStyle}
+              selectedTextStyle={styles.dropdownStyle}
+              data={cars}
+              labelField="name"
+              valueField="name"
+              placeholder="نوع السيارة"
+              value={carType}
+              onChange={item => handleCarChange(item.name)}
+            />
+          </View>
+        );
+      case 2:
+        return (
+          <View>
+            <Dropdown
+              style={styles.dropdown}
+              placeholderStyle={styles.dropdownStyle}
+              selectedTextStyle={styles.dropdownStyle}
+              data={schools}
+              labelField="name"
+              valueField="name"
+              placeholder= 'المدرسة'
+              value={studentSchool}
+              onChange={item => handleSchoolChange(item.name)}
+            />
+            <SchoolTimetableComponent
+              timetable={schoolTimetable}
+              onUpdate={setSchoolTimetable}
+              onTimeSelect={handleTimeSelect}
+            />
+            {pickerVisible && (
+              <DateTimePicker
+                value={new Date()}
+                mode="time"
+                display="default"
+                onChange={handlePickerChange}
+                is24Hour={true}
+              />
+            )}
+          </View>
+        );
+      case 3:
+        return (
+          <View>
+            <View style={styles.HalfDropDownContainer}>
+              <Dropdown
+                style={styles.dropdownHalf}
+                placeholderStyle={styles.dropdownStyle}
+                selectedTextStyle={styles.dropdownStyle}
+                data={states}
+                labelField="name"
+                valueField="name"
+                placeholder= 'المحافظة'
+                value={studentState}
+                onChange={item => {
+                  handleStateChange(item.name)
+                  fetchCities(item.name)
+                }}
+              />
+              <Dropdown
+                style={styles.dropdownHalf}
+                placeholderStyle={styles.dropdownStyle}
+                selectedTextStyle={styles.dropdownStyle}
+                data={cities}
+                labelField="name"
+                valueField="name"
+                placeholder= 'القضاء'
+                value={studentCity}
+                onChange={item => {
+                  handleCityChange(item.name)
+                }}
+              />
+            </View>
+            <CustomeInput
+              placeholder="الحي"
+              value={studentStreet}
+              onChangeText={(text) => setStudentStreet(text)}
+            />
+            <CustomeInput
+              placeholder="اقرب نقطة دالة"
+              value={homeAdress}
+              onChangeText={(text) => setHomeAdress(text)}
+            />
+            <Text style={styles.address_warning_text}>مثلا قرب جامع الرحمة</Text>
+            <TouchableOpacity style={styles.fullButton} onPress={getLocation} disabled={location !== null}>
+              <>
+                {location !== null ? (
+                  <FontAwesome6 name="circle-check" size={24} style={styles.icon} />
+                ) : (
+                  <Ionicons name="location-outline" size={24} style={styles.icon} />
+                )}
+              </>
+              <Text style={styles.fullBtnText}>{location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
 
   if (addingNewStudentLoading || fetchingSchoolsLoading || fetchingUserDataLoading || fetchingState) {
     return (
@@ -299,136 +526,33 @@ const handleStudentSex = (sexType) => {
 
   return(
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>اضافة طالب</Text>
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.form}
-          ref={scrollViewRef}
-        >
-          <CustomeInput 
-            placeholder={'الاسم الكامل'}
-            value={studentFullName}
-            onChangeText={(text) => setStudentFullName(text)}
-          />
-          <TouchableOpacity style={styles.fullButton} onPress={showDatePicker}>
-            <Text style={styles.fullBtnText}>{dateSelected ? studentBirthDate.toLocaleDateString() : 'تاريخ الميلاد'}</Text>
+
+      <View>
+        <Text style={styles.title}>اضافة طالب</Text>
+        {renderPageIndicator()}
+      </View>
+      
+
+      <View style={styles.form}>
+        {renderPage()}
+      </View>
+
+      <View style={styles.BtnHalfContainer}>
+        {currentPage > 1 && (
+          <TouchableOpacity style={styles.halfButton} onPress={handlePrevious}>
+            <Text style={styles.btnText}>السابق</Text>
           </TouchableOpacity>
-          {showPicker && (
-            <DateTimePicker
-              value={studentBirthDate}
-              mode="date"
-              display="default"
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-            />
-          )}
-          <Dropdown
-            style={styles.dropdown}
-            placeholderStyle={styles.dropdownStyle}
-            selectedTextStyle={styles.dropdownStyle}
-            data={sex}
-            labelField="name"
-            valueField="name"
-            placeholder= 'الجنس'
-            value={studentSex}
-            onChange={item => {
-              handleStudentSex(item.name)
-            }}
-          />
-          <Dropdown
-            style={styles.dropdown}
-            placeholderStyle={styles.dropdownStyle}
-            selectedTextStyle={styles.dropdownStyle}
-            data={cars}
-            labelField="name"
-            valueField="name"
-            placeholder= 'نوع السيارة'
-            value={carType}
-            onChange={item => {
-              handleCarChange(item.name)
-            }}
-          />
-          <Dropdown
-            style={styles.dropdown}
-            placeholderStyle={styles.dropdownStyle}
-            selectedTextStyle={styles.dropdownStyle}
-            data={schools}
-            labelField="name"
-            valueField="name"
-            placeholder= 'المدرسة'
-            value={studentSchool}
-            onChange={item => {
-              handleSchoolChange(item.name)
-            }}
-          />
-          <View style={styles.HalfContainer}>
-            <Dropdown
-            style={styles.dropdownHalf}
-            placeholderStyle={styles.dropdownStyle}
-            selectedTextStyle={styles.dropdownStyle}
-            data={states}
-            labelField="name"
-            valueField="name"
-            placeholder= 'المحافظة'
-            value={studentState}
-            onChange={item => {
-              handleStateChange(item.name)
-              fetchCities(item.name);
-             }}
-            />
-            <Dropdown
-            style={styles.dropdownHalf}
-            placeholderStyle={styles.dropdownStyle}
-            selectedTextStyle={styles.dropdownStyle}
-            data={cities}
-            labelField="name"
-            valueField="name"
-            placeholder= 'القضاء'
-            value={studentCity}
-            onChange={item => {
-            handleCityChange(item.name)
-             }}
-            />
-          </View>
-          <CustomeInput 
-            placeholder={'الحي'}
-            value={studentStreet}
-            onChangeText={(text) => setStudentStreet(text)}
-          />
-          <CustomeInput 
-            placeholder={'اقرب نقطة دالة'}
-            value={homeAdress}
-            onChangeText={(text) => setHomeAdress(text)}
-            onSubmitEditing={() => scrollToNextInput(1)} // Move to the next input
-          />
-          <Text style={styles.address_warning_text}>مثلا قرب جامع الرحمة</Text>
-          <TouchableOpacity style={styles.fullButton} onPress={getLocation} disabled={location !== null}>
-            <>
-              {location !== null ? (
-                  <FontAwesome6 name="circle-check" size={24} style={styles.icon} />
-              ) : (
-                  <Ionicons name="location-outline" size={24} style={styles.icon} />
-              )}
-            </>
-            <Text style={styles.fullBtnText}>{location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}</Text>
+        )}
+        {currentPage < totalSteps ? (
+          <TouchableOpacity style={styles.halfButton} onPress={handleNext}>
+            <Text style={styles.btnText}>التالي</Text>
           </TouchableOpacity>
-          <View style={styles.location_msg_view}>
-            {distance ? (
-              <Text style={styles.location_warning_text}>المسافة بين منزل الطالب و المدرسة: {distance} كلم</Text>
-            ) : (
-              <Text style={styles.location_warning_text}>التطبيق يسجل موقعك الحالي كعنوان للمنزل لذا يرجى التواجد في المنزل عند التسجيل و تفعيل خدمة تحديد الموقع الخاصة بالهاتف</Text>
-            )}
-          </View>
-          <View style={styles.HalfContainer}>
-            <TouchableOpacity style={styles.halfButton} onPress={addNewStudentHandler} disabled={!studentFullName || !studentSchool || !studentBirthDate || !studentSex || !carType || !studentState || !studentCity || !homeAdress || !location || !distance}>
-              <Text style={styles.btnText}>اضف</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.halfButtonClearForm} onPress={clearFormHandler}>
-              <Text style={styles.btnTextClearForm}>الغاء</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.location_warning_text}>* يرجى التأكد من ادخال جميع البيانات</Text>
-        </ScrollView>          
+        ) : (
+          <TouchableOpacity style={styles.halfButton} onPress={addNewStudentHandler}>
+            <Text style={styles.btnText}>أضف</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </SafeAreaView>
   )
 }
@@ -439,18 +563,35 @@ const styles = StyleSheet.create({
   container:{
     flex:1,
     alignItems:'center',
+    justifyContent:'space-between',
     paddingVertical:20,
     backgroundColor:colors.WHITE
   },
   title:{
-    marginTop:20,
+    marginBottom:20,
     fontFamily:'Cairo_400Regular',
     fontSize:24,
   },
+  pageIndicatorContainer:{ 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+  },
+  pageIndicator: { 
+    width: 20, 
+    height: 8, 
+    borderRadius: 10,
+    margin: 5 
+  },
+  activeIndicator: { 
+    backgroundColor: colors.PRIMARY
+  },
+  inactiveIndicator: { 
+    backgroundColor: '#CCC' 
+  },
   form:{
-    marginTop:20,
-    paddingVertical:10,
-    justifyContent:'space-between',
+    height:500,
+    width:300,
+    justifyContent:'center',
     alignItems:'center',
   },
   dropdown:{
@@ -461,7 +602,7 @@ const styles = StyleSheet.create({
     borderColor:colors.PRIMARY,
     borderRadius:15,
   },
-  HalfContainer:{
+  HalfDropDownContainer:{
     width:280,
     flexDirection:'row-reverse',
     justifyContent:'space-between'
@@ -503,6 +644,55 @@ const styles = StyleSheet.create({
     borderColor:colors.PRIMARY,
     borderRadius:15,
   },
+  flatList_style:{
+    marginTop:20
+  },
+  dayRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 5,
+    borderWidth:1,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+  },
+  dayText: {
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular',
+    flex: 1,
+    fontSize: 14,
+  },
+  timeInput: {
+    flex: 1,
+    paddingVertical: 5,
+    paddingHorizontal: 5,
+    borderRadius: 15,
+    alignItems: "center",
+  },
+  disabledInput: {
+    backgroundColor: "#e0e0e0",
+  },
+  timeText: {
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular',
+    fontSize: 14,
+  },
+  timeSeparator: {
+    marginHorizontal: 5,
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  submitButton: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: "#28a745",
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  submitButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
   location_msg_view:{
     width:280,
     paddingHorizontal:10,
@@ -539,10 +729,15 @@ const styles = StyleSheet.create({
   icon:{
     marginRight:10,
   },
+  BtnHalfContainer:{
+    width:280,
+    flexDirection:'row',
+    justifyContent:'center'
+  },
   halfButton:{
-    width:135,
+    width:130,
     height:50,
-    marginBottom:10,
+    marginHorizontal:5,
     backgroundColor:colors.PRIMARY,
     borderRadius:15,
     flexDirection:'row',
@@ -557,7 +752,7 @@ const styles = StyleSheet.create({
   halfButtonClearForm:{
     width:135,
     height:50,
-    marginBottom:10,
+    marginHorizontal:5,
     backgroundColor:colors.GRAY,
     borderRadius:15,
     flexDirection:'row',

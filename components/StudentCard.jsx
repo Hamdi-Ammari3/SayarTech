@@ -1,49 +1,121 @@
-import { StyleSheet, Text, View, ActivityIndicator,Image } from 'react-native'
-import React from 'react'
+import { StyleSheet, Text, View, ActivityIndicator,Image,TouchableOpacity,Modal } from 'react-native'
+import React,{useState} from 'react'
+import { doc, getDoc } from 'firebase/firestore';
+import { DB } from '../firebaseConfig'
 import colors from '../constants/Colors'
+import driverImage from '../assets/images/driver.png'
+import AntDesign from '@expo/vector-icons/AntDesign';
 
-const ChildCard = ({ item,drivers,fetchingDriversLoading }) => {
-    
-  if(fetchingDriversLoading) {
-    return (
-      <View style={styles.spinner_error_container}>
-        <ActivityIndicator size="large" color={colors.PRIMARY} />
-      </View>
-    )
+const ChildCard = ({ item }) => {
+  const [showDriverInfo,setShowDriverInfo] = useState(false)
+  const [driverData, setDriverData] = useState(null)
+  const [loadingDriver, setLoadingDriver] = useState(false)
+  const [error, setError] = useState(null)
+
+  const openDriverInfoModal = async () => {
+    try {
+      setLoadingDriver(true);
+      setShowDriverInfo(true);
+
+      if (!item.driver_id) {
+        setError('No driver assigned for this student.');
+        setLoadingDriver(false);
+        return;
+      }
+
+      // Fetch driver data using driver_id
+      const driverDocRef = doc(DB, 'drivers', item.driver_id);
+      const driverSnapshot = await getDoc(driverDocRef);
+
+      if (driverSnapshot.exists()) {
+        setDriverData(driverSnapshot.data());
+      } else {
+        setError('لا يوجد معلومات');
+      }
+
+    } catch (error) {
+      setError('خلل في محاولة البحث عن السائق. الرجاء المحاولة مرة ثانية');
+      console.log(error)
+    } finally {
+      setLoadingDriver(false);
+    }
+
   }
-
+// vZ51bJadReAjnhih5i3U
+  const closeDriverInfoModal = () => {
+    setShowDriverInfo(false)
+    setDriverData(null)
+    setError(null)
+  }
+    
   return (
     <View style={styles.container}>
       <View style={styles.student_info_box}>
-        <Text style={styles.student_info_text}>{item.student_school}</Text>
-        <Text style={styles.student_info_text}>{item.student_full_name}</Text>
+        <Text style={styles.info_text}>{item.student_school}</Text>
+        <Text style={styles.info_text}>{item.student_full_name}</Text>
       </View>
-      {drivers && (
-        <View style={styles.driver_car_box}>
+      {item.driver_id && (
+      <View style={styles.driver_car_box}>
+        <TouchableOpacity onPress={openDriverInfoModal} style={{marginTop:10}}>
+          <Image source={driverImage} style={styles.image}/>
+        </TouchableOpacity>
+       
+        <Modal 
+          animationType="fade"
+          transparent={true}
+          visible={showDriverInfo}
+          onRequestClose={() => setShowDriverInfo(false)}
+        >
+          <View style={styles.driver_info_modal_container}>
+            <View style={styles.driver_info_modal_box}>
+              <View style={styles.driver_info_modal_inner_box}>
+                <TouchableOpacity onPress={closeDriverInfoModal} style={{marginBottom:10}}>
+                  <AntDesign name="closecircleo" size={24} color="gray" />
+                </TouchableOpacity>
+                <Text style={styles.driver_title_text}>السائق</Text>
+              </View>
 
-          <View style={styles.driver_info}>
-            <View style={styles.photo_box}>
-              <Image source={{uri:drivers.driver_personal_image}} style={styles.image}/>
-            </View>
-            <View style={styles.related_info_box}>
-              <Text style={styles.driver_name}>{drivers.driver_full_name}</Text>
-              <Text style={styles.driver_name}>{drivers.driver_family_name}</Text>
+              <View style={styles.driver_info_modal_inner_box}>
+                {loadingDriver && (
+                  <View style={styles.spinner_error_container}>
+                    <ActivityIndicator size="large" color={colors.PRIMARY} />
+                  </View>
+                )}
+
+                {error && (
+                  <View style={styles.spinner_error_container}>
+                    <Text style={styles.info_text}>{error}</Text>
+                  </View>
+                )}
+
+                {driverData && (
+                  <View style={styles.driver_details_box}>
+
+                    <View style={styles.driver_info}>
+                      <View style={styles.driver_photo_box}>
+                        <Image source={{uri:driverData.driver_personal_image}} style={styles.driver_photo}/>
+                      </View>
+                      <Text style={styles.info_text}>{driverData.driver_full_name} {driverData.driver_family_name}</Text>
+                      <Text style={styles.info_text}>{driverData.driver_phone_number}</Text>
+                    </View>
+
+                    <View style={styles.driver_info}>
+                      <View style={styles.driver_photo_box}>
+                        <Image source={{uri:driverData.driver_personal_image}} style={styles.driver_photo}/>
+                      </View>
+                      <Text style={styles.info_text}>نوع السيارة: {driverData.driver_car_type}</Text>
+                      <Text style={styles.info_text}>موديل السيارة: {driverData.driver_car_model}</Text>
+                      <Text style={styles.info_text}>رقم السيارة: {driverData.driver_car_plate}</Text>
+                    </View>
+
+                  </View>
+                )}
+              </View>            
             </View>
           </View>
-
-          <View style={styles.driver_info}>
-            <View style={styles.photo_box}>
-              <Image source={{uri:drivers.driver_car_image}} style={styles.image}/>
-            </View>
-            <View style={styles.related_info_box}>
-              <Text style={styles.car_name}>{drivers.driver_car_plate}</Text>
-              <Text style={styles.car_name}>{drivers.driver_car_model}</Text>
-              <Text style={styles.car_name}>{drivers.driver_car_type}</Text>
-            </View>
-          </View>
-        </View>
-      )
-    }
+        </Modal>
+      </View>
+      )}
     </View>
   )
 }
@@ -64,7 +136,7 @@ const styles = StyleSheet.create({
     justifyContent:'space-around',
     alignItems:'center',
   },
-  student_info_text:{ 
+  info_text:{ 
     fontFamily:'Cairo_400Regular',
     fontSize:14
   },
@@ -72,46 +144,54 @@ const styles = StyleSheet.create({
     fontFamily:'Cairo_400Regular',
     fontSize:14
   },
-  driver_car_box:{
-    width:350,
-    paddingHorizontal:10,
-    marginTop:15,
-    justifyContent:'space-between',
-    alignItems:'center',
-  },
-  driver_info:{
-    width:350,
-    height:100,
-    flexDirection:'row-reverse',
-    justifyContent:'center',
-    alignItems:'center',
-  },
-  photo_box:{
-    height:100,
-    width:100,
-    justifyContent:'center',
-    alignItems:'center',
-  },
   image:{
-    height:80,
-    width:80,
+    height:40,
+    width:40,
     borderRadius:5,
     resizeMode:'contain',
   },
-  driver_name:{
-    fontFamily:'Cairo_400Regular',
-    fontSize:14,
-    color:'#858585'
+  driver_info_modal_container:{
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  related_info_box:{
-    justifyContent:'center',
+  driver_info_modal_box:{
+    width: '90%',
+    height:'70%',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 10,
+    justifyContent:'space-around',
+    alignItems: 'center',
+  },
+  driver_info_modal_inner_box:{
+    width:'90%',
     alignItems:'center',
-    paddingHorizontal:20,
-    width:200,
+    justifyContent:'center'
   },
-  car_name:{
-    fontFamily:'Cairo_400Regular',
-    fontSize:13,
-    color:'#858585'
+  driver_title_text:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:14
   },
+  driver_details_box:{
+    width:'90%',
+  },
+  driver_info:{
+    marginVertical:10,
+    alignItems:'center',
+  },
+  driver_photo_box: {
+
+  },
+  driver_photo: {
+    height:120,
+    width:120,
+    borderRadius:5,
+    resizeMode:'contain',
+  },
+  spinner_error_container:{
+    height:"80%",
+    justifyContent:'center'
+  }
 })

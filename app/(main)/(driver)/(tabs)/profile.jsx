@@ -18,7 +18,7 @@ const profile = () => {
   const {user} = useUser()
   const router = useRouter()
 
-  const {userData,fetchingUserDataLoading,assignedStudents} = useDriverData()
+  const {userData,fetchingUserDataLoading,driverData,fetchingDriverDataLoading} = useDriverData()
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
@@ -95,7 +95,7 @@ const profile = () => {
   };
 
   // Loading or fetching user type state
-  if (fetchingUserDataLoading || deleteAccountLoading || signOutLoading) {
+  if (fetchingUserDataLoading || fetchingDriverDataLoading || deleteAccountLoading || signOutLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -135,7 +135,7 @@ const profile = () => {
 
       </View>
       <FlatList
-        data={assignedStudents}
+        data={driverData[0]?.assigned_students}
         renderItem={({item}) => <AssignedStudents item={item}/>}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.flatList_style}

@@ -34,7 +34,7 @@ const addData = () => {
   const [carImage,setCarImage] = useState(null)
   const [carImageLoading,setCarImageLoading] = useState(false)
   
-  const {userData,driverData,fetchingUserDataLoading} = useDriverData()
+  const {userData,fetchingUserDataLoading,driverData,fetchingDriverDataLoading} = useDriverData()
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
@@ -255,18 +255,7 @@ const addData = () => {
   }
 
   // Loading or fetching user data from DB
-  if (fetchingUserDataLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.spinner_error_container}>
-          <ActivityIndicator size="large" color={colors.PRIMARY}/>
-        </View>
-      </SafeAreaView>
-    )
-  }
-
-  // Loading till adding driver data
-  if (addingDriverDataLoading) {
+  if (fetchingUserDataLoading || fetchingDriverDataLoading || addingDriverDataLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -277,7 +266,7 @@ const addData = () => {
   }
 
 // Check whether the user add data or no
-  if(driverData.length > 0 && addingDriverDataLoading === false) {
+  if(driverData[0] && addingDriverDataLoading === false) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.already_added_container}>
@@ -451,7 +440,7 @@ const styles = StyleSheet.create({
     borderWidth:1,
     marginBottom:10,
     borderColor:colors.PRIMARY,
-    borderRadius:20,
+    borderRadius:15,
   },
   dropdownStyle:{
     fontFamily:'Cairo_400Regular',

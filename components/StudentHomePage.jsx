@@ -5,14 +5,12 @@ import Svg, {Circle} from 'react-native-svg'
 import haversine from 'haversine'
 import MapView, { Marker ,AnimatedRegion } from 'react-native-maps'
 import MapViewDirections from 'react-native-maps-directions'
-import { doc,updateDoc,onSnapshot } from 'firebase/firestore'
+import { doc,updateDoc,onSnapshot,getDoc } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
-import { useStudentData } from '../app/stateManagment/StudentState'
 import colors from '../constants/Colors'
 
 const StudentHomePage = ({student}) => {
 
-  const {fetchingStudentsLoading,fetchingdriverLoading,driverFirebaseId} = useStudentData()
   const GOOGLE_MAPS_APIKEY = ''
   const mapRef = useRef(null)
   const markerRef = useRef(null)
@@ -64,8 +62,8 @@ const StudentHomePage = ({student}) => {
 
   // Fetch driver location
   useEffect(() => {
-    if (student.driver_id && driverFirebaseId) {
-      const driverRef = doc(DB, 'drivers', driverFirebaseId)
+    if (student.driver_id) {
+      const driverRef = doc(DB, 'drivers', student.driver_id)
   
       const unsubscribe = onSnapshot(
         driverRef,
@@ -74,7 +72,7 @@ const StudentHomePage = ({student}) => {
             const data = snapshot.data();
             if (data.current_location) {
               const newLocation = data.current_location;
-
+              
               setDriverCurrentLocation(newLocation)
 
               // Check if the driver has moved 1000 meters or more
@@ -104,7 +102,7 @@ const StudentHomePage = ({student}) => {
       return () => unsubscribe();
     }
     setDriverCurrentLocationLoading(false)
-  }, [student.driver_id, driverFirebaseId, driverCurrentLocation]);
+  }, [student.driver_id, driverCurrentLocation]);
 
   // Function to check and update the origin location
   let lastOriginUpdateTime = Date.now();
@@ -122,7 +120,7 @@ const StudentHomePage = ({student}) => {
     }
 
     const now = Date.now();
-    if (now - lastOriginUpdateTime < 50000) return; // Prevent updates within 50 seconds
+    if (now - lastOriginUpdateTime < 30000) return; // Prevent updates within 30 seconds
 
     // Calculate the distance between the current location and the origin
     const distance = haversine(driverOriginLocation, currentLocation, { unit: "meter" });
@@ -131,7 +129,7 @@ const StudentHomePage = ({student}) => {
       return;
     }
   
-    if (distance > 8000) {
+    if (distance > 400) {
       setDriverOriginLocation(currentLocation)
       lastOriginUpdateTime = now;
     }
@@ -230,13 +228,33 @@ const StudentHomePage = ({student}) => {
   const handleCancelTrip = async () => {
     if (cancelText.trim() === 'نعم') {
       try {
-        const studentDoc = doc(DB, 'students', student.id);
-        await updateDoc(studentDoc, {
-          tomorrow_trip_canceled: true,
-        });
-        createAlert('تم إلغاء رحلة الغد بنجاح');
-        setIsCanceling(false);
-        setCancelText('');
+        const driverRef = doc(DB, 'drivers', student.driver_id)
+        // Fetch the current driver's document to get the assigned_students list
+        const driverSnapshot = await getDoc(driverRef);
+
+        if (driverSnapshot.exists()) {
+          const driverData = driverSnapshot.data();
+          const assignedStudents = driverData.assigned_students || [];
+  
+          // Update only the relevant student's data in the assigned_students list
+          const updatedAssignedStudents = assignedStudents.map((studentItem) => {
+            if (studentItem.id === student.id) {
+              return { ...studentItem, tomorrow_trip_canceled: true }; // Update the field
+            }
+            return studentItem; // Keep other students unchanged
+          });
+  
+          // Update the driver's document with the modified assigned_students list
+          await updateDoc(driverRef, {
+            assigned_students: updatedAssignedStudents,
+          });
+
+          createAlert('تم إلغاء رحلة الغد بنجاح');
+          setIsCanceling(false);
+          setCancelText('');
+        } else {
+          createAlert('تعذر العثور على بيانات السائق.');
+        }
       } catch (error) {
         createAlert('حدث خطأ أثناء إلغاء الرحلة. حاول مرة أخرى.');
       }
@@ -250,113 +268,113 @@ const StudentHomePage = ({student}) => {
     setCancelText('');
   }
 
-// Wait untill data load
-if (fetchingdriverLoading || fetchingStudentsLoading || driverCurrentLocationLoading) {
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.spinner_error_container}>
-        <ActivityIndicator size="large" color={colors.PRIMARY} />
-      </View>
-    </SafeAreaView>
-  );
-}
-
-// If the student is not assigned to a driver
-if(!student.driver_id) {
-  return(
-    <SafeAreaView style={styles.container}>
-      <View style={styles.finding_driver_container}>
-        <View style={styles.finding_driver_loading_box}>
-          <ActivityIndicator size={'small'} color={colors.WHITE}/>
-          <Text style={styles.finding_driver_loading_text}>جاري ربط حسابك بسائق</Text>
+  // Wait untill data load
+  if (driverCurrentLocationLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.spinner_error_container}>
+          <ActivityIndicator size="large" color={colors.PRIMARY} />
         </View>
-      </View>
-    </SafeAreaView>
-  )
-}
+      </SafeAreaView>
+    );
+  }
 
-// If the student is at home
-if(student.driver_id && student.student_trip_status === 'at home') {
-  return(
-    <SafeAreaView style={styles.container}>
-      <View style={styles.student_container}>
-        <View style={styles.student_box}>
-          <Text style={styles.student_text}>الطالب في المنزل 😴</Text>
+  // If the student is not assigned to a driver
+  if(!student.driver_id) {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.finding_driver_container}>
+          <View style={styles.finding_driver_loading_box}>
+            <ActivityIndicator size={'small'} color={colors.WHITE}/>
+            <Text style={styles.finding_driver_loading_text}>جاري ربط حسابك بسائق</Text>
+          </View>
         </View>
-        {!student.tomorrow_trip_canceled && (
-          <View>
-          <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
-            <Text style={styles.cancel_trip_btn_text}>الغاء رحلة الغد</Text>
-          </TouchableOpacity>
-          {isCanceling && (
-            <View style={styles.cancel_trip_confirmation}>
-              <TextInput
-                style={styles.cancel_trip_input}
-                value={cancelText}
-                onChangeText={setCancelText}
-                placeholder="للتاكيد اكتب كلمة نعم هنا"
-              />
-              <View style={styles.confirm_deny_canceling_btn}>
-                <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
-                  <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
-                 <Text style={styles.deny_cancel_btn_text}>لا</Text>
-                </TouchableOpacity>
+      </SafeAreaView>
+    )
+  }
+
+  // If the student is at home
+  if(student.driver_id && student.student_trip_status === 'at home') {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.student_container}>
+          <View style={styles.student_box}>
+            <Text style={styles.student_text}>الطالب في المنزل 😴</Text>
+          </View>
+          {!student.tomorrow_trip_canceled && (
+            <View>
+            <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
+              <Text style={styles.cancel_trip_btn_text}>الغاء رحلة الغد</Text>
+            </TouchableOpacity>
+            {isCanceling && (
+              <View style={styles.cancel_trip_confirmation}>
+                <TextInput
+                  style={styles.cancel_trip_input}
+                  value={cancelText}
+                  onChangeText={setCancelText}
+                  placeholder="للتاكيد اكتب كلمة نعم هنا"
+                />
+                <View style={styles.confirm_deny_canceling_btn}>
+                  <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
+                    <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
+                  <Text style={styles.deny_cancel_btn_text}>لا</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            )}
+          </View>
           )}
         </View>
-        )}
-      </View>
-    </SafeAreaView>
-  )
-}
+      </SafeAreaView>
+    )
+  }
 
-// If the student is at school
-if(student.driver_id && student.student_trip_status === 'at school') {
-  return(
-    <SafeAreaView style={styles.container}>
-      <View style={styles.student_container}>
-        <View style={styles.student_box}>
-          <Text style={styles.student_text}>الطالب في المدرسة 📖</Text>
+  // If the student is at school
+  if(student.driver_id && student.student_trip_status === 'at school') {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.student_container}>
+          <View style={styles.student_box}>
+            <Text style={styles.student_text}>الطالب في المدرسة 📖</Text>
+          </View>
         </View>
-      </View>
-    </SafeAreaView>
-  )
-}
+      </SafeAreaView>
+    )
+  }
 
-// If the student is going to school
-if(student.driver_id && student.student_trip_status === 'going to school'){
-  return(
-    <SafeAreaView style={styles.container}>
-      <View style={styles.student_route_status_container}>
-        <View style={styles.student_route_status_box}>
-          <Text style={styles.student_route_status_text}>الطالب في الطريق الى المدرسة</Text>
+  // If the student is going to school
+  if(student.driver_id && student.student_trip_status === 'going to school'){
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.student_route_status_container}>
+         <View style={styles.student_route_status_box}>
+            <Text style={styles.student_route_status_text}>الطالب في الطريق الى المدرسة</Text>
+          </View>
         </View>
-      </View>
-      <View style={styles.student_map_container}>
-        {renderMap()}
-      </View>
-    </SafeAreaView>
-  )
-}
+        <View style={styles.student_map_container}>
+          {renderMap()}
+        </View>
+      </SafeAreaView>
+    )
+  }
 
-// If the student is going to school or going to home
-if(student.driver_id && student.student_trip_status === 'going to home') {
-  return(
-    <SafeAreaView style={styles.container}>
-      <View style={styles.student_route_status_container}>
-        <View style={styles.student_route_status_box}>
-          <Text style={styles.student_route_status_text}>{student.picked_up ? 'الطالب في الطريق الى المنزل' : 'السائق في الاتجاه اليك'}</Text>
+  // If the student is going to school or going to home
+  if(student.driver_id && student.student_trip_status === 'going to home') {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.student_route_status_container}>
+          <View style={styles.student_route_status_box}>
+            <Text style={styles.student_route_status_text}>{student.picked_up ? 'الطالب في الطريق الى المنزل' : 'السائق في الاتجاه اليك'}</Text>
+          </View>
         </View>
-      </View>
-      <View style={styles.student_map_container}>
-        {renderMap()}
-      </View>
-    </SafeAreaView>
-  )
-}
+        <View style={styles.student_map_container}>
+          {renderMap()}
+        </View>
+      </SafeAreaView>
+    )
+  }
 }
 
 export default StudentHomePage

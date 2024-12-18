@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Alert,StyleSheet, Text, View,ActivityIndicator,TouchableOpacity,Linking } from 'react-native'
+import { Alert,StyleSheet, Text, View,FlatList,ActivityIndicator,TouchableOpacity,Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'
+import StudentCard from '../../../../components/StudentCard'
 import { useAuth,useUser } from '@clerk/clerk-expo'
 import { deleteDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { DB } from '../../../../firebaseConfig'
@@ -12,12 +13,12 @@ import { useStudentData } from '../../../stateManagment/StudentState'
 
 const profile = () => {
   const [signOutLoading,setSignOutLoading] = useState(false)
-  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
   const { signOut } = useAuth()
   const {user} = useUser()
   const router = useRouter()
 
-  const {userData,fetchingUserDataLoading,fetchingStudentsLoading,fetchingAssignedToDriversLoading} = useStudentData()
+  const {userData,fetchingUserDataLoading,students,fetchingStudentsLoading} = useStudentData()
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
@@ -94,7 +95,7 @@ const profile = () => {
   };
 
 //Loading user data
-  if (fetchingStudentsLoading || fetchingUserDataLoading || fetchingAssignedToDriversLoading || deleteAccountLoading || signOutLoading) {
+  if (fetchingStudentsLoading || fetchingUserDataLoading || deleteAccountLoading || signOutLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -134,6 +135,21 @@ const profile = () => {
         </View>
 
       </View>
+
+      <FlatList
+      data={students}
+      renderItem={({item}) => <StudentCard item={item}/>}
+      keyExtractor={item => item.id}
+      contentContainerStyle={styles.flatList_style}
+      ListEmptyComponent={() => (
+        <View style={styles.no_registered_students}>
+          <Text style={styles.no_student_text}>ليس لديك طلاب مسجلين بالتطبيق</Text>
+          <Link href="/addData" style={styles.link_container}>
+            <Text style={styles.link_text}>اضف الآن</Text>
+          </Link>
+        </View>
+      )}
+      />
     </SafeAreaView>
   )
 }

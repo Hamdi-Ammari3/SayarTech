@@ -1,12 +1,13 @@
 import { Alert,StyleSheet, Text, View, ActivityIndicator, TouchableOpacity,ScrollView, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useUser } from '@clerk/clerk-expo'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useState,useEffect,useRef } from 'react'
 import * as Location from 'expo-location'
 import MapView, { Marker } from 'react-native-maps'
 import MapViewDirections from 'react-native-maps-directions'
 import haversine from 'haversine'
-import { doc,updateDoc } from 'firebase/firestore'
+import { doc,updateDoc,writeBatch } from 'firebase/firestore'
 import { DB } from '../../../../firebaseConfig'
 import { Link } from 'expo-router'
 import colors from '../../../../constants/Colors'
@@ -15,7 +16,7 @@ import AntDesign from '@expo/vector-icons/AntDesign'
 import Feather from '@expo/vector-icons/Feather'
 
 const Home = () => {
-  const {fetchingUserDataLoading,driverData,fetchingDriverDataLoading,assignedStudents,fetchingAssignedStudetns} = useDriverData()
+  const {driverData,fetchingDriverDataLoading} = useDriverData()
 
   const GOOGLE_MAPS_APIKEY = ''
  
@@ -43,8 +44,8 @@ const Home = () => {
   }
 
   const handleMapReady = () => {
-    setMapReady(true);
-  };
+    setMapReady(true)
+  }
 
   // Fetch the driver's current location
   useEffect(() => {
@@ -129,28 +130,59 @@ const Home = () => {
     }
   };
 
+  // Save trip state to AsyncStorage
+  const saveTripState = async (trip, studentIndex) => {
+    try {
+      await AsyncStorage.setItem('TripInfo', JSON.stringify({
+        currentTrip: trip,
+        currentStudentIndex: studentIndex,
+      }));
+    } catch (error) {
+      console.error('Error saving trip state:', error);
+    }
+  };
+
+  // Load local storage data
+  const loadTripState = async () => {
+    try {
+      const savedTripState = await AsyncStorage.getItem('TripInfo');
+      if (savedTripState) {
+        const { currentTrip, currentStudentIndex } = JSON.parse(savedTripState);
+        setCurrentTrip(currentTrip);
+        setCurrentStudentIndex(currentStudentIndex);
+      }
+    } catch (error) {
+      console.error('Error loading trip state:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadTripState();
+  }, []);
+
   // sort students by distance
   const sortStudentsByDistance = async () => {
-    if (!user || !driverData[0] || !assignedStudents.length) {
+    if (!user || !driverData[0] || !driverData[0]?.assigned_students.length) {
       return;
     }
 
     try {
       let startingPoint = driverData[0]?.current_location;
+      let assignedStudents = driverData[0]?.assigned_students;
       let sorted = [];
 
       if (currentTrip === 'first') {
         sorted = assignedStudents.filter(student => student.tomorrow_trip_canceled === false)
         .map((student) => ({
           ...student,
-          distance: calculateDistance(startingPoint, student.student_home_location.coords),
+          distance: calculateDistance(startingPoint, student.home_location),
         }))
         .sort((a, b) => a.distance - b.distance);
 
         sorted.push({
           id: 'school',
-          school_name: assignedStudents[0].student_school,
-          school_coords: assignedStudents[0].student_school_location,
+          school_name: assignedStudents[0].school_name,
+          school_coords: assignedStudents[0].school_location,
         });
 
       } else if (currentTrip === 'second') {
@@ -158,7 +190,7 @@ const Home = () => {
                                     .filter(student => student.picked_from_school === true)
           .map((student) => ({
             ...student,
-            distance: calculateDistance(startingPoint, student.student_home_location.coords),
+            distance: calculateDistance(startingPoint, student.home_location),
           }))
           .sort((a, b) => a.distance - b.distance);
 
@@ -180,14 +212,6 @@ const Home = () => {
     return haversine(coord1, coord2, { unit: 'meter' });
   };
 
-  //Get Coordinates Function
-  const getCoordinates = (location) => {
-    return {
-      latitude: location.latitude,
-      longitude: location.longitude
-    };
-  };
-
   // Handle notification sending
   const sendNotification = async (token, title, body) => {
     try {
@@ -207,7 +231,7 @@ const Home = () => {
         },
         body: JSON.stringify(message),
       });
-
+      
     } catch (error) {
       console.error("Error sending notification:", error);
     }
@@ -215,15 +239,15 @@ const Home = () => {
 
   // Set destination based on driver trip status
   useEffect(() => {
-    if (currentTrip === 'first' && sortedStudents.length > 0) {
+    if (currentTrip === 'first' && driverData[0]?.assigned_students?.length > 0) {
       if(displayFinalStation){
-        setDestination(sortedStudents[0]?.student_school_location)
+        setDestination(driverData[0]?.assigned_students[0]?.school_location)
       } else {
-        setDestination(sortedStudents[currentStudentIndex]?.student_home_location?.coords);
+        setDestination(sortedStudents[currentStudentIndex]?.home_location);
       }
       
     } else if (currentTrip === 'second' && pickedUpStudentsState.length > 0) {
-      setDestination(pickedUpStudentsState[currentStudentIndex]?.student_home_location?.coords);
+      setDestination(pickedUpStudentsState[currentStudentIndex]?.home_location);
     }
   }, [currentStudentIndex,displayFinalStation,mapReady]);
 
@@ -264,15 +288,15 @@ const Home = () => {
       })
 
       // Update all assigned students status (the driver start mouving)
-      for (const student of assignedStudents) {
+      for (const student of driverData[0]?.assigned_students) {
         const studentDoc = doc(DB, 'students', student.id);
         await updateDoc(studentDoc, {
           student_trip_status: 'going to home',
         });
-
-        if(student.student_user_notification_token) {
+        
+        if(student.notification_token) {
           await sendNotification(
-            student.student_user_notification_token,
+            student.notification_token,
             "السائق بدأ الرحلة",
             'السائق في الطريق اليك'
           );
@@ -288,7 +312,7 @@ const Home = () => {
   const handleFirstTripFinish = async () => {
     try {
       const driverDoc = doc(DB,'drivers', driverData[0].id)
-      const pickedUpStudents = assignedStudents.filter(student => student.picked_up);
+      const pickedUpStudents = driverData[0]?.assigned_students.filter(student => student.picked_up);
 
       await updateDoc(driverDoc, { 
         first_trip_status: 'finished',
@@ -302,17 +326,18 @@ const Home = () => {
           student_trip_status: 'at school',
         });
 
-        if(student.student_user_notification_token) {
+        if(student.notification_token) {
           await sendNotification(
-            student.student_user_notification_token,
+            student.notification_token,
             "الطالب وصل المدرسة بسلام",
-            `${student.student_full_name} وصل المدرسة الان`
+            `${student.name} وصل المدرسة الان`
           )
         }
 
         // Reset state variables
         setCurrentTrip('second');
         setCurrentStudentIndex(0);
+        saveTripState('second', 0);
         setDisplayFinalStation(false);
         setSortedStudents([]);
         setCancelTodayTrip(false)
@@ -339,7 +364,7 @@ const Home = () => {
       });
 
       // Update students status (students picked up from school)
-      const pickedUpStudents = assignedStudents.filter(student => student.picked_from_school === true);
+      const pickedUpStudents = driverData[0]?.assigned_students.filter(student => student.picked_from_school === true);
       setPickedUpStudentsState(pickedUpStudents)
       for (const student of pickedUpStudents) {
         const studentDoc = doc(DB, 'students', student.id);
@@ -347,17 +372,17 @@ const Home = () => {
           student_trip_status: 'going to home',
         });
 
-        if(student.student_user_notification_token) {
+        if(student.notification_token) {
           await sendNotification(
-            student.student_user_notification_token,
+            student.notification_token,
             "رحلة العودة بدأت",
-            `${student.student_full_name} في الطريق إلى المنزل الآن`
+            `${student.name} في الطريق إلى المنزل الآن`
           )
         }
       }
 
       // Update students status (students not picked up from school)
-      const notPickedUpStudents = assignedStudents.filter(student => student.picked_from_school === false);
+      const notPickedUpStudents = driverData[0]?.assigned_students.filter(student => student.picked_from_school === false);
       for (const student of notPickedUpStudents) {
         const studentDoc = doc(DB, 'students', student.id);
         await updateDoc(studentDoc, {
@@ -374,32 +399,43 @@ const Home = () => {
   const handlesecondTripFinish = async () => {
     try {
       setFinishingTrip(true)
-      const driverDoc = doc(DB,'drivers', driverData[0].id)
-      await updateDoc(driverDoc, { 
-        second_trip_status: 'finished', 
+      const batch = writeBatch(DB); // Initialize Firestore batch
+      const driverDoc = doc(DB,'drivers', driverData[0]?.id)
+
+      // 1. Update the driver's document
+      const updatedAssignedStudents = driverData[0]?.assigned_students.map((student) => ({
+        ...student,
+        picked_up: false,
+        dropped_off: false,
+        picked_from_school: false,
+        checked_in_front_of_school: false,
+        tomorrow_trip_canceled: false,
+      }));
+
+      batch.update(driverDoc, {
+        assigned_students: updatedAssignedStudents,
+        second_trip_status: 'finished',
         second_trip_end: new Date(),
         first_trip_status: 'not started',
-        trip_canceled: false
-      })
+        trip_canceled: false,
+      });
 
-      //update students status
-      for (const student of assignedStudents) {
-        const studentDoc = doc(DB, 'students', student.id);
-        await updateDoc(studentDoc, {
-          picked_up: false,
-          dropped_off: false,
-          called_by_driver: false,
-          picked_from_school: false,
-          checked_in_front_of_school: false,
-          tomorrow_trip_canceled: false,
+      // 2. Update each student's document in the 'students' collection
+      for (const student of driverData[0]?.assigned_students) {
+        const studentDocRef = doc(DB, 'students', student.id);
+        batch.update(studentDocRef, {
           student_trip_status: 'at home',
-          driver_is_mouving: false,
+          picked_up: false,
         });
-
       }
+
+      // Commit the batch operation
+      await batch.commit();
+
       // Reset state variables
       setCurrentTrip('first');
       setCurrentStudentIndex(0);
+      saveTripState('first', 0);
       setDisplayFinalStation(false);
       setSortedStudents([]);
       setCheckingPickedUpStudents(false)
@@ -422,36 +458,52 @@ const Home = () => {
     if (isMarkingStudent) return; // Prevent double-click
     setIsMarkingStudent(true); // Set loading state to true
     try {
+      const batch = writeBatch(DB); // Initialize Firestore batch
       const currentStudent = sortedStudents[currentStudentIndex];
 
       if(currentStudent) {
-        setDriverOriginLocation(driverData[0]?.current_location)
+        const studentDoc = doc(DB, 'students', currentStudent.id);
+        const driverDocRef = doc(DB, 'drivers', driverData[0]?.id);
 
         if (currentStudent.id !== 'school' && currentStudent.id !== 'driver_home') {
-          const studentDoc = doc(DB, 'students', currentStudent.id);
-          const updateField = currentTrip === 'first' ? 
-            { picked_up: status,student_trip_status: status ? 'going to school' :'at home'} : 
-            { dropped_off: status, student_trip_status:'at home' };
-            await updateDoc(studentDoc, updateField);
-        }
+          const updateField = currentTrip === 'first' ? { picked_up: status, student_trip_status: status ? 'going to school' :'at home'} : { student_trip_status:'at home' };
+          batch.update(studentDoc, updateField)
+          
+          // Update the student's lightweight data in the driver's document
+          const driverAssignedStudents = driverData[0]?.assigned_students || [];
+          const updatedAssignedStudents = driverAssignedStudents.map((student) => {
+            if (student.id === currentStudent.id) {
+              // Merge the existing fields with the new status field
+              return {
+                ...student,
+                ...(currentTrip === 'first' ? { picked_up: status } : { dropped_off: status }),
+              };
+            }
+            return student; // Keep other students unchanged
+          });
+          batch.update(driverDocRef, { assigned_students: updatedAssignedStudents });
 
+          // Commit the batch
+          await batch.commit();
+          setDriverOriginLocation(driverData[0]?.current_location)
+        }
         // Local tracking of picked-up students
         let updatedPickedUpStudents = [...pickedUpStudentsFromHome]
         if (status === true) {
           updatedPickedUpStudents.push(currentStudent); // Add the current student to the picked-up list
           setPickedUpStudentsFromHome(updatedPickedUpStudents); // Update state with the new list
-          if(currentStudent.student_user_notification_token) {
+          if(currentStudent.notification_token) {
             if(currentTrip === 'first') {
               await sendNotification(
-                currentStudent.student_user_notification_token,
+                currentStudent.notification_token,
                 "رحلة المدرسة بدأت",
-                `${currentStudent.student_full_name} في الطريق إلى المدرسة الآن`
+                `${currentStudent.name} في الطريق إلى المدرسة الآن`
               );
             } else {
               await sendNotification(
-                currentStudent.student_user_notification_token,
-                "الطالب وصل المنزل بسلام",
-                `${currentStudent.student_full_name} وصل المنزل الان`
+                currentStudent.notification_token,
+                "الطالب وصل المنزل",
+                `${currentStudent.name} وصل المنزل الان`
               )
             }
           }
@@ -459,6 +511,7 @@ const Home = () => {
 
         if (currentStudentIndex < sortedStudents.length - 1) {
           setCurrentStudentIndex((prevIndex) => prevIndex + 1);
+          saveTripState(currentTrip, currentStudentIndex);
           const nextStudent = sortedStudents[currentStudentIndex + 1];
 
           if (nextStudent.id === 'school' || nextStudent.id === 'driver_home') {
@@ -480,15 +533,28 @@ const Home = () => {
   // mark students from school
   const HandleMarkStudentFromSchool = async (studentId, status) => {
     try {
-      // Update the student's status in the database
-      const studentDocRef = doc(DB, 'students', studentId);
-      await updateDoc(studentDocRef, {
-        checked_in_front_of_school: true,
-        picked_from_school: status,
+      // Update the driver assigned_students data
+      const driverDocRef = doc(DB, 'drivers', driverData[0]?.id);
+      const driverAssignedStudents = driverData[0]?.assigned_students || [];
+
+      const updatedAssignedStudents = driverAssignedStudents.map((student) => {
+        if (student.id === studentId) {
+          return {
+            ...student,
+            picked_from_school: status,
+            checked_in_front_of_school: true,
+          };
+        }
+        return student; // Leave other students unchanged
+      });
+
+      // Update the 'assigned_students' array in the driver document
+      await updateDoc(driverDocRef, {
+        assigned_students: updatedAssignedStudents,
       });
 
       // Remove the student from the list in the UI
-        assignedStudents.filter((student) => student.picked_from_school === true)
+      driverData[0]?.assigned_students.filter((student) => student.picked_from_school === true)
     } catch (error) {
       createAlert('حدث خطأ اثناء تحديث حالة الطالب')
     }
@@ -503,71 +569,66 @@ const Home = () => {
     Linking.openURL(`tel:${phoneNumber}`);
   }
 
-//Loading State
-if( fetchingUserDataLoading || 
-    fetchingDriverDataLoading  || 
-    fetchingAssignedStudetns || 
-    !isLoaded || 
-    finishingTrip
-    ) {
+  //Loading State
+  if( fetchingDriverDataLoading  || !isLoaded || finishingTrip) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.spinner_error_container}>
+          <ActivityIndicator size="large" color={colors.PRIMARY} />
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  // if the driver haven't yet registered his info
+  if(!driverData.length) {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.no_registered_students}>
+          <Text style={styles.no_student_text}>الرجاء اضافة بياناتك الخاصة</Text>
+          <Link href="/addData" style={styles.link_container}>
+            <Text style={styles.link_text}>اضف الآن</Text>
+          </Link>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  //if the driver have no assigned students
+  if(driverData.length > 0 && driverData[0].assigned_students.length === 0) {
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.spinner_error_container}>
-        <ActivityIndicator size="large" color={colors.PRIMARY} />
-      </View>
-    </SafeAreaView>
-  )
-}
+      <SafeAreaView style={styles.container}>
+        <View style={styles.no_assigned_students_box}>
+          <ActivityIndicator size={'small'} color={colors.WHITE}/>
+          <Text style={styles.no_assigned_students_text}>نحن بصدد ربط حسابك بطلاب</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
 
-// if the driver haven't yet registered his info
-if(!driverData.length) {
-  return(
-    <SafeAreaView style={styles.container}>
-      <View style={styles.no_registered_students}>
-        <Text style={styles.no_student_text}>الرجاء اضافة بياناتك الخاصة</Text>
-        <Link href="/addData" style={styles.link_container}>
-          <Text style={styles.link_text}>اضف الآن</Text>
-        </Link>
-      </View>
-    </SafeAreaView>
-  )
-}
-
-//if the driver have no assigned students
-if(driverData.length > 0 && assignedStudents.length === 0) {
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.no_assigned_students_box}>
-        <ActivityIndicator size={'small'} color={colors.WHITE}/>
-        <Text style={styles.no_assigned_students_text}>نحن بصدد ربط حسابك بطلاب</Text>
-      </View>
-    </SafeAreaView>
-  )
-}
-
-//if the driver didnt start the first trip yet
-if(driverData[0].first_trip_status === "not started" && driverData[0].second_trip_status === "finished") {
-  return(
-    <SafeAreaView style={styles.container}>
-      <TouchableOpacity style={styles.done_trip_button} onPress={() => handleFirstTripStart()}>
+  //if the driver didnt start the first trip yet
+  if(driverData[0].first_trip_status === "not started" && driverData[0].second_trip_status === "finished") {
+    return(
+      <SafeAreaView style={styles.container}>
+        <TouchableOpacity style={styles.done_trip_button} onPress={() => handleFirstTripStart()}>
           <Text style={styles.pick_button_text}>إبدأ رحلة الذهاب</Text>
-      </TouchableOpacity>
-    </SafeAreaView>
-  )
-}
+        </TouchableOpacity>
+      </SafeAreaView>
+    )
+  }
 
-//if the driver didnt start the second trip yet
-if(driverData[0].first_trip_status === "finished" && driverData[0].second_trip_status === "not started") {
-  return(
+  //if the driver didnt start the second trip yet
+  if(driverData[0].first_trip_status === "finished" && driverData[0].second_trip_status === "not started") {
+    return(
     <SafeAreaView style={styles.container}>
-      {assignedStudents.filter(student => student.picked_up)
+      {driverData[0]?.assigned_students.filter(student => student.picked_up)
                         .filter(student => student.checked_in_front_of_school === false).length > 0 ? (
           <TouchableOpacity style={styles.done_trip_button} onPress={() => setCheckingPickedUpStudents(true)}>
             <Text style={styles.pick_button_text}>إبدأ رحلة العودة</Text>
           </TouchableOpacity>
                         ) : (
           <>
-            {assignedStudents.filter(student => student.picked_up)
+            {driverData[0]?.assigned_students.filter(student => student.picked_up)
                               .filter(student => student.picked_from_school === true).length > 0 ? (
               <TouchableOpacity style={styles.done_trip_button} onPress={() => handlesecondTripStart()}>
                 <Text style={styles.pick_button_text}>إبدأ الان</Text>
@@ -584,14 +645,14 @@ if(driverData[0].first_trip_status === "finished" && driverData[0].second_trip_s
       {checkingPickedUpStudents && (
         <View style={styles.scrollViewContainer}>
         <ScrollView>
-          {assignedStudents.filter(student => student.picked_up)
+          {driverData[0]?.assigned_students.filter(student => student.picked_up)
           .filter(student => student.checked_in_front_of_school === false)
           .map((student,index) => (
             <View key={index} style={styles.check_students_boxes}>
               <View style={styles.check_students_box}>
 
                 <TouchableOpacity style={styles.check_students_name} onPress={() => handleMarkAbsentStudent(student.id)}>
-                  <Text style={styles.check_students_name_text}>{student.student_full_name}</Text>
+                  <Text style={styles.check_students_name_text}>{student.name}</Text>
                 </TouchableOpacity>
 
                 {checkingStudentId === student.id && (
@@ -599,7 +660,7 @@ if(driverData[0].first_trip_status === "finished" && driverData[0].second_trip_s
                     <TouchableOpacity style={styles.check_students_button} onPress={() => HandleMarkStudentFromSchool(student.id,true)}>
                       <AntDesign name="checkcircleo" size={24} color="white" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.call_student_parent} onPress={() => handleCallParent(student.student_phone_number)}>
+                    <TouchableOpacity style={styles.call_student_parent} onPress={() => handleCallParent(student.phone_number)}>
                       <Text style={styles.call_student_parent_text}>اتصل بولي الطالب</Text>
                       <Feather name="phone" size={24} color="white" />
                     </TouchableOpacity>
@@ -621,6 +682,8 @@ if(driverData[0].first_trip_status === "finished" && driverData[0].second_trip_s
 
 const currentStudent = sortedStudents[currentStudentIndex]
 
+
+
 if( driverData[0].first_trip_status === "started" && driverData[0].second_trip_status === "not started") {
   return(
     <SafeAreaView style={styles.student_map_container}>
@@ -628,7 +691,7 @@ if( driverData[0].first_trip_status === "started" && driverData[0].second_trip_s
         {!displayFinalStation ? (
           <>
             <View style={styles.map_student_name_container}>
-              <Text style={styles.map_student_name}>{currentStudent?.student_full_name}</Text>
+              <Text style={styles.map_student_name}>{currentStudent?.name}</Text>
             </View>
             <View style={styles.map_picked_button_container}>
               <View style={styles.map_picked_button_container2}>
@@ -692,7 +755,7 @@ if( driverData[0].first_trip_status === "started" && driverData[0].second_trip_s
         {/* Display route with waypoints */}
         <MapViewDirections
           origin={driverOriginLocation}
-          destination={displayFinalStation ? currentStudent?.school_coords : currentStudent?.student_home_location?.coords}
+          destination={displayFinalStation ? currentStudent?.school_coords : currentStudent?.home_location}
           optimizeWaypoints={true} // Optimize route for efficiency
           apikey={GOOGLE_MAPS_APIKEY}
           strokeWidth={4}
@@ -701,9 +764,9 @@ if( driverData[0].first_trip_status === "started" && driverData[0].second_trip_s
         />
 
         {/* Student's home marker */}
-        {currentStudent?.student_home_location?.coords && !displayFinalStation && (
+        {currentStudent?.home_location && !displayFinalStation && (
           <Marker
-            coordinate={getCoordinates(currentStudent?.student_home_location?.coords)}
+            coordinate={currentStudent?.home_location}
             title={currentStudent.student_full_name}
             pinColor="red"
           />
@@ -712,7 +775,7 @@ if( driverData[0].first_trip_status === "started" && driverData[0].second_trip_s
         {/* School marker */}
         {currentStudent?.school_coords && displayFinalStation && (
           <Marker
-            coordinate={getCoordinates(currentStudent?.school_coords)}
+            coordinate={currentStudent?.school_coords}
             title={currentStudent.school_name}
             pinColor="red"
           />
@@ -730,7 +793,7 @@ if(driverData[0].second_trip_status === "started" && driverData[0].first_trip_st
         {!displayFinalStation ? (
           <>
             <View style={styles.map_student_name_container}>
-              <Text style={styles.map_student_name}>{currentStudent?.student_full_name}</Text>
+              <Text style={styles.map_student_name}>{currentStudent?.name}</Text>
              </View>
             <View style={styles.map_picked_button_container}>
               <View style={styles.map_picked_button_container2}>
@@ -775,7 +838,7 @@ if(driverData[0].second_trip_status === "started" && driverData[0].first_trip_st
         {/* Display route with waypoints */}
         <MapViewDirections
           origin={driverOriginLocation}
-          destination={displayFinalStation ? currentStudent?.driver_home_coords : currentStudent?.student_home_location?.coords}
+          destination={displayFinalStation ? currentStudent?.driver_home_coords : currentStudent?.home_location}
           optimizeWaypoints={true}
           apikey={GOOGLE_MAPS_APIKEY}
           strokeWidth={4}
@@ -783,10 +846,10 @@ if(driverData[0].second_trip_status === "started" && driverData[0].first_trip_st
           onError={(error) => console.log(error)}
         />
         
-        {currentStudent?.student_home_location?.coords && !displayFinalStation && (
+        {currentStudent?.home_location && !displayFinalStation && (
           <Marker
-            coordinate={getCoordinates(currentStudent.student_home_location.coords)}
-            title={currentStudent.student_full_name}
+            coordinate={currentStudent.home_location}
+            title={currentStudent.name}
             pinColor="red"
           />
         )}

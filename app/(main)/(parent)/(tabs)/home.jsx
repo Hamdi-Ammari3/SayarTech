@@ -17,7 +17,6 @@ const home = () => {
   useEffect(() => {
     const subscription = Notifications.addNotificationReceivedListener((notification) => {
       console.log('Notification received:', notification);
-      // Here, you can display the notification in the UI or store it in local state
     });
     return () => subscription.remove();
   }, []);

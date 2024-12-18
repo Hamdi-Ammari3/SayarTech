@@ -8,22 +8,14 @@ const StudentContext = createContext()
 
 // Provider component
 export const StudentProvider = ({ children }) => {
-  const { user,isLoaded } = useUser()
+  const { user } = useUser()
 
   const [students, setStudents] = useState([])
   const [fetchingStudentsLoading,setFetchingStudentsLoading] = useState(true)
 
-  const [driver, setDriver] = useState([{}])
-  const [fetchingdriverLoading, setFetchingdriverLoading] = useState(true)
-
-  const [driverFirebaseId, setDriverFirebaseId] = useState(null)
-
   const [userData, setUserData] = useState(null)
   const [fetchingUserDataLoading, setFetchingUserDataLoading] = useState(true)
-
-  const [allStudents,setAllStudents] = useState([])
-  const [fetchingAllStudentsLoading,setFetchingAllStudentsLoading] = useState(true)
-  
+ 
   const [schools, setSchools] = useState(null)
   const [fetchingSchoolsLoading, setFetchingSchoolsLoading] = useState(true)
 
@@ -32,81 +24,8 @@ export const StudentProvider = ({ children }) => {
   
   const [error, setError] = useState(null)
 
-  //Fetching All students
+  // Fetch user data once
   useEffect(() => {
-    const studentInfoCollectionRef = collection(DB, 'students')
-    const unsubscribe = onSnapshot(
-      studentInfoCollectionRef,
-      async(querySnapshot) => {
-        const studentList = querySnapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-          setAllStudents(studentList)
-          setFetchingAllStudentsLoading(false)
-        }
-    )
-    return () => unsubscribe();
-  },[])
-
-
-// Fetch students registered with the logged-in user ID
-  useEffect(() => {
-    if (!user) {
-      setError('User is not defined');
-      setFetchingStudentsLoading(false);
-      return;
-    }
-
-    const studentInfoCollectionRef = collection(DB, 'students');
-    const unsubscribe = onSnapshot(
-      studentInfoCollectionRef,
-      async (querySnapshot) => {
-        const studentList = querySnapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-          .filter((student) => student.student_user_id === user.id);
-        setStudents(studentList);
-        setFetchingStudentsLoading(false);
-
-        // Fetch the driver data based on driver_id after loading students
-        const driverIds = studentList
-          .map((student) => student.driver_id)
-          .filter((id) => id); // Filter out any undefined or null driver IDs
-
-        await Promise.all(
-          driverIds.map(async (driverId) => {
-            try {
-              const driverCollectionRef  = collection(DB, 'drivers')
-              const q = query(driverCollectionRef , where('driver_user_id', '==', driverId))
-              const driverSnapshot = await getDocs(q)
-              if (!driverSnapshot.empty) {
-                const driverInfo = driverSnapshot.docs[0].data()
-                setDriver(driverInfo) 
-                setDriverFirebaseId(driverSnapshot.docs[0].id)
-              }
-            } catch (err) {
-              setError(`Failed to fetch driver data for ID: ${driverId}`, err);
-            }
-          })
-        );
-        setFetchingdriverLoading(false);
-      },
-      (error) => {
-        setError('Failed to load students. Please try again.');
-        setFetchingStudentsLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user]);
-
-
-// Fetch user data once
-useEffect(() => {
     const fetchUserData = async () => {
       if (user) {
         try {
@@ -131,8 +50,40 @@ useEffect(() => {
     fetchUserData()
   }, [user])
 
+  // Fetch students registered with the logged-in user ID
+  useEffect(() => {
+    if (!user) {
+      setError('User is not defined');
+      setFetchingStudentsLoading(false);
+      return;
+    }
 
-// Fetch School data 
+    const studentInfoCollectionRef = collection(DB, 'students');
+    const unsubscribe = onSnapshot(
+      studentInfoCollectionRef,
+      async (querySnapshot) => {
+        const studentList = querySnapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          .filter((student) => student.student_user_id === user.id);
+
+        setStudents(studentList);
+        setFetchingStudentsLoading(false);
+
+      },
+      (error) => {
+        setError('Failed to load students. Please try again.');
+        setFetchingStudentsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+
+  // Fetch School data 
   useEffect(() => {
     const schoolInfoCollectionRef = collection(DB, 'schools')
     const unsubscribe = onSnapshot(
@@ -150,9 +101,10 @@ useEffect(() => {
     return () => unsubscribe();
   },[])
 
-//Fetch State data
-useEffect(() => {
-  const schoolInfoCollectionRef = collection(DB, 'states')
+  
+  //Fetch State data
+  useEffect(() => {
+    const schoolInfoCollectionRef = collection(DB, 'states')
     const unsubscribe = onSnapshot(
       schoolInfoCollectionRef,
       async(querySnapshot) => {
@@ -163,7 +115,7 @@ useEffect(() => {
           }))
           setStates(stateList)
           setFetchingState(false)
-        }
+      }
     )
     return () => unsubscribe();
   }, []);
@@ -172,25 +124,13 @@ useEffect(() => {
     <StudentContext.Provider 
       value={{ 
         userData,
-        fetchingUserDataLoading,
-
-        allStudents,
-        fetchingAllStudentsLoading,
-        
+        fetchingUserDataLoading,              
         students,
         fetchingStudentsLoading,
-
-        driver,
-        fetchingdriverLoading,
-
-        driverFirebaseId,
-
         schools,
         fetchingSchoolsLoading,
-
         states,
         fetchingState,
-
         error 
       }}>
       {children}
