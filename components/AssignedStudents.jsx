@@ -1,8 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 
 const AssignedStudents = ({item}) => {
-
+  
   const birthdate = new Date(item.birth_date.seconds * 1000)
   
   const calculateAge = (birthdate) => {
@@ -28,26 +28,13 @@ const AssignedStudents = ({item}) => {
 
   return (
     <View style={styles.container}>
-
       <View style={styles.student_info_box}>
-        <Text style={styles.student_info_text}>{item.name}</Text>
-        <Text style={styles.student_info_text}>{item.family_name}</Text>
+        <Text style={styles.student_info}>{item.name}</Text>
+        <Text style={styles.student_info}>{item.family_name}</Text>
+        <Text style={{marginHorizontal:5}}>-</Text>
+        <Text style={styles.student_info}>{userAge} سنة</Text>
       </View>
-
-      <Text style={styles.student_info_text}>{userAge} سنة</Text>
-      <Text style={styles.student_info_text}>{item.school_name}</Text> 
-
-      <View style={styles.student_info_box}>
-        <Text style={styles.student_info_text}>{item.student_street}</Text>
-        <Text style={styles.student_info_text}>/</Text> 
-        <Text style={styles.student_info_text}>{item.student_city}</Text>
-        <Text style={styles.student_info_text}>/</Text> 
-        <Text style={styles.student_info_text}>{item.student_state}</Text> 
-      </View>
-        
-        <Text style={styles.student_info_text}>{item.home_address}</Text>
-      
-
+      <Text style={styles.student_info}>{item.student_street} - {item.student_state}</Text>
     </View>
   )
 }
@@ -56,22 +43,25 @@ export default AssignedStudents
 
 const styles = StyleSheet.create({
   container:{
-    margin:10,
-    paddingVertical:10,
+    width:280,
+    height:60,
+    marginVertical:10,
     alignItems:'center',
-    backgroundColor:'#F6F8FA',
-    borderRadius:15
+    justifyContent:'center',
+    borderRadius:15,
+    backgroundColor:'#f0f0f0'
   },
   student_info_box:{
-    width:350,
     flexDirection:'row-reverse',
     justifyContent:'center',
     alignItems:'center',
+    height:30,
   },
-  student_info_text:{ 
+  student_info:{
+    height:30,
+    verticalAlign:'middle',
     fontFamily:'Cairo_400Regular',
     fontSize:14,
-    marginHorizontal:2,
-    marginVertical:5
+    marginHorizontal:4
   },
 })

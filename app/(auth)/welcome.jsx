@@ -5,6 +5,7 @@ import logo from '../../assets/images/logo.jpeg'
 import CustomeButton from '../../components/CustomeButton'
 import colors from '../../constants/Colors'
 import { router } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
 
 const welcome = () => {
 
@@ -13,6 +14,8 @@ const welcome = () => {
   }
   
   return (
+    <>
+    <StatusBar style="auto"/>
     <SafeAreaView style={styles.container}>
       <View style={styles.box}>
         <View style={styles.image_button_container}>
@@ -23,6 +26,7 @@ const welcome = () => {
         </View>
       </View>
     </SafeAreaView>
+    </>
   )
 }
 

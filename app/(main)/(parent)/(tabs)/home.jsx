@@ -41,7 +41,7 @@ const home = () => {
             <Image source={logo} style={styles.logo_image}/>
           </View>
           <View style={styles.no_registered_students}>
-          <Text style={styles.no_student_text}>ليس لديك طلاب مسجلين بالتطبيق</Text>
+            <Text style={styles.no_student_text}>ليس لديك طلاب مسجلين بالتطبيق</Text>
             <Link href="/addData" style={styles.link_container}>
               <Text style={styles.link_text}>اضف الآن</Text>
             </Link>
@@ -57,30 +57,33 @@ const home = () => {
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false} 
-          contentContainerStyle={styles.student_name_buttons_container}>
+          contentContainerStyle={styles.student_name_buttons_container}
+        >
           {students.map((student,index) => (
            <TouchableOpacity
-             key={index} // Use index as the key here
+              key={index}
               style={[
                styles.student_name_button,
-                selectedStudent === index && styles.active_student_name_button, // Apply active style if selected
+                selectedStudent === index && styles.active_student_name_button,
               ]}
-              onPress={() => setSelectedStudent(index)} // Set selected student by index
+              onPress={() => setSelectedStudent(index)}
             >
               <Text style={[
                 styles.student_name_button_text,
-                selectedStudent === index && styles.active_student_name_button_text, // Apply active text style if selected
-              ]}>
-                {student.student_full_name}</Text>
+                selectedStudent === index && styles.active_student_name_button_text,
+                ]}
+              >
+                {student.student_full_name}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
-     </View>
-        <View style={styles.student_info_container}>
-          {students[selectedStudent] && (
-           <StudentHomePage student={students[selectedStudent]} selectedStudent={selectedStudent}/>
-         )}
-        </View>
+      </View>
+      <View style={styles.student_info_container}>
+        {students[selectedStudent] && (
+          <StudentHomePage student={students[selectedStudent]} selectedStudent={selectedStudent}/>
+        )}
+      </View>
    </SafeAreaView>
   )}
 

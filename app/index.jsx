@@ -5,25 +5,26 @@ import { useAuth } from '@clerk/clerk-expo'
 import { collection, getDocs,query,where } from 'firebase/firestore'
 import {DB} from '../firebaseConfig'
 import colors from '../constants/Colors'
+import { StatusBar } from 'expo-status-bar'
 import * as Notifications from 'expo-notifications'
 
 const index = () => {
 
-    const { isSignedIn,userId } = useAuth()
-    const [userType,setUserType] = useState('')
-    const [fetchingUserType, setFetchingUserType] = useState(true)
+  const { isSignedIn,userId } = useAuth()
+  const [userType,setUserType] = useState('')
+  const [fetchingUserType, setFetchingUserType] = useState(true)
 
-    const createAlert = (alerMessage) => {
-      Alert.alert(alerMessage)
-    }
+  const createAlert = (alerMessage) => {
+    Alert.alert(alerMessage)
+  }
 
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
-    });
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
 
   // Fetch the user type from Firestore
   useEffect(() => {
@@ -57,9 +58,12 @@ const index = () => {
   // Loading or fetching user type state
     if (fetchingUserType) {
       return (
+        <>
+        <StatusBar style="auto"/>
         <View style={styles.spinner_error_container}>
           <ActivityIndicator size="large" color={colors.PRIMARY}/>
         </View>
+        </>
       )
     }
 

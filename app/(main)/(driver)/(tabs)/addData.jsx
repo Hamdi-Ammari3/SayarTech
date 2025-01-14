@@ -102,37 +102,57 @@ const addData = () => {
     setShowPicker(true);
   };
 
-  // Function to pick an image
-  const pickPersonalImage = async () => {
+  // Function to capture a real-time photo for the driver's personal image
+  const capturePersonalImage = async () => {
     try {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      // Request camera permissions
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        createAlert('تحتاج إلى منح إذن الكاميرا لالتقاط صورة.');
+        return;
+      }
+  
+      // Launch camera
+      let result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaType?.Images,
         allowsEditing: false,
         aspect: [4, 3],
         quality: 1,
       });
-
+  
       if (!result.canceled) {
-        setPersonalImage(result.assets[0].uri); // Set the selected image URI
+        setPersonalImage(result.assets[0].uri); // Set the captured image URI
       }
     } catch (error) {
-      createAlert('حدث خطأ اثناء اختيار الصورة');
+      createAlert('حدث خطأ أثناء التقاط الصورة');
+      console.log(error);
     }
   };
 
-  const PickCarImage = async () => {
+  // Function to capture a real-time photo for the car image
+  const captureCarImage = async () => {
     try {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      // Request camera permissions
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        createAlert('تحتاج إلى منح إذن الكاميرا لالتقاط صورة.');
+        return;
+      }
+  
+      // Launch camera
+      let result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaType?.Images,
         allowsEditing: false,
         aspect: [4, 3],
         quality: 1,
       });
+  
       if (!result.canceled) {
-        setCarImage(result.assets[0].uri); // Set the selected image URI
+        setCarImage(result.assets[0].uri); // Set the captured image URI
       }
     } catch (error) {
-      createAlert('حدث خطأ اثناء اختيار الصورة');
+      createAlert('حدث خطأ أثناء التقاط الصورة');
+      console.log(error);
     }
   };
 
@@ -210,14 +230,11 @@ const addData = () => {
         driver_car_seats: carSeats,
         driver_personal_image: personalImageUrl,
         driver_car_image: carImageUrl,
-        assigned_students:[],
-        first_trip_status:'not started',
-        first_trip_start:null,
-        first_trip_end:null,
-        second_trip_status:'finished',
-        second_trip_start:null,
-        second_trip_end:null,
-        rating:[]
+        line:[],
+        school_rating:[],
+        student_rating:[],
+        sayartech_team_rating:[],
+        points:[]
       }
 
       const docRef = await addDoc(driversCollectionRef,driverData)
@@ -293,7 +310,7 @@ const addData = () => {
           contentContainerStyle={styles.form} 
         >
 
-          <TouchableOpacity style={styles.fullButton} onPress={pickPersonalImage}>
+          <TouchableOpacity style={styles.fullButton} onPress={capturePersonalImage}>
             <Text style={styles.fullBtnText}>{personalImageLoading ? 'جاري تحميل الصورة' : personalImage ? 'تم اختيار الصورة' : 'صورتك الشخصية'}</Text>
           </TouchableOpacity>
           {personalImage && 
@@ -318,6 +335,7 @@ const addData = () => {
             style={styles.dropdown}
             placeholderStyle={styles.dropdownStyle}
             selectedTextStyle={styles.dropdownStyle}
+            itemTextStyle={styles.dropdownTextStyle}
             data={cars}
             labelField="name"
             valueField="name"
@@ -338,7 +356,7 @@ const addData = () => {
             onChangeText={(text) => setCarPlate(text)}
           />
 
-          <TouchableOpacity style={styles.fullButton} onPress={PickCarImage}>
+          <TouchableOpacity style={styles.fullButton} onPress={captureCarImage}>
             <Text style={styles.fullBtnText}>{carImageLoading ? 'جاري تحميل الصورة' : carImage ? 'تم اختيار الصورة' : 'صورة السيارة'}</Text>
           </TouchableOpacity>
           {carImage && 
@@ -427,6 +445,8 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },  
   fullBtnText:{
+    height:50,
+    verticalAlign:'middle',
     fontFamily:'Cairo_400Regular',
     fontSize:15,
     color:colors.BLACK
@@ -443,9 +463,14 @@ const styles = StyleSheet.create({
     borderRadius:15,
   },
   dropdownStyle:{
+    height:50,
+    verticalAlign:'middle',
     fontFamily:'Cairo_400Regular',
     textAlign:'center',
     fontSize:14
+  },
+  dropdownTextStyle:{
+    textAlign:'center',
   },
   location_msg_view:{
     width:280,
@@ -477,6 +502,8 @@ const styles = StyleSheet.create({
     borderRadius:15,
   },
   add_data_button_text:{
+    height:50,
+    verticalAlign:'middle',
     fontFamily:'Cairo_700Bold',
     fontSize:15,
     color:colors.WHITE
@@ -491,6 +518,8 @@ const styles = StyleSheet.create({
     borderRadius:15,
   },
   clear_data_button_text:{
+    height:50,
+    verticalAlign:'middle',
     fontFamily:'Cairo_700Bold',
     fontSize:15,
     color:colors.PRIMARY
@@ -510,8 +539,8 @@ const styles = StyleSheet.create({
   },
   car_info_box:{
     width:300,
-    height:100,
-    backgroundColor:'#F6F8FA',
+    height:50,
+    backgroundColor:colors.GRAY,
     flexDirection:'row-reverse',
     justifyContent:'space-around',
     alignItems:'center',
@@ -519,6 +548,8 @@ const styles = StyleSheet.create({
     marginTop:10
   },
   car_info_text:{
+    height:50,
+    verticalAlign:'middle',
     fontFamily:'Cairo_400Regular',
     fontSize:14,
     color:'#858585'

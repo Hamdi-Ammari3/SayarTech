@@ -11,6 +11,9 @@ import colors from '../constants/Colors'
 
 const StudentHomePage = ({student}) => {
 
+  // after the driver picked up the student and hiding toward a next student location show a message of "student is in the car" instead of "student going to school"
+  // Add Advertising slide for private schools and universities 
+
   const GOOGLE_MAPS_APIKEY = ''
   const mapRef = useRef(null)
   const markerRef = useRef(null)
@@ -284,9 +287,8 @@ const StudentHomePage = ({student}) => {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.finding_driver_container}>
-          <View style={styles.finding_driver_loading_box}>
-            <ActivityIndicator size={'small'} color={colors.WHITE}/>
-            <Text style={styles.finding_driver_loading_text}>جاري ربط حسابك بسائق</Text>
+          <View style={styles.student_route_status_box}>
+            <Text style={styles.student_route_status_text}>في انتظار ربط الحساب بسائق</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -413,25 +415,28 @@ const styles = StyleSheet.create({
   student_box:{
     backgroundColor:colors.GRAY,
     width:250,
-    padding:10,
+    height:50,
     borderRadius:15,
     alignItems:'center',
     justifyContent:'center'
   },
   student_text:{
+    height:50,
+    verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
-    color:colors.BLACK,
   },
   cancel_trip_btn:{
     backgroundColor:colors.BLUE,
     width:250,
-    padding:10,
+    height:50,
     borderRadius:15,
     marginTop:10
   },
   cancel_trip_btn_text:{
+    height:50,
+    verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
@@ -497,12 +502,14 @@ const styles = StyleSheet.create({
   student_route_status_box:{
     backgroundColor:colors.BLUE,
     width:250,
-    padding:10,
+    height:50,
     borderRadius:15,
     alignItems:'center',
     justifyContent:'center'
   },
   student_route_status_text:{
+    height:50,
+    verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,

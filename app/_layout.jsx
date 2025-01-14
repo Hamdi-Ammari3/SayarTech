@@ -1,5 +1,6 @@
 import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo'
 import { Stack } from "expo-router"
+import { StatusBar } from 'expo-status-bar'
 import {useFonts,Cairo_400Regular,Cairo_700Bold} from '@expo-google-fonts/cairo'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from "react"
@@ -63,6 +64,7 @@ export default function RootLayout() {
   return(
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <ClerkLoaded>
+        <StatusBar style="auto"/>
         <Stack>
             <Stack.Screen name="index" options={{headerShown:false}}/>
             <Stack.Screen name="(auth)" options={{headerShown:false}}/>

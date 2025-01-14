@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Alert,StyleSheet, Text, View,FlatList,ActivityIndicator,TouchableOpacity,Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { Link,useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'
 import StudentCard from '../../../../components/StudentCard'
 import { useAuth,useUser } from '@clerk/clerk-expo'
@@ -116,7 +116,7 @@ const profile = () => {
 
         <View style={styles.button_container}>
           <TouchableOpacity style={styles.logout_button} onPress={handleSignOut}>
-            <Text style={styles.logout_text}>خروج</Text>
+            <Text style={styles.logout_button_text}>خروج</Text>
             <SimpleLineIcons name="logout" size={20} color="white" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.delete_button} onPress={confirmDeleteAccount}>
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   user_info_text:{
     fontFamily:'Cairo_700Bold',
     fontSize:14,
-    color:colors.WHITE
+    color:colors.WHITE,
   },
   button_container:{
     flexDirection:'row-reverse',
@@ -199,11 +199,13 @@ const styles = StyleSheet.create({
     alignItems:'center',
     justifyContent:'center'
   },
-  logout_text:{
+  logout_button_text:{
+    height:50,
     fontFamily: 'Cairo_400Regular',
-    fontSize:14,
+    fontSize:15,
+    marginRight:10,
+    verticalAlign:'middle',
     color:colors.WHITE,
-    marginRight:10
   },
   delete_button:{
     width:140,
@@ -217,18 +219,21 @@ const styles = StyleSheet.create({
   },
   delete_text:{
     color:'#898989',
+    height:50,
     fontFamily: 'Cairo_400Regular',
-    fontSize:14,
-    marginRight:10
+    fontSize:15,
+    marginRight:10,
+    verticalAlign:'middle',
   },
   privacy_button_container:{
     width:340,
-    height:85,
+    height:40,
+    flexDirection:'row',
     alignItems:'center',
-    justifyContent:'space-between',
+    justifyContent:'space-around',
   },
   privacy_button:{
-    width:250,
+    width:140,
     height:35,
     backgroundColor:'#F6F8FA',
     borderRadius:7,
@@ -241,11 +246,28 @@ const styles = StyleSheet.create({
     fontSize:14,
     marginBottom:5
   },
-  logout_text:{
-    fontFamily:'Cairo_700Bold',
-    fontSize:16,
-    color:colors.WHITE,
-    marginRight:10
+  flatList_style:{
+    marginTop:10,
+    paddingBottom:40,
+  },
+  no_registered_students: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop:75
+  },
+  no_student_text: {
+    fontFamily: 'Cairo_400Regular',
+  },
+  link_container: {
+    backgroundColor: colors.PRIMARY,
+    padding: 15,
+    marginTop:10,
+    borderRadius: 20,
+  },
+  link_text: {
+    color: colors.WHITE,
+    fontFamily: 'Cairo_700Bold',
+    fontSize: 14,
   },
   spinner_error_container:{
     flex:1,

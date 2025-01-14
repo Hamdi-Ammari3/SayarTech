@@ -117,7 +117,7 @@ const profile = () => {
 
         <View style={styles.button_container}>
           <TouchableOpacity style={styles.logout_button} onPress={handleSignOut}>
-            <Text style={styles.logout_text}>خروج</Text>
+            <Text style={styles.logout_button_text}>خروج</Text>
             <SimpleLineIcons name="logout" size={20} color="white" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.delete_button} onPress={confirmDeleteAccount}>
@@ -200,11 +200,13 @@ const styles = StyleSheet.create({
     alignItems:'center',
     justifyContent:'center'
   },
-  logout_text:{
+  logout_button_text:{
+    height:50,
     fontFamily: 'Cairo_400Regular',
-    fontSize:14,
+    fontSize:15,
+    marginRight:10,
+    verticalAlign:'middle',
     color:colors.WHITE,
-    marginRight:10
   },
   delete_button:{
     width:140,
@@ -218,18 +220,21 @@ const styles = StyleSheet.create({
   },
   delete_text:{
     color:'#898989',
+    height:50,
     fontFamily: 'Cairo_400Regular',
-    fontSize:14,
-    marginRight:10
+    fontSize:15,
+    marginRight:10,
+    verticalAlign:'middle',
   },
   privacy_button_container:{
     width:340,
-    height:85,
+    height:40,
+    flexDirection:'row',
     alignItems:'center',
-    justifyContent:'space-between',
+    justifyContent:'space-around',
   },
   privacy_button:{
-    width:250,
+    width:140,
     height:35,
     backgroundColor:'#F6F8FA',
     borderRadius:7,

@@ -42,6 +42,8 @@ const styles = StyleSheet.create({
         justifyContent:'center'
     },
     text:{
+        height:50,
+        verticalAlign:'middle',
         fontFamily:'Cairo_700Bold',
         fontSize:15,
         color:colors.WHITE

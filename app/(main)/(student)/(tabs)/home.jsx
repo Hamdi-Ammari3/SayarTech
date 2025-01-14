@@ -16,7 +16,6 @@ import logo from '../../../../assets/images/logo.jpeg'
 const home = () => {
 
   const GOOGLE_MAPS_APIKEY = ''
-
   const {students,fetchingStudentsLoading} = useStudentData()
 
   const markerRef = useRef(null)
@@ -286,14 +285,12 @@ const renderMap = () => (
     )
   }
   
-
-if(!students[0]?.driver_id) {
+  if(!students[0]?.driver_id) {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.finding_driver_container}>
-          <View style={styles.finding_driver_loading_box}>
-            <ActivityIndicator size={'small'} color={colors.WHITE}/>
-            <Text style={styles.finding_driver_loading_text}>جاري ربط حسابك بسائق</Text>
+          <View style={styles.student_route_status_box}>
+            <Text style={styles.student_route_status_text}>في انتظار ربط حسابك بسائق</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -452,27 +449,30 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },
   student_box:{
-    backgroundColor:colors.PRIMARY,
+    backgroundColor:colors.GRAY,
     width:250,
-    padding:10,
+    height:50,
     borderRadius:15,
     alignItems:'center',
     justifyContent:'center'
   },
   student_text:{
+    height:50,
+    verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
-    color:colors.WHITE,
   },
   cancel_trip_btn:{
     backgroundColor:colors.BLUE,
     width:250,
-    padding:10,
+    height:50,
     borderRadius:15,
     marginTop:10
   },
   cancel_trip_btn_text:{
+    height:50,
+    verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
@@ -550,17 +550,20 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },
   student_route_status_box:{
-    backgroundColor:colors.WHITE,
+    backgroundColor:colors.BLUE,
     width:250,
-    padding:10,
+    height:50,
     borderRadius:15,
     alignItems:'center',
     justifyContent:'center'
   },
   student_route_status_text:{
+    height:50,
+    verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
+    color:colors.WHITE,
   },
   map: {
     flex:1,

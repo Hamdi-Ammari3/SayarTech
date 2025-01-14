@@ -1,7 +1,8 @@
+import React,{useState,useEffect} from 'react'
 import { useSignIn,useAuth } from '@clerk/clerk-expo'
 import { Link,Redirect } from 'expo-router'
-import { Text, View,SafeAreaView,StyleSheet, Image, Alert,ActivityIndicator } from 'react-native'
-import React,{useState,useEffect} from 'react'
+import { View,Text,TouchableOpacity,TextInput,SafeAreaView,StyleSheet,Image,Alert,ActivityIndicator } from 'react-native'
+import { Dropdown } from 'react-native-element-dropdown'
 import { collection,getDocs,where,query } from 'firebase/firestore'
 import { DB } from '../../firebaseConfig'
 import colors from '../../constants/Colors'
@@ -9,13 +10,13 @@ import CustomeInput from '../../components/CustomeInput'
 import CustomeButton from '../../components/CustomeButton'
 import logo from '../../assets/images/logo.jpeg'
 
-
 export default function Page() {
   const { signIn, setActive, isLoaded } = useSignIn()
   const { isSignedIn,userId } = useAuth()
   const { signOut } = useAuth()
 
   const [verifying, setVerifying] = useState(false)
+  const [countryCode, setCountryCode] = useState('+964')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [isSigningIn, setIsSigningIn] = useState(false)
@@ -28,6 +29,18 @@ export default function Page() {
     Alert.alert(alerMessage)
   }
 
+  // Coutries Code
+  const countryCodeList = [
+    {name:'+964'},
+    {name:'+1'},
+    {name:'+216'},
+  ]
+
+  // Handle country code
+  const handleCountryCode = (code) => {
+    setCountryCode(code)
+  }
+
   const handleSignOut = async () => {
     try {
       await signOut(); // Sign out from the existing session
@@ -36,28 +49,28 @@ export default function Page() {
     }
   };
 
-// Fetch the user type from Firestore
-    const fetchUserType = async () => {
-      if (userId) {
-        setLoadingUserType(true)
-        try {
-          const userInfoCollectionRef = collection(DB, 'users')
-          const q = query(userInfoCollectionRef , where('user_id', '==', userId))
-          const userInfoSnapshot = await getDocs(q)
+  // Fetch the user type from Firestore
+  const fetchUserType = async () => {
+    if (userId) {
+      setLoadingUserType(true)
+      try {
+        const userInfoCollectionRef = collection(DB, 'users')
+        const q = query(userInfoCollectionRef , where('user_id', '==', userId))
+        const userInfoSnapshot = await getDocs(q)
           
-          if (!userInfoSnapshot.empty) {
-            const userData = userInfoSnapshot.docs[0].data()
-            setUserType(userData.compte_owner_type)
-          } else {
-            createAlert('لا يمكن العثور على نوع المستخدم')
-          }
-        } catch (error) {
-          console.error('Error fetching user data:', error)
-        } finally {
-          setLoadingUserType(false)
+        if (!userInfoSnapshot.empty) {
+          const userData = userInfoSnapshot.docs[0].data()
+          setUserType(userData.compte_owner_type)
+        } else {
+          createAlert('لا يمكن العثور على نوع المستخدم')
         }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+      } finally {
+        setLoadingUserType(false)
       }
     }
+  }
 
   useEffect(() => {
     if (isSignedIn && userId) {
@@ -65,7 +78,7 @@ export default function Page() {
     }
   }, [isSignedIn, userId]);
 
-//SignIn Button
+  //SignIn Button
   const onSignInPress = async () => {
     if (!isLoaded || !signIn || isSigningIn) return // Prevent double-click
 
@@ -75,7 +88,7 @@ export default function Page() {
     
     try {
       const {supportedFirstFactors} = await signIn.create({
-        identifier: `+216${phone}`
+        identifier: `${countryCode} ${phone}`,
       })
 
       // Find the phoneNumberId from all the available first factors for the current sign-in
@@ -166,7 +179,6 @@ export default function Page() {
     return <Redirect href={'/(main)/(driver)/(tabs)/home'}/>
   }
 
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.logo}>
@@ -202,12 +214,27 @@ export default function Page() {
         
       ) : (
         <>
-          <CustomeInput
-            value={phone}
-            placeholder="رقم الهاتف"
-            onChangeText={(text) => setPhone(text)}
-            keyboardType='numeric'
-          />
+          <View style={styles.input_with_picker}>
+            <Dropdown
+              style={styles.dropdown}
+              placeholderStyle={styles.dropdownStyle}
+              selectedTextStyle={styles.dropdownStyle}
+              itemTextStyle={styles.dropdownTextStyle}
+              data={countryCodeList}
+              labelField="name"
+              valueField="name"
+              placeholder=""
+              value={countryCode}
+              onChange={item => handleCountryCode(item.name)}
+            />
+            <TextInput
+              style={styles.input}
+              value={phone}
+              placeholder="رقم الهاتف"
+              onChangeText={(text) => setPhone(text)}
+              keyboardType='numeric'
+            />
+          </View>
           <CustomeButton 
             title="تاكيد" 
             onPressHandler={onSignInPress}
@@ -248,16 +275,37 @@ const styles = StyleSheet.create({
     justifyContent:'space-between',
     alignItems:'center',
   },
-  input:{
-    width:280,
-    height:50,
-    marginBottom:10,
+  input_with_picker:{
+    flexDirection:'row',
     borderWidth:1,
     borderColor:colors.PRIMARY,
-    borderRadius:20,
+    borderRadius:15,
+    marginBottom:10
+  },
+  dropdown:{
+    width:80,
+    height:50,
+    backgroundColor:colors.PRIMARY,
+    borderTopStartRadius:13,
+    borderBottomStartRadius:13,
+  },
+  dropdownStyle:{
+    color:colors.WHITE,
+    fontFamily:'Cairo_700Bold',
+    textAlign:'center',
+    fontSize:14,
+    height:50,
+    verticalAlign:'middle',
+  },
+  dropdownTextStyle:{
+    textAlign:'center',
+  },
+  input:{
+    width:200,
+    height:50,
     textAlign:'center',
     fontFamily:'Cairo_400Regular'
-},
+  },
   link_text:{
     fontFamily:'Cairo_700Bold',
     fontSize:13,
@@ -292,5 +340,5 @@ const styles = StyleSheet.create({
     fontFamily:'Cairo_700Bold',
     fontSize:13,
     marginHorizontal:5,
-  }
+  },
 })

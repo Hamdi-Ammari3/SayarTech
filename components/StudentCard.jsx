@@ -1,10 +1,9 @@
 import { StyleSheet, Text, View, ActivityIndicator,Image,TouchableOpacity,Modal } from 'react-native'
 import React,{useState} from 'react'
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
 import colors from '../constants/Colors'
-import driverImage from '../assets/images/driver.png'
-import AntDesign from '@expo/vector-icons/AntDesign';
+import AntDesign from '@expo/vector-icons/AntDesign'
 
 const ChildCard = ({ item }) => {
   const [showDriverInfo,setShowDriverInfo] = useState(false)
@@ -18,7 +17,7 @@ const ChildCard = ({ item }) => {
       setShowDriverInfo(true);
 
       if (!item.driver_id) {
-        setError('No driver assigned for this student.');
+        setError('No driver assigned for this student.')
         setLoadingDriver(false);
         return;
       }
@@ -41,12 +40,22 @@ const ChildCard = ({ item }) => {
     }
 
   }
-// vZ51bJadReAjnhih5i3U
+
   const closeDriverInfoModal = () => {
     setShowDriverInfo(false)
     setDriverData(null)
     setError(null)
   }
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("ar-IQ", {
+      style: "currency",
+      currency: "IQD",
+      maximumFractionDigits: 0, // No decimals for IQD
+    })
+      .format(amount)
+  };
+  
     
   return (
     <View style={styles.container}>
@@ -56,9 +65,15 @@ const ChildCard = ({ item }) => {
       </View>
       {item.driver_id && (
       <View style={styles.driver_car_box}>
-        <TouchableOpacity onPress={openDriverInfoModal} style={{marginTop:10}}>
-          <Image source={driverImage} style={styles.image}/>
-        </TouchableOpacity>
+        <View style={styles.driver_car_box_inner}>
+          <TouchableOpacity style={styles.driver_car_box_inner_btn} onPress={openDriverInfoModal}>
+            <Text style={styles.info_text}>السائق</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.driver_car_box_inner}>
+          <Text style={styles.info_text}>الاشتراك الشهري</Text>
+          <Text style={styles.info_text_bold}>{item.monthly_sub ? formatCurrency(item.monthly_sub) : "-"}</Text>
+        </View>
        
         <Modal 
           animationType="fade"
@@ -101,7 +116,7 @@ const ChildCard = ({ item }) => {
 
                     <View style={styles.driver_info}>
                       <View style={styles.driver_photo_box}>
-                        <Image source={{uri:driverData.driver_personal_image}} style={styles.driver_photo}/>
+                        <Image source={{uri:driverData.driver_car_image}} style={styles.driver_photo}/>
                       </View>
                       <Text style={styles.info_text}>نوع السيارة: {driverData.driver_car_type}</Text>
                       <Text style={styles.info_text}>موديل السيارة: {driverData.driver_car_model}</Text>
@@ -132,23 +147,43 @@ const styles = StyleSheet.create({
   },
   student_info_box:{
     width:350,
+    height:40,
     flexDirection:'row',
     justifyContent:'space-around',
     alignItems:'center',
   },
   info_text:{ 
-    fontFamily:'Cairo_400Regular',
-    fontSize:14
-  },
-  school_name_text:{
-    fontFamily:'Cairo_400Regular',
-    fontSize:14
-  },
-  image:{
     height:40,
-    width:40,
+    verticalAlign:'middle',
+    fontFamily:'Cairo_400Regular',
+    fontSize:14
+  },
+  info_text_bold:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:14,
+    marginRight:7
+  },
+  driver_car_box:{
+    width:'100%',
+    marginTop:10,
+    flexDirection:'column-reverse',
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  driver_car_box_inner:{
+    flexDirection:'row-reverse',
+    alignItems:'center',
+    marginVertical:10,
+  },
+  driver_car_box_inner_btn:{
+    width:80,
+    height:40,
+    borderColor:'#DAD9D8',
+    borderWidth:1,
     borderRadius:5,
-    resizeMode:'contain',
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'
   },
   driver_info_modal_container:{
     flex: 1,

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert,StyleSheet, Text, View,FlatList,ActivityIndicator,TouchableOpacity,Linking } from 'react-native'
+import { Alert,StyleSheet, Text, View,FlatList,ActivityIndicator,TouchableOpacity,Linking,Modal } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'
@@ -10,15 +10,19 @@ import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useDriverData } from '../../../stateManagment/DriverContext'
 import AssignedStudents from '../../../../components/AssignedStudents'
+import AntDesign from '@expo/vector-icons/AntDesign'
 
 const profile = () => {
+  const {userData,fetchingUserDataLoading,driverData,fetchingDriverDataLoading} = useDriverData()
+
   const [signOutLoading,setSignOutLoading] = useState(false)
-  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
+  const [showLineDataModal,setShowLineDataModal] = useState(false)
+  const [selectedLine, setSelectedLine] = useState(null)
+
   const { signOut } = useAuth()
   const {user} = useUser()
   const router = useRouter()
-
-  const {userData,fetchingUserDataLoading,driverData,fetchingDriverDataLoading} = useDriverData()
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
@@ -36,7 +40,7 @@ const profile = () => {
     }
   };
 
-// Ask users first if they really want to delete their account
+  // Ask users first if they really want to delete their account
   const confirmDeleteAccount = () => {
     Alert.alert(
        'تاكيد مسح الحساب', // Title
@@ -94,6 +98,16 @@ const profile = () => {
     Linking.openURL('https://sayartech.com/terms-of-use');
   };
 
+  const handleLinePress = (line) => {
+    setShowLineDataModal(true)
+    setSelectedLine(line)
+  };
+
+  const closeLineInfoModal = () => {
+    setShowLineDataModal(false)
+    setSelectedLine(null)
+  }
+
   // Loading or fetching user type state
   if (fetchingUserDataLoading || fetchingDriverDataLoading || deleteAccountLoading || signOutLoading) {
     return (
@@ -135,16 +149,46 @@ const profile = () => {
 
       </View>
       <FlatList
-        data={driverData[0]?.assigned_students}
-        renderItem={({item}) => <AssignedStudents item={item}/>}
-        keyExtractor={item => item.id}
+        data={driverData[0]?.line}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.line_item} onPress={() => handleLinePress(item)}>
+            <Text style={styles.line_name}>{item.lineName}</Text>
+          </TouchableOpacity>
+        )}
+        keyExtractor={item => item.lineName}
         contentContainerStyle={styles.flatList_style}
         ListEmptyComponent={() => (
           <View style={styles.no_registered_students}>
-            <Text style={styles.no_student_text}>ليس لديك طلاب في حسابك بعد</Text>
+            <Text style={styles.no_student_text}>ليس لديك خطوط في حسابك</Text>
           </View>
         )}
-        />
+      />
+      {/* Modal for displaying students */}
+      {selectedLine && (
+        <Modal
+         animationType="fade"
+          transparent={true} 
+          visible={showLineDataModal} 
+          onRequestClose={() => setShowLineDataModal(false)}
+        >
+          <View style={styles.modal_container}>
+            <View style={styles.modal_box}>
+              <View style={styles.modal_header}>
+                <TouchableOpacity onPress={closeLineInfoModal} style={styles.modal_header_btn}>
+                  <AntDesign name="closecircleo" size={24} color="gray" />
+                </TouchableOpacity>
+                <Text style={styles.modal_title}>{selectedLine.lineName}</Text>
+              </View>
+              
+              <FlatList
+                data={selectedLine.students}
+                renderItem={({ item }) => <AssignedStudents item={item} />}
+                keyExtractor={(item) => item.id}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   )
 }
@@ -182,8 +226,8 @@ const styles = StyleSheet.create({
     flexDirection:'row-reverse',
     justifyContent:'space-around',
     width:340,
-    height:50,
-    marginBottom:10,
+    height:60,
+    marginBottom:10
   },
   logout_button:{
     width:140,
@@ -195,10 +239,12 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },
   logout_text:{
+    height:50,
     fontFamily: 'Cairo_400Regular',
-    fontSize:14,
+    fontSize:15,
+    marginRight:10,
+    verticalAlign:'middle',
     color:colors.WHITE,
-    marginRight:10
   },
   delete_button:{
     width:140,
@@ -212,18 +258,21 @@ const styles = StyleSheet.create({
   },
   delete_text:{
     color:'#898989',
+    height:50,
     fontFamily: 'Cairo_400Regular',
-    fontSize:14,
-    marginRight:10
+    fontSize:15,
+    marginRight:10,
+    verticalAlign:'middle',
   },
   privacy_button_container:{
     width:340,
-    height:85,
+    height:40,
+    flexDirection:'row',
     alignItems:'center',
-    justifyContent:'space-between',
+    justifyContent:'space-around',
   },
   privacy_button:{
-    width:250,
+    width:140,
     height:35,
     backgroundColor:'#F6F8FA',
     borderRadius:7,
@@ -236,20 +285,38 @@ const styles = StyleSheet.create({
     fontSize:14,
     marginBottom:5
   },
+  line_item:{
+    width:250,
+    height:45,
+    backgroundColor:colors.BLUE,
+    borderRadius:15,
+    marginBottom:10,
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  line_name:{
+    height:45,
+    verticalAlign:'middle',
+    fontFamily:'Cairo_400Regular',
+    fontSize:16,
+    color:colors.WHITE,
+  },
   flatList_style:{
     marginTop:10,
     paddingBottom:40,
   },
   no_registered_students: {
-    height:100,
-    width:350,
+    height:50,
+    width:300,
     marginTop:95,
-    backgroundColor:'#F6F8FA',
+    backgroundColor:colors.GRAY,
     borderRadius:15,
     justifyContent: 'center',
     alignItems: 'center',
   },
   no_student_text: {
+    height:50,
+    verticalAlign:'middle',
     fontFamily: 'Cairo_400Regular',
   },
   spinner_error_container:{
@@ -262,5 +329,33 @@ const styles = StyleSheet.create({
     fontSize:16,
     color:'darkred'
   },
+  modal_container:{
+    flex:1,
+    justifyContent:'center',
+    alignItems:'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modal_box:{
+    width: '95%',
+    height:'95%',
+    backgroundColor:colors.WHITE,
+    borderRadius: 10,
+    padding: 10,
+    alignItems: 'center',
+  },
+  modal_header:{
+    width:'100%',
+    height:40,
+    flexDirection:'row',
+    justifyContent:'center',
+    alignItems:'center',
+    marginBottom:10
+  },
+  modal_title:{
+    height:40,
+    verticalAlign:'middle',
+    fontFamily:'Cairo_700Bold',
+    fontSize:18,
+    marginLeft:10,
+  },
 })
-

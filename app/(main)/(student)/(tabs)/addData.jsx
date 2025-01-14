@@ -1,4 +1,4 @@
-import { Alert, StyleSheet, Text, View,ActivityIndicator,TouchableOpacity,FlatList, Switch } from 'react-native'
+import { Alert, StyleSheet, Text, View,ActivityIndicator,TouchableOpacity,FlatList,Switch } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import React,{useEffect, useState} from 'react'
 import { useRouter } from 'expo-router'
@@ -106,13 +106,13 @@ const addData = () => {
 
   // School time table
   const [schoolTimetable, setSchoolTimetable] = useState([
-    { day: "الاثنين", active: false, startTime: null, endTime: null },
-    { day: "الثلاثاء", active: false, startTime: null, endTime: null },
-    { day: "الاربعاء", active: false, startTime: null, endTime: null },
-    { day: "الخميس", active: false, startTime: null, endTime: null },
-    { day: "الجمعة", active: false, startTime: null, endTime: null },
-    { day: "السبت", active: false, startTime: null, endTime: null },
-    { day: "الاحد", active: false, startTime: null, endTime: null },
+    { id:1,day: "الاثنين", active: false, startTime: null, endTime: null },
+    { id:2,day: "الثلاثاء", active: false, startTime: null, endTime: null },
+    { id:3,day: "الاربعاء", active: false, startTime: null, endTime: null },
+    { id:4,day: "الخميس", active: false, startTime: null, endTime: null },
+    { id:5,day: "الجمعة", active: false, startTime: null, endTime: null },
+    { id:6,day: "السبت", active: false, startTime: null, endTime: null },
+    { id:7,day: "الاحد", active: false, startTime: null, endTime: null },
   ]);
 
   // Open the time-table picker
@@ -254,12 +254,12 @@ const addData = () => {
         student_school_location:schoolLocation,
         school_timetable: schoolTimetable,
         student_car_type:carType,
+        monthly_sub:0,
+        student_trip_status:'at home',
         driver_id:null,
         picked_up:false,
         tomorrow_trip_canceled:false,
-        student_trip_status:'at home',
       }
-
       const docRef = await addDoc(studentsCollectionRef,studentData)
 
       createAlert('تم تسجيل المعلومات بنجاح')
@@ -313,7 +313,8 @@ const addData = () => {
     return (
       <FlatList
         data={timetable}
-        keyExtractor={(item) => item.day}
+        keyExtractor={(item) => item.id.toString()}
+        extraData={schoolTimetable}
         contentContainerStyle={styles.flatList_style}
         renderItem={({ item }) => (
           <View style={styles.dayRow}>
@@ -395,6 +396,7 @@ const addData = () => {
               style={styles.dropdown}
               placeholderStyle={styles.dropdownStyle}
               selectedTextStyle={styles.dropdownStyle}
+              itemTextStyle={styles.dropdownTextStyle}
               data={sex}
               labelField="name"
               valueField="name"
@@ -406,6 +408,7 @@ const addData = () => {
               style={styles.dropdown}
               placeholderStyle={styles.dropdownStyle}
               selectedTextStyle={styles.dropdownStyle}
+              itemTextStyle={styles.dropdownTextStyle}
               data={cars}
               labelField="name"
               valueField="name"
@@ -422,6 +425,7 @@ const addData = () => {
               style={styles.dropdown}
               placeholderStyle={styles.dropdownStyle}
               selectedTextStyle={styles.dropdownStyle}
+              itemTextStyle={styles.dropdownTextStyle}
               data={schools}
               labelField="name"
               valueField="name"
@@ -453,6 +457,7 @@ const addData = () => {
                 style={styles.dropdownHalf}
                 placeholderStyle={styles.dropdownStyle}
                 selectedTextStyle={styles.dropdownStyle}
+                itemTextStyle={styles.dropdownTextStyle}
                 data={states}
                 labelField="name"
                 valueField="name"
@@ -467,6 +472,7 @@ const addData = () => {
                 style={styles.dropdownHalf}
                 placeholderStyle={styles.dropdownStyle}
                 selectedTextStyle={styles.dropdownStyle}
+                itemTextStyle={styles.dropdownTextStyle}
                 data={cities}
                 labelField="name"
                 valueField="name"
@@ -523,7 +529,9 @@ const addData = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
-          <Text style={styles.already_added_style}>لقد تمت اضافة بياناتك</Text>
+          <View style={styles.student_data_already_added}>
+            <Text style={styles.student_data_already_added_text}>لقد تمت اضافة بياناتك</Text>
+          </View>
         </View>
       </SafeAreaView>
     )
@@ -621,9 +629,14 @@ const styles = StyleSheet.create({
       borderRadius:15,
     },
     dropdownStyle:{
+      height:50,
+      verticalAlign:'middle',
       fontFamily:'Cairo_400Regular',
       textAlign:'center',
       fontSize:14
+    },
+    dropdownTextStyle:{
+      textAlign:'center',
     },
     age_sex_input_container:{
       flexDirection:'row',
@@ -653,30 +666,35 @@ const styles = StyleSheet.create({
       marginTop:20
     },
     dayRow: {
+      height:50,
+      marginBottom: 7,
       flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 5,
+      alignItems: "center", 
       borderWidth:1,
       borderColor:colors.PRIMARY,
       borderRadius:15,
     },
     dayText: {
+      height:40,
+      verticalAlign:'middle',
       textAlign:'center',
       fontFamily:'Cairo_400Regular',
       flex: 1,
       fontSize: 14,
     },
     timeInput: {
+      height:40,
       flex: 1,
-      paddingVertical: 5,
-      paddingHorizontal: 5,
-      borderRadius: 15,
       alignItems: "center",
+      justifyContent:'center',
+      borderRadius: 15,
     },
     disabledInput: {
       backgroundColor: "#e0e0e0",
     },
     timeText: {
+      height:40,
+      verticalAlign:'middle',
       textAlign:'center',
       fontFamily:'Cairo_400Regular',
       fontSize: 14,
@@ -727,6 +745,8 @@ const styles = StyleSheet.create({
       justifyContent:'center'
     },  
     fullBtnText:{
+      height:50,
+      verticalAlign:'middle',
       fontFamily:'Cairo_400Regular',
       fontSize:15,
       color:colors.BLACK
@@ -750,6 +770,8 @@ const styles = StyleSheet.create({
       justifyContent:'center'
     },
     btnText:{
+      height:50,
+      verticalAlign:'middle',
       fontFamily:'Cairo_700Bold',
       fontSize:15,
       color:colors.WHITE
@@ -777,6 +799,21 @@ const styles = StyleSheet.create({
     distanceText: {
       fontFamily: 'Cairo_700Bold',
       fontSize: 12,
+    },
+    student_data_already_added:{
+      backgroundColor:colors.GRAY,
+      width:250,
+      height:50,
+      borderRadius:15,
+      alignItems:'center',
+      justifyContent:'center'
+    },
+    student_data_already_added_text:{
+      height:50,
+      verticalAlign:'middle',
+      textAlign:'center',
+      fontFamily: 'Cairo_400Regular',
+      fontSize:15,
     },
     spinner_error_container: {
       flex: 1,

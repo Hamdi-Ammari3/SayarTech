@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react'
-import { Text, View,StyleSheet,Image, Alert,Platform,TouchableOpacity,TextInput,Modal,ScrollView } from 'react-native'
+import { Text, View,StyleSheet,Image, Alert,Platform,TouchableOpacity,TextInput,Modal,ScrollView,Pressable } from 'react-native'
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useSignUp } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
@@ -17,18 +17,21 @@ import { generate } from 'referral-codes';
 import CustomeButton from '../../components/CustomeButton'
 import CustomeInput from '../../components/CustomeInput'
 import logo from '../../assets/images/logo.jpeg'
-import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
+import FontAwesome from '@expo/vector-icons/FontAwesome'
 
 
 export default function SignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp()
   const router = useRouter()
+  const notificationListener = useRef()
+  const responseListener = useRef()
 
   const [compteOwner,setCompteOwner] = useState('')
   const [userName,setUserName] = useState('')
   const [userFamilyName,setUserFamilyName] = useState('')
   const [verifying, setVerifying] = useState(false)
+  const [countryCode, setCountryCode] = useState('+964')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [isSigningUp, setIsSigningUp] = useState(false)
@@ -38,64 +41,76 @@ export default function SignUpScreen() {
   const [referralCode,setReferralCode] = useState('')
   const [referredByFriend,setReferredByFriend] = useState(false)
   const [friendReferralCode, setFriendReferralCode] = useState('')
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [expoPushToken, setExpoPushToken] = useState('')
   const [notification, setNotification] = useState(false)
-  const notificationListener = useRef()
-  const responseListener = useRef()
 
+  const createAlert = (alerMessage) => {
+    Alert.alert(alerMessage)
+  }
+
+  // Coutries Code
+  const countryCodeList = [
+    {name:'+964'},
+    {name:'+1'},
+    {name:'+216'},
+  ]
+  
+  // Handle country code
+  const handleCountryCode = (code) => {
+    setCountryCode(code)
+  }
+
+  // Account owner type
   const compte_owner = [
     {label:'ولي أمر',value:'parent'},
     {label:'طالب',value:'student'},
     {label:'سائق',value:'driver'}
   ]
 
-  const createAlert = (alerMessage) => {
-    Alert.alert(alerMessage)
-  }
-
-// Function to register for push notifications and save the token in AsyncStorage
+  // Function to register for push notifications and save the token in AsyncStorage
   const registerForPushNotificationsAsync = async () => {
-  try {
+    try {
 
-    // Create notification channel for Android 13+
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'Default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
-      });
-    }
-
-    if(Device.isDevice) {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus
-
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
+      // Create notification channel for Android 13+
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
       }
 
-      if (finalStatus !== 'granted') {
-        //createAlert('يرجى تفعيل خدمة الاشعارات لتتمكن من استخدام التطبيق');
-        console.log('Failed to get push token for push notification...')
-        return;
+      if(Device.isDevice) {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus
+
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') {
+          console.log('Failed to get push token for push notification...')
+          return;
+        }
+
+        const token = await Notifications.getExpoPushTokenAsync({
+          projectId: Constants.expoConfig.extra.eas.projectId,
+        })
+
+        await AsyncStorage.setItem('expoPushToken', token.data);
+        return token.data
+        //setExpoPushToken(token.data);
+      } else {
+        console.log('Must use physical device for Push Notifications...')
       }
-      token = await Notifications.getExpoPushTokenAsync({
-        projectId: Constants.expoConfig.extra.eas.projectId,
-      })
-      await AsyncStorage.setItem('expoPushToken', token.data);
-      //setExpoPushToken(token.data);
-    } else {
-      console.log('Must use physical device for Push Notifications...')
+    } catch (error) {
+      console.error('Error registering for notifications:', error);
     }
-    return token.data
-  } catch (error) {
-    console.error('Error registering for notifications:', error);
-  }
   }
 
   useEffect(() => {
@@ -151,7 +166,7 @@ export default function SignUpScreen() {
     setReferredByFriend(friendReferralCode.trim() !== '');
   }, [friendReferralCode]);
 
-// Press no for referred by friend
+  // Press no for referred by friend
   const closeReferredBy = () => {
     setReferredByFriend(false)
     setFriendReferralCode('')
@@ -163,6 +178,7 @@ export default function SignUpScreen() {
     setShowReferralModal(false)
   }
 
+  // Sign up button
   const onSignUpPress = async () => {
     if (!isLoaded || isSigningUp) return
 
@@ -179,7 +195,7 @@ export default function SignUpScreen() {
       setReferralCode(newReferralCode);
 
       await signUp.create({
-        phoneNumber:`+216${phone}`,
+        phoneNumber:`${countryCode} ${phone}`,
       });
 
       await signUp.preparePhoneNumberVerification();
@@ -207,7 +223,7 @@ export default function SignUpScreen() {
         user_full_name: userName,
         user_family_name: userFamilyName,
         compte_owner_type:compteOwner,
-        phone_number:`+216${phone}`,
+        phone_number:`${countryCode} ${phone}`,
         user_notification_token: expoPushToken,
         user_referral_code:referralCode,
         referred_by_friend:referredByFriend,
@@ -290,6 +306,7 @@ export default function SignUpScreen() {
             style={styles.dropdown}
             placeholderStyle={styles.dropdownStyle}
             selectedTextStyle={styles.dropdownStyle}
+            itemTextStyle={styles.dropdownTextStyle}
             data={compte_owner}
             labelField="label"
             valueField="value"
@@ -309,14 +326,29 @@ export default function SignUpScreen() {
             placeholder="اللقب"
             onChangeText={(text) => setUserFamilyName(text)}
           />
-          <CustomeInput
-            value={phone}
-            placeholder="رقم الهاتف"
-            keyboardType='numeric'
-            onChangeText={(text) => setPhone(text)}
-          />
+          <View style={styles.input_with_picker}>
+            <Dropdown
+              style={styles.country_code_dropdown}
+              placeholderStyle={styles.country_code_dropdownStyle}
+              selectedTextStyle={styles.country_code_dropdownStyle}
+              itemTextStyle={styles.dropdownTextStyle}
+              data={countryCodeList}
+              labelField="name"
+              valueField="name"
+              placeholder=""
+              value={countryCode}
+              onChange={item => handleCountryCode(item.name)}
+            />
+            <TextInput
+              style={styles.phone_input}
+              value={phone}
+              placeholder="رقم الهاتف"
+              onChangeText={(text) => setPhone(text)}
+              keyboardType='numeric'
+            />
+          </View>        
           <TouchableOpacity style={styles.referralBtn} onPress={() => setShowReferralModal(true)}>
-            <Text style={styles.link_text}>هل تمت دعوتك من قبل صديق؟</Text>
+            <Text style={styles.referralBtnText}>هل تمت دعوتك من قبل صديق؟</Text>
           </TouchableOpacity>
           <Modal
             animationType="fade"
@@ -352,7 +384,7 @@ export default function SignUpScreen() {
               <FontAwesome name="square-o" size={24} color="#295F98" />
             )}
             
-            <Text style={styles.link_text}> أوافق على سياسة الخصوصية وشروط الاستخدام</Text>
+            <Text style={styles.privacy_terms_approve_btn_text}> أوافق على سياسة الخصوصية وشروط الاستخدام</Text>
           </TouchableOpacity>
           <Modal 
             animationType="fade"
@@ -360,107 +392,124 @@ export default function SignUpScreen() {
             visible={showPrivacyModal}
             onRequestClose={() => setShowPrivacyModal(false)}
           >
-            <View style={styles.privacy_modal_container}>
-              <View style={styles.privacy_modal_box}>
+            <View style={styles.privacy_modal_box}>
+
+              <View style={styles.privacy_policy_box}>
+                <Text style={styles.privacy_policy_title}>Privacy Policy for Sayartech</Text>
+
+                <View style={styles.privacy_policy_scrollview}>
                 <ScrollView
+                  vertical
                   showsVerticalScrollIndicator={true}
-                  contentContainerStyle={styles.privacy_policy_scrollview} 
                 >
-                  <View style={{marginBottom:20}}>
-                    <Text style={styles.privacy_policy_title}>Privacy Policy for Sayartech</Text>
-                    <Text style={styles.privacy_policy_text}>
-                    About Sayartech,
-                    Sayartech is a dedicated platform designed to facilitate the safe and reliable transportation of children between home and school. Our mission is to provide parents with peace of mind by connecting them with trusted, professional drivers specializing in school transportation.
-                    Using Sayartech, parents can:
-                    Register their children by providing essential information such as their name, age, gender, school details, and home location.
-                    Find and connect with professional drivers who have been carefully vetted and specialize in transporting schoolchildren.
-                    Monitor the driver’s navigation and progress in real-time through the app’s tracking system.
-                    Receive timely notifications when the driver is approaching their home, when the child arrives at school, and when they are on their way back home.
-                    We aim to create a secure, efficient, and stress-free transportation experience for parents and their children.
-                    Why We Collect User Data
-                    To deliver a seamless and secure experience, Sayartech collects user data to:
-                    Personalize Services
-                    We use the information provided during registration to ensure the app is tailored to the user’s specific needs, such as matching families with drivers operating in their area and associated with their child’s school.
-                    Ensure Safety and Reliability
-                    By collecting and verifying user and driver details, we maintain a trustworthy environment where parents feel confident about their child's transportation.
-                    Enable Core Features
-                    User data powers essential app features like real-time tracking, notification systems, and communication between parents and drivers.
-                    Improve the App Experience
-                    We analyze user feedback and usage patterns to optimize the app, introduce new features, and ensure its reliability and security.
-                    What Data We Collect and How It Is Used
-                    We collect the following types of data:
-                    1. User Information
-                    From Parents:
-                    Full name, phone number, and account type (parent).
-                    Details of children (name, age, gender, school, home location).
-                    Notification preferences.
-                    From Drivers:
-                    Full name, phone number, and account type (driver).
-                    Vehicle details and professional certification.
-                    Purpose:
-                    This data is used to verify user identity, enable matchmaking between parents and drivers, and deliver notifications.
-                    2. Location Data
-                    Drivers: Continuous GPS tracking to monitor the trip route in real time.
-                    Parents: Home location is used for routing purposes.
-                    Purpose:
-                    To facilitate navigation, tracking, and ensure accurate notifications.
-                    3. Device Information
-                    Device type, operating system, app version, and notification tokens.
-                    Purpose:
-                    This information helps optimize app performance and deliver notifications.
-                    4. Communication Data
-                    Messages and notifications sent via the app.
-                    Purpose:
-                    To enable communication between parents and drivers and to notify parents of trip progress.
-                    5. Analytics Data
-                    Aggregated app usage statistics to improve functionality and user experience.
-                    Purpose:
-                    To identify areas for improvement and to enhance the overall app experience.
-                    Data Collection Practices and Security
-                    Sayartech follows strict data privacy and security protocols to comply with global standards and the best practices required by app distribution platforms.:
-                    Consent-Based Collection:
-                    We collect user data only after obtaining explicit consent during account registration.
-                    Users can review and agree to the app's privacy policy and terms of use before proceeding.
-                    Data Storage and Encryption:
-                    All personal and sensitive data is securely encrypted and stored in compliance with international data protection standards.
-                    Limited Data Sharing:
-                    Data is shared only with authorized parties (e.g., assigned drivers) and solely for service delivery purposes.
-                    We do not sell or share data with third parties for marketing or advertising.
-                    Data Retention Policy:
-                    Data is retained only as long as necessary to fulfill its purpose.
-                    Users can request data deletion at any time by contacting support.
-                    Child Safety:
-                    We prioritize the safety of children by ensuring that drivers undergo rigorous background checks before being onboarded.
-                    How We Protect User Data
-                    At Sayartech, user privacy is a top priority. We implement the following measures to protect data:
-                    End-to-End Encryption: Ensures that sensitive data, such as location and personal information, is secure during transmission.
-                    Authentication Protocols: Verifies user identity before granting access to the app.
-                    Regular Security Audits: Our systems are regularly tested to ensure they are protected from potential vulnerabilities.
-                    Compliance with Regulations: We adhere to all applicable local and international data privacy laws, including the GDPR and similar frameworks.
-                    Transparency and User Rights
-                    We are committed to transparency and empowering users to control their data:
-                    Privacy Policy Access: Users can review the privacy policy at any time in the app’s settings.
-                    Data Access and Control: Users can view, update, or delete their data through the app or by contacting customer support.
-                    Notification Preferences: Users can manage notification settings directly from the app.
-                    Contact Us
-                    For questions or concerns about data privacy or how we handle your data, you can reach out to us at:
-                    </Text>
-                    <Text style={styles.privacy_policy_contact}>Email: sufiankamel404@gmail.com</Text>
-                    <Text style={styles.privacy_policy_contact}>Phone: +964 771 420 0085</Text>
-                    <Text style={styles.privacy_policy_text}>Sayartech is dedicated to creating a secure and seamless experience for parents and their children while maintaining the highest standards of data protection.</Text>
-                    <View style={{flexDirection:'row',justifyContent:'space-around'}}>
-                      <Text style={styles.privacy_policy_title}>I agree to the Privacy Policy</Text>
-                      <Checkbox
-                        style={styles.checkbox}
-                        value={privacyAccepted}
-                        onValueChange={(newValue) => setPrivacyAccepted(newValue)}
-                        color={privacyAccepted ? '#16B1FF' : undefined}
-                      />
-                    </View>
-                  </View>
-                  <View style={{marginBottom:20}}>
-                    <Text style={styles.privacy_policy_title}>Terms of Use for Sayartech</Text>
-                    <Text style={styles.privacy_policy_text}>
+                  <Text style={styles.privacy_policy_text}>
+                        About Sayartech,
+                        Sayartech is a dedicated platform designed to facilitate the safe and reliable transportation of children between home and school. Our mission is to provide parents with peace of mind by connecting them with trusted, professional drivers specializing in school transportation.
+                        Using Sayartech, parents can:
+                        Register their children by providing essential information such as their name, age, gender, school details, and home location.
+                        Find and connect with professional drivers who have been carefully vetted and specialize in transporting schoolchildren.
+                        Monitor the driver’s navigation and progress in real-time through the app’s tracking system.
+                        Receive timely notifications when the driver is approaching their home, when the child arrives at school, and when they are on their way back home.
+                        We aim to create a secure, efficient, and stress-free transportation experience for parents and their children.
+                        Why We Collect User Data
+                        To deliver a seamless and secure experience, Sayartech collects user data to:
+                        Personalize Services
+                        We use the information provided during registration to ensure the app is tailored to the user’s specific needs, such as matching families with drivers operating in their area and associated with their child’s school.
+                        Ensure Safety and Reliability
+                        By collecting and verifying user and driver details, we maintain a trustworthy environment where parents feel confident about their child's transportation.
+                        Enable Core Features
+                        User data powers essential app features like real-time tracking, notification systems, and communication between parents and drivers.
+                        Improve the App Experience
+                        We analyze user feedback and usage patterns to optimize the app, introduce new features, and ensure its reliability and security.
+                        What Data We Collect and How It Is Used
+                        We collect the following types of data:
+                        1. User Information
+                        From Parents:
+                        Full name, phone number, and account type (parent).
+                        Details of children (name, age, gender, school, home location).
+                        Notification preferences.
+                        From Drivers:
+                        Full name, phone number, and account type (driver).
+                        Vehicle details and professional certification.
+                        Purpose:
+                        This data is used to verify user identity, enable matchmaking between parents and drivers, and deliver notifications.
+                        2. Location Data
+                        Drivers: Continuous GPS tracking to monitor the trip route in real time.
+                        Parents: Home location is used for routing purposes.
+                        Purpose:
+                        To facilitate navigation, tracking, and ensure accurate notifications.
+                        3. Device Information
+                        Device type, operating system, app version, and notification tokens.
+                        Purpose:
+                        This information helps optimize app performance and deliver notifications.
+                        4. Communication Data
+                        Messages and notifications sent via the app.
+                        Purpose:
+                        To enable communication between parents and drivers and to notify parents of trip progress.
+                        5. Analytics Data
+                        Aggregated app usage statistics to improve functionality and user experience.
+                        Purpose:
+                        To identify areas for improvement and to enhance the overall app experience.
+                        Data Collection Practices and Security
+                        Sayartech follows strict data privacy and security protocols to comply with global standards and the best practices required by app distribution platforms.:
+                        Consent-Based Collection:
+                        We collect user data only after obtaining explicit consent during account registration.
+                        Users can review and agree to the app's privacy policy and terms of use before proceeding.
+                        Data Storage and Encryption:
+                        All personal and sensitive data is securely encrypted and stored in compliance with international data protection standards.
+                        Limited Data Sharing:
+                        Data is shared only with authorized parties (e.g., assigned drivers) and solely for service delivery purposes.
+                        We do not sell or share data with third parties for marketing or advertising.
+                        Data Retention Policy:
+                        Data is retained only as long as necessary to fulfill its purpose.
+                        Users can request data deletion at any time by contacting support.
+                        Child Safety:
+                        We prioritize the safety of children by ensuring that drivers undergo rigorous background checks before being onboarded.
+                        How We Protect User Data
+                        At Sayartech, user privacy is a top priority. We implement the following measures to protect data:
+                        End-to-End Encryption: Ensures that sensitive data, such as location and personal information, is secure during transmission.
+                        Authentication Protocols: Verifies user identity before granting access to the app.
+                        Regular Security Audits: Our systems are regularly tested to ensure they are protected from potential vulnerabilities.
+                        Compliance with Regulations: We adhere to all applicable local and international data privacy laws, including the GDPR and similar frameworks.
+                        Transparency and User Rights
+                        We are committed to transparency and empowering users to control their data:
+                        Privacy Policy Access: Users can review the privacy policy at any time in the app’s settings.
+                        Data Access and Control: Users can view, update, or delete their data through the app or by contacting customer support.
+                        Notification Preferences: Users can manage notification settings directly from the app.
+                        Contact Us
+                        For questions or concerns about data privacy or how we handle your data, you can reach out to us at:
+                  </Text>
+                </ScrollView>
+                </View>
+
+                <View style={styles.privacy_policy_contact_box}>
+                  <Text style={styles.privacy_policy_contact}>Email: sufiankamel404@gmail.com</Text>
+                  <Text style={styles.privacy_policy_contact}>Phone: +964 771 420 0085</Text>
+                  <Text style={styles.privacy_policy_text}>Sayartech is dedicated to creating a secure and seamless experience for parents and their children while maintaining the highest standards of data protection.                     
+                  </Text>
+                </View>
+
+                <View style={styles.privacy_terms_check_box}>
+                  <Text style={styles.privacy_terms_check_box_text}>I agree to the Privacy Policy</Text>
+                  <Checkbox
+                    style={styles.checkbox}
+                    value={privacyAccepted}
+                    onValueChange={(newValue) => setPrivacyAccepted(newValue)}
+                    color={privacyAccepted ? '#16B1FF' : undefined}
+                  />
+                </View>
+
+              </View>
+                    
+              <View style={styles.term_of_use_box}>
+                <Text style={styles.privacy_policy_title}>Terms of Use for Sayartech</Text>
+
+                <View style={styles.privacy_policy_scrollview}>
+                <ScrollView               
+                  vertical
+                  showsVerticalScrollIndicator={true}
+                >
+                  <Text style={styles.privacy_policy_text}>
                     Effective Date: November 26, 2024
                     Welcome to Sayartech!
                     These Terms of Use govern your use of the Sayartech mobile application (the "App") and related services provided by Sayartech. By accessing or using the App, you agree to these Terms of Use. If you do not agree to these terms, you may not use the App.
@@ -518,37 +567,40 @@ export default function SignUpScreen() {
                     In the event of a dispute, users agree to first attempt to resolve the issue informally by contacting Sayartech support. If a resolution cannot be reached, disputes may be submitted to binding arbitration in accordance with local laws.
                     15. Contact Us
                     If you have questions about these Terms of Use or the App, please contact us at:
-                    </Text>
-                    <Text style={styles.privacy_policy_contact}>
-                      Email: sufiankamel404@gmail.com
-                    </Text>
-                    <Text style={styles.privacy_policy_contact}>
-                      Phone: +964 771 420 0085
-                    </Text>  
-                    <View style={{flexDirection:'row',justifyContent:'space-around'}}>
-                      <Text style={styles.privacy_policy_title}>I agree to the Terms of Use</Text>
-                      <Checkbox
-                        style={styles.checkbox}
-                        value={termsAccepted}
-                        onValueChange={(newValue) => setTermsAccepted(newValue)}
-                        color={termsAccepted ? '#16B1FF' : undefined}
-                      />
-                    </View>
-                  </View>
-                  </ScrollView>
+                  </Text>
+                </ScrollView>
+                </View>
 
-                {/* Accept Button */}
-                {privacyAccepted && termsAccepted && (
+                <View style={styles.term_of_use_contact_box}>
+                  <Text style={styles.privacy_policy_contact}>Email: sufiankamel404@gmail.com</Text>
+                  <Text style={styles.privacy_policy_contact}>Phone: +964 771 420 0085</Text> 
+                </View>
+
+                <View style={styles.privacy_terms_check_box}>
+                  <Text style={styles.privacy_terms_check_box_text}>I agree to the Terms of Use</Text>
+                  <Checkbox
+                    style={styles.checkbox}
+                    value={termsAccepted}
+                    onValueChange={(newValue) => setTermsAccepted(newValue)}
+                    color={termsAccepted ? '#16B1FF' : undefined}
+                  />
+                </View>
+
+              </View>
+              
+                <View style={styles.privacy_terms_accept_btn_container}>      
+                  {privacyAccepted && termsAccepted && (        
                   <TouchableOpacity
                     style={styles.accept_both_button}
                     onPress={handleAccept}
                   >
                     <Text style={styles.accept_both_button_text}>Accept</Text>
-                  </TouchableOpacity>
-                )}
-                
-              </View>
+                  </TouchableOpacity> 
+                   )}             
+                </View>
+             
             </View>
+                   
           </Modal>
 
           <CustomeButton 
@@ -627,9 +679,42 @@ const styles = StyleSheet.create({
     borderRadius:20,
   },
   dropdownStyle:{
+    height:50,
+    verticalAlign:'middle',
     fontFamily:'Cairo_400Regular',
     textAlign:'center',
     fontSize:14
+  },
+  dropdownTextStyle:{
+    textAlign:'center',
+  },
+  input_with_picker:{
+    flexDirection:'row',
+    borderWidth:1,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+    marginBottom:10
+  },
+  country_code_dropdown:{
+    width:80,
+    height:50,
+    backgroundColor:colors.PRIMARY,
+    borderTopStartRadius:13,
+    borderBottomStartRadius:13,
+  },
+  country_code_dropdownStyle:{
+    color:colors.WHITE,
+    fontFamily:'Cairo_700Bold',
+    textAlign:'center',
+    fontSize:14,
+    height:50,
+    verticalAlign:'middle',
+  },
+  phone_input:{
+    width:200,
+    height:50,
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular'
   },
   referralBtn:{
     width:280,
@@ -640,8 +725,12 @@ const styles = StyleSheet.create({
     justifyContent:'center',
   },
   referralBtnText:{
-    fontFamily:'Cairo_400Regular',
-    fontSize:14,
+    height:30,
+    fontFamily:'Cairo_700Bold',
+    fontSize:12,
+    color:'#295F98',
+    textAlign:'center',
+    verticalAlign:'middle',
   },
   rfCode_modal_container:{
     flex: 1,
@@ -651,10 +740,12 @@ const styles = StyleSheet.create({
   },
   rfCode_modal_box:{
     width: 280,
-    backgroundColor: '#fff',
+    height:200,
+    backgroundColor:colors.WHITE,
     borderRadius: 10,
     padding: 20,
     alignItems: 'center',
+    justifyContent:'center'
   },
   rfCode_input:{
     width:160,
@@ -701,12 +792,6 @@ const styles = StyleSheet.create({
     fontFamily:'Cairo_700Bold',
     color:colors.PRIMARY
   },
-  privacy_modal_container:{
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
   privacy_terms_approve_btn:{
     width:290,
     height:50,
@@ -715,38 +800,87 @@ const styles = StyleSheet.create({
     alignItems:'center',
     justifyContent:'center',
     alignItems:'center',
-    justifyContent:'space-between'
+    justifyContent:'space-between',
+  },
+  privacy_terms_approve_btn_text:{
+    height:50,
+    fontFamily:'Cairo_700Bold',
+    fontSize:12,
+    color:'#295F98',
+    textAlign:'center',
+    verticalAlign:'middle',
   },
   privacy_modal_box:{
-    width: '90%',
-    height:'90%',
-    backgroundColor: '#fff',
+    flex:1,
+    alignItems: 'center',
+    justifyContent:'center',
+    backgroundColor:colors.WHITE,
     borderRadius: 10,
     padding: 20,
-    alignItems: 'center',
+  },
+  privacy_policy_box:{
+    height:'52%',
+    marginVertical:10,
+  },
+  term_of_use_box:{
+    height:'41%',
   },
   privacy_policy_title:{
     fontFamily:'Cairo_700Bold',
     fontSize:15,
     textAlign:'center',
-    marginBottom:10
   },
-  privacy_policy_text:{
-    fontFamily:'Cairo_400Regular',
-    fontSize:13,
-    textAlign:'center',
-    marginBottom:10
+  privacy_policy_scrollview:{
+    height:200,
+    alignItems:'center',
+    justifyContent:'center',
+  },
+  privacy_policy_contact_box:{
+    height:130,
+    marginTop:5,
+    alignItems:'center',
+    justifyContent:'center',
+  },
+  term_of_use_contact_box:{
+    height:50,
+    marginTop:5,
+    alignItems:'center',
+    justifyContent:'space-between',
   },
   privacy_policy_contact:{
     fontFamily:'Cairo_700Bold',
     fontSize:12,
     textAlign:'center',
-    marginBottom:10
+    marginBottom:5,
+  },
+  privacy_policy_text:{
+    fontFamily:'Cairo_400Regular',
+    fontSize:13,
+    textAlign:'center',
+    marginBottom:5,
+  },
+  privacy_terms_check_box:{
+    height:25,
+    flexDirection:'row',
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  privacy_terms_check_box_text:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:13,
+    textAlign:'center',
+    marginRight:10,
+  },
+  privacy_terms_accept_btn_container:{
+    width:290,
+    height:50,
+    flexDirection:'row',
+    justifyContent:'center',
+    alignItems:'center',
   },
   accept_both_button:{
     width:100,
     height:40,
-    marginTop:10,
     backgroundColor:colors.BLUE,
     borderRadius:15,
     flexDirection:'row',
@@ -762,7 +896,7 @@ const styles = StyleSheet.create({
     fontFamily:'Cairo_700Bold',
     fontSize:12,
     color:'#295F98',
-    textAlign:'center'
+    textAlign:'center',
   },
   timer_container:{
     justifyContent:'center',
