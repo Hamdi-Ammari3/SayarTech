@@ -16,6 +16,7 @@ google-services.json
 eas.json
 app.json
 firebaseConfig.js
+GoogleService-Info.plist
 mapStyle.json
 # macOS
 .DS_Store
