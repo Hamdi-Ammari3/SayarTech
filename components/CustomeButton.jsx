@@ -46,7 +46,8 @@ const styles = StyleSheet.create({
         verticalAlign:'middle',
         fontFamily:'Cairo_700Bold',
         fontSize:15,
-        color:colors.WHITE
+        color:colors.WHITE,
+        backgroundColor:'red'
     },
     icon:{
         marginRight:10,

@@ -1,9 +1,8 @@
-import { Alert, StyleSheet, Text, View,ActivityIndicator,Image,TouchableOpacity,ScrollView } from 'react-native'
+import {Alert,StyleSheet,Text,View,ActivityIndicator,Image,TouchableOpacity,TextInput,Platform,Modal} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import React,{useEffect, useState} from 'react'
 import { useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'
-import CustomeInput from '../../../../components/CustomeInput'
 import {DB} from '../../../../firebaseConfig'
 import { addDoc , collection} from 'firebase/firestore'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -19,6 +18,9 @@ import { useDriverData } from '../../../stateManagment/DriverContext'
 const addData = () => {
   const { user } = useUser()
   const router = useRouter()
+
+  const totalSteps = 2;
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [location, setLocation] = useState(null)
   const [carType,setCarType] = useState('')
@@ -97,11 +99,6 @@ const addData = () => {
     );
   };
 
-  //Get the driver birth date
-  const showDatePicker = () => {
-    setShowPicker(true);
-  };
-
   // Function to capture a real-time photo for the driver's personal image
   const capturePersonalImage = async () => {
     try {
@@ -125,7 +122,7 @@ const addData = () => {
       }
     } catch (error) {
       createAlert('حدث خطأ أثناء التقاط الصورة');
-      console.log(error);
+      console.log(error)
     }
   };
 
@@ -181,14 +178,105 @@ const addData = () => {
     }
   };
 
+  //Get the driver birth date
+  const showDatePicker = () => {
+    setShowPicker(true);
+  };
+
   // Handle the Date Change
   const handleDateChange = (event, selectedDate) => {
-    setShowPicker(false);
-    if (event.type === "set") {
-      const currentDate = selectedDate || driverBirthDate;
-      setDriverBirthDate(currentDate);
-      setDateSelected(true);
+    if(Platform.OS === 'ios') {
+      if (selectedDate) {
+        setDriverBirthDate(selectedDate);
+        setDateSelected(true);
+      }
+    } else {
+      if (event.type === "set" && selectedDate) {
+        const currentDate = selectedDate || driverBirthDate;
+        setDriverBirthDate(currentDate);
+        setDateSelected(true);
+      }
+      setShowPicker(false);
     } 
+  };
+
+  // Close the picker manually for iOS
+  const closePicker = () => {
+    setShowPicker(false);
+  };
+
+  // Add default student monthly subs bill
+  const monthlyPaycheck = [
+    {
+      id:0,
+      month:'january',
+      paid:false
+    },
+    {
+      id:1,
+      month:'february',
+      paid:false
+    },
+    {
+      id:2,
+      month:'march',
+      paid:false
+    },
+    {
+      id:3,
+      month:'april',
+      paid:false
+    },
+    {
+      id:4,
+      month:'may',
+      paid:false
+    },
+    {
+      id:5,
+      month:'june',
+      paid:false
+    },
+    {
+      id:6,
+      month:'july',
+      paid:false
+    },
+    {
+      id:7,
+      month:'august',
+      paid:false
+    },
+    {
+      id:8,
+      month:'september',
+      paid:false
+    },
+    {
+      id:9,
+      month:'october',
+      paid:false
+    },
+    {
+      id:10,
+      month:'november',
+      paid:false
+    },
+    {
+      id:11,
+      month:'december',
+      paid:false
+    }
+  ]
+
+  // Go to next page
+  const handleNext = () => {
+    if (currentPage < totalSteps) setCurrentPage(currentPage + 1);
+  };
+
+  // Return to previous page
+  const handlePrevious = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
   //Add New Driver
@@ -198,8 +286,38 @@ const addData = () => {
       return
     }
 
+    if(!personalImage) {
+      createAlert('الرجاء اضافة الصورة الشخصية')
+      return
+    }
+
+    if (!dateSelected) {
+      createAlert("يرجى إدخال تاريخ الميلاد");
+      return
+    }
+
     if (!location) {
-      createAlert('يرجى تحديد موقعك اولا')
+      createAlert('يرجى تحديد الموقع')
+      return
+    }
+
+    if(!carType) {
+      createAlert('يرجى تحديد نوع السيارة')
+      return
+    }
+
+    if(!carModel) {
+      createAlert('يرجى ادخال موديل السيارة')
+      return
+    }
+
+    if(!carPlate) {
+      createAlert('يرجى ادخال رقم لوحة السيارة')
+      return
+    }
+
+    if(!carImage) {
+      createAlert('الرجاء اضافة صورة السيارة')
       return
     }
 
@@ -234,7 +352,8 @@ const addData = () => {
         school_rating:[],
         student_rating:[],
         sayartech_team_rating:[],
-        points:[]
+        points:[],
+        paycheck:monthlyPaycheck
       }
 
       const docRef = await addDoc(driversCollectionRef,driverData)
@@ -248,6 +367,7 @@ const addData = () => {
       setCarPlate('')
       setCarSeats('')
       setDateSelected(false)
+      setDriverBirthDate(new Date())
       setPersonalImage(null)
       setCarImage(null)
 
@@ -259,16 +379,133 @@ const addData = () => {
     }
   }
 
-  // Clear the form fields
-  const clearFormHandler = () => {
-    setLocation(null)
-    setCarType('')
-    setCarModel('')
-    setCarPlate('')
-    setCarSeats('')
-    setDateSelected(false)
-    setPersonalImage(null)
-    setCarImage(null)
+  // Page indicator component
+  const renderPageIndicator = () => {
+    return (
+      <View style={styles.pageIndicatorContainer}>
+        {Array.from({ length: totalSteps }, (_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.pageIndicator,
+              currentPage === index + 1 ? styles.activeIndicator : styles.inactiveIndicator,
+            ]}
+          />
+        ))}
+      </View>
+    );
+  };
+
+  // Render full pages
+  const renderPage = () => {
+    switch(currentPage) {
+      case 1:
+        return(
+          <View style={{alignItems:'center',justifyContent:'center'}}>
+
+            <TouchableOpacity style={styles.fullButton} onPress={capturePersonalImage}>
+              <Text style={styles.fullBtnText}>{personalImageLoading ? 'جاري تحميل الصورة' : personalImage ? 'تم اختيار الصورة' : 'صورتك الشخصية'}</Text>
+            </TouchableOpacity>
+            {personalImage && 
+              <View style={styles.image_container}>
+                <Image source={{ uri: personalImage }} style={styles.image_container_image} />
+              </View>
+            }
+
+            <TouchableOpacity style={styles.fullButton} onPress={showDatePicker}>
+              <Text style={styles.fullBtnText}>{dateSelected ? driverBirthDate.toLocaleDateString() : 'تاريخ الميلاد'}</Text>
+            </TouchableOpacity>
+            {showPicker && (
+              Platform.OS === 'ios' ? (
+                <Modal transparent animationType="slide" visible={showPicker}>
+                  <View style={styles.modalContainer}>
+                    <View style={styles.pickerContainer}>
+                      <DateTimePicker
+                        value={driverBirthDate}
+                        mode="date"
+                        display="spinner" // Spinner for better iOS experience
+                        onChange={handleDateChange}
+                        maximumDate={new Date()}
+                      />
+                      <TouchableOpacity onPress={closePicker} style={styles.doneButton}>
+                        <Text style={styles.doneButtonText}>تأكيد</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Modal>
+              ) : (
+                <DateTimePicker
+                  value={driverBirthDate}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChange}
+                  maximumDate={new Date()}
+                />
+              )
+            )}
+
+            <TouchableOpacity style={styles.fullButton} onPress={getLocation} disabled={location !== null}>
+              <>
+                {location !== null ? (
+                    <FontAwesome6 name="circle-check" size={24} style={styles.icon} />
+                ) : (
+                    <Ionicons name="location-outline" size={24} style={styles.icon} />
+                )}
+              </>
+              <Text style={styles.fullBtnText}>{location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}</Text>
+            </TouchableOpacity>
+
+            <View style={styles.location_msg_view}>
+              <Text style={styles.location_warning_text}>التطبيق يسجل موقعك الحالي كعنوان للمنزل لذا يرجى التواجد في المنزل عند التسجيل و تفعيل خدمة تحديد الموقع الخاصة بالهاتف</Text>
+            </View>
+
+          </View>
+        )
+      case 2:
+        return(
+          <View style={{alignItems:'center',justifyContent:'center'}}>
+            <Dropdown
+              style={styles.dropdown}
+              placeholderStyle={styles.dropdownStyle}
+              selectedTextStyle={styles.dropdownStyle}
+              itemTextStyle={styles.dropdownTextStyle}
+              data={cars}
+              labelField="name"
+              valueField="name"
+              placeholder= 'نوع السيارة'
+              value={carType}
+              onChange={item => {
+                handleCarChange(item.name)
+              }}
+            />
+            <TextInput
+              style={styles.customeInput}
+              placeholderTextColor={colors.BLACK}
+              placeholder={'موديل السيارة'}
+              value={carModel}
+              onChangeText={(text) => setCarModel(text)}
+            />
+            <TextInput
+              style={styles.customeInput}
+              placeholderTextColor={colors.BLACK}
+              placeholder={'رقم اللوحة'}
+              value={carPlate}
+              onChangeText={(text) => setCarPlate(text)}
+            />
+
+            <TouchableOpacity style={styles.fullButton} onPress={captureCarImage}>
+              <Text style={styles.fullBtnText}>{carImageLoading ? 'جاري تحميل الصورة' : carImage ? 'تم اختيار الصورة' : 'صورة السيارة'}</Text>
+            </TouchableOpacity>
+            {carImage && 
+              <View style={styles.image_container}>
+                <Image source={{ uri: carImage }} style={styles.image_container_image} />
+              </View>
+            }
+          </View>
+        )
+      default:
+        return null;
+    }
   }
 
   // Loading or fetching user data from DB
@@ -303,104 +540,35 @@ const addData = () => {
   }
 
   return(
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>اضافة بيانات</Text>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.form} 
-        >
+      <SafeAreaView style={styles.container}>
 
-          <TouchableOpacity style={styles.fullButton} onPress={capturePersonalImage}>
-            <Text style={styles.fullBtnText}>{personalImageLoading ? 'جاري تحميل الصورة' : personalImage ? 'تم اختيار الصورة' : 'صورتك الشخصية'}</Text>
-          </TouchableOpacity>
-          {personalImage && 
-            <View style={styles.image_container}>
-              <Image source={{ uri: personalImage }} style={styles.image_container_image} />
-            </View>
-          }
+        <View>
+          <Text style={styles.title}>اضافة بيانات</Text>
+          {renderPageIndicator()}
+        </View>
 
-          <TouchableOpacity style={styles.fullButton} onPress={showDatePicker}>
-            <Text style={styles.fullBtnText}>{dateSelected ? driverBirthDate.toLocaleDateString() : 'تاريخ الميلاد'}</Text>
-          </TouchableOpacity>
-          {showPicker && (
-            <DateTimePicker
-              value={driverBirthDate}
-              mode="date"
-              display="default"
-              onChange={handleDateChange}
-              maximumDate={new Date()} // Optional: Prevent selecting future dates
-            />
+        <View style={styles.form}>
+          {renderPage()}
+        </View>
+
+        <View style={styles.BtnHalfContainer}>
+          {currentPage > 1 && (
+            <TouchableOpacity style={styles.halfButton} onPress={handlePrevious}>
+              <Text style={styles.btnText}>السابق</Text>
+            </TouchableOpacity>
           )}
-          <Dropdown
-            style={styles.dropdown}
-            placeholderStyle={styles.dropdownStyle}
-            selectedTextStyle={styles.dropdownStyle}
-            itemTextStyle={styles.dropdownTextStyle}
-            data={cars}
-            labelField="name"
-            valueField="name"
-            placeholder= 'نوع السيارة'
-            value={carType}
-            onChange={item => {
-              handleCarChange(item.name)
-            }}
-          />
-          <CustomeInput
-            placeholder={'موديل السيارة'}
-            value={carModel}
-            onChangeText={(text) => setCarModel(text)}
-          />
-          <CustomeInput
-            placeholder={'رقم اللوحة'}
-            value={carPlate}
-            onChangeText={(text) => setCarPlate(text)}
-          />
-
-          <TouchableOpacity style={styles.fullButton} onPress={captureCarImage}>
-            <Text style={styles.fullBtnText}>{carImageLoading ? 'جاري تحميل الصورة' : carImage ? 'تم اختيار الصورة' : 'صورة السيارة'}</Text>
-          </TouchableOpacity>
-          {carImage && 
-            <View style={styles.image_container}>
-              <Image source={{ uri: carImage }} style={styles.image_container_image} />
-            </View>
-          }
-
-          <TouchableOpacity style={styles.fullButton} onPress={getLocation} disabled={location !== null}>
-            <>
-              {location !== null ? (
-                  <FontAwesome6 name="circle-check" size={24} style={styles.icon} />
-              ) : (
-                  <Ionicons name="location-outline" size={24} style={styles.icon} />
-              )}
-            </>
-            <Text style={styles.fullBtnText}>{location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}</Text>
-          </TouchableOpacity>
-
-          <View style={styles.location_msg_view}>
-            <Text style={styles.location_warning_text}>التطبيق يسجل موقعك الحالي كعنوان للمنزل لذا يرجى التواجد في المنزل عند التسجيل و تفعيل خدمة تحديد الموقع الخاصة بالهاتف</Text>
-          </View>
-
-          <View style={styles.final_buttons_box}>
-            <TouchableOpacity 
-              onPress={addNewDriverHandler} 
-              disabled={!userData || !carPlate || !carModel || !carType}
-              style={styles.add_data_button}
-            >
-              <Text style={styles.add_data_button_text}>اضف</Text>
+          {currentPage < totalSteps ? (
+            <TouchableOpacity style={styles.halfButton} onPress={handleNext}>
+              <Text style={styles.btnText}>التالي</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity 
-            onPress={clearFormHandler}
-            style={styles.clear_data_button}
-            >
-              <Text style={styles.clear_data_button_text}>الغاء</Text>
+          ) : (
+            <TouchableOpacity style={styles.halfButton} onPress={addNewDriverHandler}>
+              <Text style={styles.btnText}>أضف</Text>
             </TouchableOpacity>
-          </View>
-          <Text style={styles.location_warning_text}>* يرجى التأكد من ادخال جميع البيانات</Text>
-          
-        </ScrollView>    
-    </SafeAreaView>
-  )
+          )}
+        </View>    
+      </SafeAreaView>
+    )
 }
 
 export default addData
@@ -417,10 +585,26 @@ const styles = StyleSheet.create({
     fontFamily:'Cairo_400Regular',
     fontSize:24,
   },
+  pageIndicatorContainer:{ 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+  },
+  pageIndicator: { 
+    width: 20, 
+    height: 8, 
+    borderRadius: 10,
+    margin: 5 
+  },
+  activeIndicator: { 
+    backgroundColor: colors.PRIMARY
+  },
+  inactiveIndicator: { 
+    backgroundColor: '#CCC' 
+  },
   form:{
-    marginTop:20,
-    paddingVertical:10,
-    justifyContent:'space-between',
+    height:500,
+    width:300,
+    justifyContent:'center',
     alignItems:'center',
   },
   image_container:{
@@ -445,11 +629,58 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },  
   fullBtnText:{
-    height:50,
+    lineHeight:50,
     verticalAlign:'middle',
     fontFamily:'Cairo_400Regular',
     fontSize:15,
     color:colors.BLACK
+  },
+  BtnHalfContainer:{
+    width:280,
+    flexDirection:'row',
+    justifyContent:'center'
+  },
+  halfButton:{
+    width:130,
+    height:50,
+    marginHorizontal:5,
+    backgroundColor:colors.PRIMARY,
+    borderRadius:15,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  btnText:{
+    lineHeight:50,
+    verticalAlign:'middle',
+    fontFamily:'Cairo_700Bold',
+    fontSize:15,
+    color:colors.WHITE
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  pickerContainer: {
+    backgroundColor: colors.DARKGRAY,
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  doneButton: {
+    width:100,
+    marginTop: 10,
+    backgroundColor: '#BE9A4E',
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 5,
+  },
+  doneButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
   },
   icon:{
     marginRight:10,
@@ -463,8 +694,7 @@ const styles = StyleSheet.create({
     borderRadius:15,
   },
   dropdownStyle:{
-    height:50,
-    verticalAlign:'middle',
+    lineHeight:50,
     fontFamily:'Cairo_400Regular',
     textAlign:'center',
     fontSize:14
@@ -472,57 +702,26 @@ const styles = StyleSheet.create({
   dropdownTextStyle:{
     textAlign:'center',
   },
+  customeInput:{
+    width:280,
+    height:50,
+    marginBottom:10,
+    borderWidth:1,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+    color:colors.BLACK,
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular'
+  },
   location_msg_view:{
     width:280,
     paddingHorizontal:10,
-    marginBottom:20,
+    marginVertical:10,
   },
   location_warning_text:{
     fontFamily:'Cairo_700Bold',
     fontSize:11,
     textAlign:'center',
-    marginBottom:10,
-  },
-  distanceText: {
-    fontFamily: 'Cairo_700Bold',
-    fontSize: 12,
-  },
-  final_buttons_box:{
-    flexDirection:'row-reverse',
-    justifyContent:'space-between',
-    width:280,
-    marginVertical:10,
-  },
-  add_data_button:{
-    width:130,
-    height:50,
-    backgroundColor:colors.PRIMARY,
-    justifyContent:'center',
-    alignItems:'center',
-    borderRadius:15,
-  },
-  add_data_button_text:{
-    height:50,
-    verticalAlign:'middle',
-    fontFamily:'Cairo_700Bold',
-    fontSize:15,
-    color:colors.WHITE
-  },
-  clear_data_button:{
-    width:130,
-    height:50,
-    borderColor:colors.PRIMARY,
-    borderWidth:1,
-    justifyContent:'center',
-    alignItems:'center',
-    borderRadius:15,
-  },
-  clear_data_button_text:{
-    height:50,
-    verticalAlign:'middle',
-    fontFamily:'Cairo_700Bold',
-    fontSize:15,
-    color:colors.PRIMARY
   },
   spinner_error_container: {
     flex: 1,
@@ -548,7 +747,7 @@ const styles = StyleSheet.create({
     marginTop:10
   },
   car_info_text:{
-    height:50,
+    lineHeight:50,
     verticalAlign:'middle',
     fontFamily:'Cairo_400Regular',
     fontSize:14,

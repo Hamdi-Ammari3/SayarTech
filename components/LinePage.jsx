@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react'
-import { StyleSheet, Text, View,ScrollView,TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View,ScrollView,TouchableOpacity,Dimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Location from 'expo-location'
 import MapView, { Marker } from 'react-native-maps'
@@ -235,8 +235,6 @@ const LinePage = ({line,selectedLine}) => {
             } else {
                 setDisplayFinalStation(false);
             }
-
-            console.log(reSorted)
     
         } catch (err) {
             console.error('Error while re-sorting students:', err);
@@ -934,8 +932,7 @@ const LinePage = ({line,selectedLine}) => {
                         style={styles.map}
                         userInterfaceStyle="light"
                     >
-
-
+                     
                         <MapViewDirections
                             origin={driverOriginLocation}
                             destination={displayFinalStation ? currentStudent?.school_coords : currentStudent?.home_location}
@@ -950,7 +947,7 @@ const LinePage = ({line,selectedLine}) => {
                         {currentStudent?.home_location && !displayFinalStation && (
                         <Marker
                             coordinate={currentStudent?.home_location}
-                            title={currentStudent.student_full_name}
+                            title={currentStudent?.name}
                             pinColor="red"
                         />
                         )}
@@ -959,7 +956,7 @@ const LinePage = ({line,selectedLine}) => {
                         {currentStudent?.school_coords && displayFinalStation && (
                         <Marker
                             coordinate={currentStudent?.school_coords}
-                            title={currentStudent.school_name}
+                            title={currentStudent?.school_name}
                             pinColor="red"
                         />
                         )}
@@ -1134,7 +1131,6 @@ const LinePage = ({line,selectedLine}) => {
                         userInterfaceStyle="light"
                     >
 
-
                         <MapViewDirections
                             origin={driverOriginLocation}
                             destination={displayFinalStation ? currentStudent?.driver_home_coords : currentStudent?.home_location}
@@ -1147,8 +1143,8 @@ const LinePage = ({line,selectedLine}) => {
         
                         {currentStudent?.home_location && !displayFinalStation && (
                             <Marker
-                                coordinate={currentStudent.home_location}
-                                title={currentStudent.name}
+                                coordinate={currentStudent?.home_location}
+                                title={currentStudent?.name}
                                 pinColor="red"
                             />
                         )}
@@ -1169,6 +1165,9 @@ const LinePage = ({line,selectedLine}) => {
 
 export default LinePage
 
+//get screen height
+const { width: SCwidth, height: SCheight } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
     container:{
         flex:1,
@@ -1185,13 +1184,13 @@ const styles = StyleSheet.create({
     student_map_container:{
         flex:1,
         width:'100%',
-        position:'relative',
+        height:SCheight,
         backgroundColor: colors.WHITE,
       },
       map_student_name_container:{
         width:'100%',
         position:'absolute',
-        top:92,
+        top:75,
         left:0,
         zIndex:5,
         alignItems:'center',
@@ -1210,7 +1209,7 @@ const styles = StyleSheet.create({
       map_picked_button_container:{
         width:'100%',
         position:'absolute',
-        top:135,
+        top:120,
         left:0,
         zIndex:5,
         alignItems:'center',
@@ -1220,7 +1219,7 @@ const styles = StyleSheet.create({
         width:300,
         flexDirection:'row-reverse',
         alignItems:'center',
-        justifyContent:'space-evenly'
+        justifyContent:'space-evenly',
       },
       pick_button_accepted:{
         width:90,
@@ -1239,7 +1238,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FF4C51',
       },
       pick_button_text:{
-        height:32,
+        lineHeight:32,
         verticalAlign:'middle',
         fontFamily: 'Cairo_700Bold',
         color:colors.WHITE
@@ -1254,7 +1253,7 @@ const styles = StyleSheet.create({
         backgroundColor:colors.PRIMARY
       },
       done_trip_button_text:{
-        height:40,
+        lineHeight:40,
         verticalAlign:'middle',
         fontFamily: 'Cairo_700Bold',
         color:colors.WHITE
@@ -1277,7 +1276,7 @@ const styles = StyleSheet.create({
         alignItems:'center',
       },
       check_students_name_text:{
-        height:40,
+        lineHeight:40,
         verticalAlign:'middle',
         fontFamily: 'Cairo_400Regular',
         fontSize:14,
@@ -1309,7 +1308,7 @@ const styles = StyleSheet.create({
         justifyContent:'space-around',
       },
       call_student_parent_text:{
-        height:40,
+        lineHeight:40,
         verticalAlign:'middle',
         fontFamily: 'Cairo_400Regular',
         fontSize:14,
@@ -1333,11 +1332,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
       },
       no_student_text: {
-        height:50,
+        lineHeight:50,
         verticalAlign:'middle',
         fontFamily: 'Cairo_400Regular',
       },
+      mapView_safeArea_container:{
+        flex: 1, // Occupy full space
+        width: '100%', // Ensure the map spans the full width
+        height: '100%',
+      },
       map: {
-        flex:1,
+        width: '100%',
+        height: SCheight,
       },
 })

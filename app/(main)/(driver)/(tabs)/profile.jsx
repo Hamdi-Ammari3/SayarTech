@@ -6,6 +6,7 @@ import colors from '../../../../constants/Colors'
 import { useAuth,useUser } from '@clerk/clerk-expo'
 import { deleteDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { DB } from '../../../../firebaseConfig'
+import dayjs from "dayjs"
 import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useDriverData } from '../../../stateManagment/DriverContext'
@@ -129,7 +130,7 @@ const profile = () => {
 
         <View style={styles.button_container}>
           <TouchableOpacity style={styles.logout_button} onPress={handleSignOut}>
-            <Text style={styles.logout_text}>خروج</Text>
+            <Text style={styles.logout_button_text}>خروج</Text>
             <SimpleLineIcons name="logout" size={20} color="white" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.delete_button} onPress={confirmDeleteAccount}>
@@ -152,7 +153,10 @@ const profile = () => {
         data={driverData[0]?.line}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.line_item} onPress={() => handleLinePress(item)}>
-            <Text style={styles.line_name}>{item.lineName}</Text>
+            <Text style={styles.line_name}>{item?.lineName}</Text>
+            <Text style={styles.line_name}>{item?.lineSchool}</Text>
+            <Text style={styles.line_name}>انطلاق الخط  {dayjs(item?.line_school_startTime?.toDate()).format("HH:mm")}</Text>
+            <Text style={styles.line_name}>{item?.students?.length}  طلاب</Text>
           </TouchableOpacity>
         )}
         keyExtractor={item => item.lineName}
@@ -174,12 +178,11 @@ const profile = () => {
           <View style={styles.modal_container}>
             <View style={styles.modal_box}>
               <View style={styles.modal_header}>
-                <TouchableOpacity onPress={closeLineInfoModal} style={styles.modal_header_btn}>
+                <TouchableOpacity onPress={closeLineInfoModal}>
                   <AntDesign name="closecircleo" size={24} color="gray" />
                 </TouchableOpacity>
                 <Text style={styles.modal_title}>{selectedLine.lineName}</Text>
               </View>
-              
               <FlatList
                 data={selectedLine.students}
                 renderItem={({ item }) => <AssignedStudents item={item} />}
@@ -203,8 +206,7 @@ const styles = StyleSheet.create({
   header:{
     justifyContent:'center',
     alignItems:'center',
-    paddingTop:20,
-    marginVertical:30,
+    marginVertical:15,
     borderRadius:15,
   },
   user_info:{
@@ -215,40 +217,42 @@ const styles = StyleSheet.create({
     justifyContent:'space-around',
     backgroundColor:colors.PRIMARY,
     borderRadius:15,
-    marginBottom:10
+    marginBottom:0
   },
   user_info_text:{
+    lineHeight:50,
     fontFamily:'Cairo_700Bold',
     fontSize:14,
     color:colors.WHITE
   },
   button_container:{
+    width:340,
+    height:40,
     flexDirection:'row-reverse',
     justifyContent:'space-around',
-    width:340,
-    height:60,
-    marginBottom:10
+    alignItems:'center',
+    marginVertical:7,
   },
   logout_button:{
-    width:140,
-    height:50,
+    width:130,
+    height:40,
     backgroundColor:colors.BLUE,
     borderRadius:15,
     flexDirection:'row',
     alignItems:'center',
     justifyContent:'center'
   },
-  logout_text:{
-    height:50,
+  logout_button_text:{
+    lineHeight:40,
     fontFamily: 'Cairo_400Regular',
-    fontSize:15,
+    fontSize:14,
     marginRight:10,
     verticalAlign:'middle',
     color:colors.WHITE,
   },
   delete_button:{
-    width:140,
-    height:50,
+    width:130,
+    height:40,
     borderColor:'#DAD9D8',
     borderWidth:1,
     borderRadius:15,
@@ -258,21 +262,21 @@ const styles = StyleSheet.create({
   },
   delete_text:{
     color:'#898989',
-    height:50,
+    lineHeight:40,
     fontFamily: 'Cairo_400Regular',
-    fontSize:15,
+    fontSize:14,
     marginRight:10,
     verticalAlign:'middle',
   },
   privacy_button_container:{
     width:340,
-    height:40,
+    height:35,
     flexDirection:'row',
     alignItems:'center',
     justifyContent:'space-around',
   },
   privacy_button:{
-    width:140,
+    width:120,
     height:35,
     backgroundColor:'#F6F8FA',
     borderRadius:7,
@@ -283,51 +287,45 @@ const styles = StyleSheet.create({
   privacy_button_text:{
     fontFamily: 'Cairo_400Regular',
     fontSize:14,
-    marginBottom:5
+    lineHeight:35,
   },
   line_item:{
-    width:250,
-    height:45,
+    width:340,
+    height:130,
     backgroundColor:colors.BLUE,
     borderRadius:15,
     marginBottom:10,
     alignItems:'center',
-    justifyContent:'center'
+    justifyContent:'space-around'
   },
   line_name:{
-    height:45,
-    verticalAlign:'middle',
     fontFamily:'Cairo_400Regular',
     fontSize:16,
     color:colors.WHITE,
   },
   flatList_style:{
-    marginTop:10,
+    marginTop:50,
     paddingBottom:40,
   },
   no_registered_students: {
     height:50,
     width:300,
     marginTop:95,
-    backgroundColor:colors.GRAY,
+    backgroundColor:colors.BLUE,
     borderRadius:15,
     justifyContent: 'center',
     alignItems: 'center',
   },
   no_student_text: {
-    height:50,
+    lineHeight:50,
     verticalAlign:'middle',
     fontFamily: 'Cairo_400Regular',
+    color:colors.WHITE
   },
   spinner_error_container:{
     flex:1,
     justifyContent:'center',
     alignItems:'center'
-  },
-  error_text:{
-    fontFamily:'Cairo_400Regular',
-    fontSize:16,
-    color:'darkred'
   },
   modal_container:{
     flex:1,
@@ -337,7 +335,7 @@ const styles = StyleSheet.create({
   },
   modal_box:{
     width: '95%',
-    height:'95%',
+    height:'80%',
     backgroundColor:colors.WHITE,
     borderRadius: 10,
     padding: 10,

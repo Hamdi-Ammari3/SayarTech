@@ -194,41 +194,40 @@ const home = () => {
     return null;
   };
 
-// Return map and marker based on the trip status
-const renderMap = () => (
-  <MapView
-    ref={mapRef}
-    onMapReady={handleMapReady}
-    provider="google"
-    initialRegion={{
-      latitude: driverCurrentLocation?.latitude || 0,
-      longitude: driverCurrentLocation?.longitude || 0,
-      latitudeDelta: 0.005,
-      longitudeDelta: 0.005,
-    }}
-    loadingEnabled={true}
-    style={styles.map}
-  >
-    {renderDirections()}
-
-    {/* Animated Driver Marker */}
-    <Marker.Animated
-      ref={markerRef}
-      coordinate={animatedDriverLocation}
-      title="السائق"
+  // Return map and marker based on the trip status
+  const renderMap = () => (
+    <MapView
+      ref={mapRef}
+      onMapReady={handleMapReady}
+      provider="google"
+      initialRegion={{
+        latitude: driverCurrentLocation?.latitude || 0,
+        longitude: driverCurrentLocation?.longitude || 0,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      }}
+      loadingEnabled={true}
+      style={styles.map}
     >
-      <View>
-        {markerIcon()}
-      </View>
-    </Marker.Animated>
+      {renderDirections()}
+
+      <Marker.Animated
+        ref={markerRef}
+        coordinate={animatedDriverLocation}
+        title="السائق"
+      >
+        <View>
+          {markerIcon()}
+        </View>
+      </Marker.Animated>
   
-    <Marker
-      key={`Destination ${students[0]?.id}`}
-      coordinate={destination}
-      title={students[0]?.student_trip_status === 'going to school' ? 'المدرسة' : 'المنزل'}
-      pinColor="red"
-    />
-  </MapView>
+      <Marker
+        key={`Destination ${students[0]?.id}`}
+        coordinate={destination}
+        title={students[0]?.student_trip_status === 'going to school' ? 'المدرسة' : 'المنزل'}
+        pinColor="red"
+      />
+    </MapView>
   );
 
   // Function to handle canceling the trip
@@ -270,8 +269,8 @@ const renderMap = () => (
   if(!students.length) {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.no_registered_students_container}>
-        <View style={styles.logo}>
+        <View style={styles.student_container}>
+          <View style={styles.logo}>
             <Image source={logo} style={styles.logo_image}/>
           </View>
           <View style={styles.no_registered_students}>
@@ -288,7 +287,10 @@ const renderMap = () => (
   if(!students[0]?.driver_id) {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.finding_driver_container}>
+        <View style={styles.student_container}>
+          <View style={styles.logo}>
+            <Image source={logo} style={styles.logo_image}/>
+          </View>
           <View style={styles.student_route_status_box}>
             <Text style={styles.student_route_status_text}>في انتظار ربط حسابك بسائق</Text>
           </View>
@@ -301,34 +303,39 @@ const renderMap = () => (
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
-          <View style={styles.student_box}>
-            <Text style={styles.student_text}>الطالب في المنزل 😴</Text>
+          <View style={styles.logo}>
+            <Image source={logo} style={styles.logo_image}/>
           </View>
-          {!students[0].tomorrow_trip_canceled && (
-            <View>
-            <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
-              <Text style={styles.cancel_trip_btn_text}>الغاء رحلة الغد</Text>
-            </TouchableOpacity>
-            {isCanceling && (
-              <View style={styles.cancel_trip_confirmation}>
-                <TextInput
-                  style={styles.cancel_trip_input}
-                  value={cancelText}
-                  onChangeText={setCancelText}
-                  placeholder="للتاكيد اكتب كلمة نعم هنا"
-                />
-                <View style={styles.confirm_deny_canceling_btn}>
-                  <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
-                    <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
-                   <Text style={styles.deny_cancel_btn_text}>رفض</Text>
-                  </TouchableOpacity>
-                </View>
+          <View>
+            <View style={styles.student_box}>
+              <Text style={styles.student_text}>الطالب في المنزل 😴</Text>
+            </View>
+            {!students[0].tomorrow_trip_canceled && (
+              <View>
+                <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
+                  <Text style={styles.cancel_trip_btn_text}>الغاء رحلة الغد</Text>
+                </TouchableOpacity>
+                {isCanceling && (
+                  <View style={styles.cancel_trip_confirmation}>
+                    <TextInput
+                      style={styles.cancel_trip_input}
+                      value={cancelText}
+                      onChangeText={setCancelText}
+                      placeholder="للتاكيد اكتب كلمة نعم هنا"
+                    />
+                    <View style={styles.confirm_deny_canceling_btn}>
+                      <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
+                        <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
+                        <Text style={styles.deny_cancel_btn_text}>رفض</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
             )}
           </View>
-          )}
         </View>
       </SafeAreaView>
     )
@@ -338,6 +345,9 @@ const renderMap = () => (
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
+          <View style={styles.logo}>
+            <Image source={logo} style={styles.logo_image}/>
+          </View>
           <View style={styles.student_box}>
             <Text style={styles.student_text}>الطالب في المدرسة 📖</Text>
           </View>
@@ -346,38 +356,37 @@ const renderMap = () => (
     )
   }
 
-
-// If the student is going to school
-if(students[0]?.driver_id && students[0]?.student_trip_status === 'going to school'){
-  return(
-    <SafeAreaView style={styles.container}>
-      <View style={styles.student_route_status_container}>
-        <View style={styles.student_route_status_box}>
-          <Text style={styles.student_route_status_text}>الطالب في الطريق الى المدرسة</Text>
+  // If the student is going to school
+  if(students[0]?.driver_id && students[0]?.student_trip_status === 'going to school'){
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.student_route_status_container}>
+          <View style={styles.student_route_status_box}>
+            <Text style={styles.student_route_status_text}>في اتجاه المدرسة</Text>
+          </View>
         </View>
-      </View>
-      <View style={styles.student_map_container}>
-        {renderMap()}
-      </View>
-    </SafeAreaView>
-  )
-}
-
-// If the student is going to school or going to home
-if(students[0]?.driver_id && students[0]?.student_trip_status === 'going to home') {
-  return(
-    <SafeAreaView style={styles.container}>
-      <View style={styles.student_route_status_container}>
-        <View style={styles.student_route_status_box}>
-          <Text style={styles.student_route_status_text}>{students[0].picked_up ? 'الطالب في الطريق الى المنزل' : 'السائق في الاتجاه اليك'}</Text>
+        <View style={styles.student_map_container}>
+          {renderMap()}
         </View>
-      </View>
-      <View style={styles.student_map_container}>
-        {renderMap()}
-      </View>
-    </SafeAreaView>
-  )
-}
+      </SafeAreaView>
+    )
+  }
+
+  // If the student is going to school or going to home
+  if(students[0]?.driver_id && students[0]?.student_trip_status === 'going to home') {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.student_route_status_container}>
+          <View style={styles.student_route_status_box}>
+            <Text style={styles.student_route_status_text}>{students[0].picked_up ? 'في اتجاه المنزل' : 'السائق في الاتجاه اليك'}</Text>
+          </View>
+        </View>
+        <View style={styles.student_map_container}>
+          {renderMap()}
+        </View>
+      </SafeAreaView>
+    )
+  }
 }
 export default home;
 
@@ -386,9 +395,9 @@ const styles = StyleSheet.create({
     flex:1,
     backgroundColor: colors.WHITE,
   },
-  no_registered_students_container:{
+  student_container:{
     height:400,
-    paddingTop:25,
+    paddingTop:30,
     alignItems:'center',
     justifyContent:'space-between',
   },
@@ -412,41 +421,17 @@ const styles = StyleSheet.create({
   },
   link_container: {
     backgroundColor: colors.PRIMARY,
-    padding: 15,
+    width:100,
+    height:50,
+    textAlign:'center',
     marginTop:10,
     borderRadius: 20,
   },
   link_text: {
+    lineHeight:50,
     color: colors.WHITE,
     fontFamily: 'Cairo_700Bold',
     fontSize: 14,
-  },
-  finding_driver_container:{
-    width:'100%',
-    height:'100%',
-    alignItems:'center',
-    justifyContent:'center'
-  }, 
-  finding_driver_loading_box:{
-    width:250,
-    padding:10,
-    backgroundColor:colors.PRIMARY,
-    borderRadius:15,
-    flexDirection:'row',
-    alignItems:'center',
-    justifyContent:'space-around'
-  },
-  finding_driver_loading_text:{
-    textAlign:'center',
-    fontFamily: 'Cairo_400Regular',
-    fontSize:15,
-    color:colors.WHITE,
-  }, 
-  student_container:{
-    width:'100%',
-    height:'100%',
-    alignItems:'center',
-    justifyContent:'center'
   },
   student_box:{
     backgroundColor:colors.GRAY,
@@ -457,7 +442,7 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },
   student_text:{
-    height:50,
+    lineHeight:50,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
@@ -471,7 +456,7 @@ const styles = StyleSheet.create({
     marginTop:10
   },
   cancel_trip_btn_text:{
-    height:50,
+    lineHeight:50,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
@@ -488,6 +473,7 @@ const styles = StyleSheet.create({
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:13,
+    color:colors.BLACK
   },
   confirm_deny_canceling_btn:{
     flexDirection:'row-reverse',
@@ -495,7 +481,7 @@ const styles = StyleSheet.create({
     justifyContent:'space-around',
   },
   confirm_cancel_btn:{
-    backgroundColor:'#16B1FF',
+    backgroundColor:colors.BLUE,
     width:100,
     padding:10,
     borderRadius:15,
@@ -503,7 +489,7 @@ const styles = StyleSheet.create({
   },
   deny_cancel_btn:{
     borderWidth:1,
-    borderColor:'#16B1FF',
+    borderColor:colors.BLUE,
     width:100,
     padding:10,
     borderRadius:15,
@@ -521,20 +507,6 @@ const styles = StyleSheet.create({
     fontSize:15,
     color:'#16B1FF'
   },
-  student_name_container:{
-    backgroundColor:'#16B1FF',
-    width:250,
-    padding:10,
-    borderRadius:15,
-    alignItems:'center',
-    justifyContent:'center'
-  },
-  student_name:{
-    textAlign:'center',
-    fontFamily: 'Cairo_400Regular',
-    fontSize:13,
-    color:colors.WHITE,
-  },
   student_map_container:{
     width:500,
     height:800,
@@ -543,11 +515,11 @@ const styles = StyleSheet.create({
   student_route_status_container:{
     width:'100%',
     position:'absolute',
-    top:90,
+    top:50,
     left:0,
     zIndex:100,
     alignItems:'center',
-    justifyContent:'center'
+    justifyContent:'center',
   },
   student_route_status_box:{
     backgroundColor:colors.BLUE,
@@ -558,8 +530,7 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },
   student_route_status_text:{
-    height:50,
-    verticalAlign:'middle',
+    lineHeight:50,
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,

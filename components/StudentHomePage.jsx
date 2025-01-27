@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react'
-import { Alert,StyleSheet, Text, View, TextInput,ActivityIndicator,TouchableOpacity } from 'react-native'
+import { Alert,StyleSheet, Text, View,TextInput,ActivityIndicator,TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, {Circle} from 'react-native-svg'
 import haversine from 'haversine'
@@ -206,7 +206,6 @@ const StudentHomePage = ({student}) => {
     >
       {renderDirections()}
 
-      {/* Animated Driver Marker */}
       <Marker.Animated
         ref={markerRef}
         coordinate={animatedDriverLocation}
@@ -217,7 +216,6 @@ const StudentHomePage = ({student}) => {
         </View>
       </Marker.Animated>
 
-      {/* Destination Marker */}
       <Marker
         key={`Destination ${student?.id}`}
         coordinate={destination}
@@ -286,7 +284,7 @@ const StudentHomePage = ({student}) => {
   if(!student.driver_id) {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.finding_driver_container}>
+        <View style={styles.student_container}>
           <View style={styles.student_route_status_box}>
             <Text style={styles.student_route_status_text}>في انتظار ربط الحساب بسائق</Text>
           </View>
@@ -300,35 +298,36 @@ const StudentHomePage = ({student}) => {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
-          <View style={styles.student_box}>
-            <Text style={styles.student_text}>الطالب في المنزل 😴</Text>
-          </View>
-          {!student.tomorrow_trip_canceled && (
-            <View>
-            <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
-              <Text style={styles.cancel_trip_btn_text}>الغاء رحلة الغد</Text>
-            </TouchableOpacity>
-            {isCanceling && (
-              <View style={styles.cancel_trip_confirmation}>
-                <TextInput
-                  style={styles.cancel_trip_input}
-                  value={cancelText}
-                  onChangeText={setCancelText}
-                  placeholder="للتاكيد اكتب كلمة نعم هنا"
-                />
-                <View style={styles.confirm_deny_canceling_btn}>
-                  <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
-                    <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
-                  <Text style={styles.deny_cancel_btn_text}>لا</Text>
-                  </TouchableOpacity>
-                </View>
+            <View style={styles.student_box}>
+              <Text style={styles.student_text}>الطالب في المنزل 😴</Text>
+            </View>
+            {!student.tomorrow_trip_canceled && (
+              <View>
+                <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
+                  <Text style={styles.cancel_trip_btn_text}>الغاء رحلة الغد</Text>
+                </TouchableOpacity>
+                {isCanceling && (
+                  <View style={styles.cancel_trip_confirmation}>
+                    <TextInput
+                      style={styles.cancel_trip_input}
+                      placeholderTextColor={colors.BLACK}
+                      value={cancelText}
+                      onChangeText={setCancelText}
+                      placeholder="للتاكيد اكتب كلمة نعم هنا"
+                    />
+                    <View style={styles.confirm_deny_canceling_btn}>
+                      <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
+                        <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
+                        <Text style={styles.deny_cancel_btn_text}>لا</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
             )}
           </View>
-          )}
-        </View>
       </SafeAreaView>
     )
   }
@@ -384,28 +383,7 @@ export default StudentHomePage
 const styles = StyleSheet.create({
   container:{
     flex:1,
-  },
-  finding_driver_container:{
-    width:'100%',
-    height:'100%',
-    alignItems:'center',
-    justifyContent:'center'
-  }, 
-  finding_driver_loading_box:{
-    width:250,
-    padding:10,
-    backgroundColor:colors.PRIMARY,
-    borderRadius:15,
-    flexDirection:'row',
-    alignItems:'center',
-    justifyContent:'space-around'
-  },
-  finding_driver_loading_text:{
-    textAlign:'center',
-    fontFamily: 'Cairo_400Regular',
-    fontSize:15,
-    color:colors.WHITE,
-  }, 
+  },  
   student_container:{
     width:'100%',
     height:'100%',
@@ -421,7 +399,7 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },
   student_text:{
-    height:50,
+    lineHeight:50,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
@@ -435,7 +413,7 @@ const styles = StyleSheet.create({
     marginTop:10
   },
   cancel_trip_btn_text:{
-    height:50,
+    lineHeight:50,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
@@ -452,6 +430,7 @@ const styles = StyleSheet.create({
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:13,
+    color:colors.BLACK
   },
   confirm_deny_canceling_btn:{
     flexDirection:'row-reverse',
@@ -493,7 +472,7 @@ const styles = StyleSheet.create({
   student_route_status_container:{
     width:500,
     position:'absolute',
-    top:100,
+    top:80,
     left:0,
     zIndex:100,
     alignItems:'center',
@@ -508,7 +487,7 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },
   student_route_status_text:{
-    height:50,
+    lineHeight:50,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',

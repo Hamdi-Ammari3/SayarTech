@@ -1,9 +1,9 @@
-import { Alert, StyleSheet, Text, View,ActivityIndicator,TouchableOpacity,FlatList,Switch } from 'react-native'
+import { Alert, StyleSheet, Text, View,ActivityIndicator,Image,TextInput,TouchableOpacity,FlatList,Platform,Modal } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import React,{useEffect, useState} from 'react'
 import { useRouter } from 'expo-router'
+import Checkbox from 'expo-checkbox'
 import colors from '../../../../constants/Colors'
-import CustomeInput from '../../../../components/CustomeInput'
 import {DB} from '../../../../firebaseConfig'
 import { addDoc , collection,onSnapshot } from 'firebase/firestore'
 import * as Location from 'expo-location'
@@ -13,6 +13,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import { Dropdown } from 'react-native-element-dropdown'
 import { useStudentData } from '../../../stateManagment/StudentState'
+import logo from '../../../../assets/images/logo.jpeg'
 
 const addData = () => {
   const { user } = useUser()
@@ -22,11 +23,14 @@ const addData = () => {
   const totalSteps = 3;
   const [currentPage, setCurrentPage] = useState(1)
 
+  const [showBirthdayPicker,setShowBirthdayPicker] = useState(false)
   const [studentBirthDate,setStudentBirthDate] = useState(new Date())
   const [studentSex,setStudentSex] = useState('')
   const [studentSchool,setStudentSchool] = useState('')
   const [pickerVisible, setPickerVisible] = useState(false);
   const [currentPicker, setCurrentPicker] = useState({ day: null, field: null });
+  const [pickerTime, setPickerTime] = useState(new Date());
+  const [firstDayTimes, setFirstDayTimes] = useState(null);
   const [location, setLocation] = useState(null)
   const [homeAdress,setHomeAdress] = useState('')
   const [studentState,setStudentState] = useState('')
@@ -35,7 +39,6 @@ const addData = () => {
   const [studentStreet,setStudentStreet] = useState('')
   const [carType,setCarType] = useState('')
   const [schoolLocation, setSchoolLocation] = useState(null)
-  const [showPicker,setShowPicker] = useState(false)
   const [dateSelected, setDateSelected] = useState(false)
   const [addingNewStudentLoading,setAddingNewStudentLoading] = useState(false)
   
@@ -44,18 +47,30 @@ const addData = () => {
   }
 
   //Get the driver birth date
-  const showDatePicker = () => {
-    setShowPicker(true);
+  const showBirthDayDatePicker = () => {
+    setShowBirthdayPicker(true);
   };
 
-  // Handle the Date Change
-  const handleDateChange = (event, selectedDate) => {
-    setShowPicker(false);
-    if (event.type === "set") {
-      const currentDate = selectedDate || studentBirthDate;
-      setStudentBirthDate(currentDate);
-      setDateSelected(true);
+  // Handle the BirthDate Change
+  const handleBirthDayDateChange = (event, selectedDate) => {
+    if(Platform.OS === 'ios') {
+      if (selectedDate) {
+        setStudentBirthDate(selectedDate);
+        setDateSelected(true);
+      }
+    } else {
+      if (event.type === "set" && selectedDate) {
+        const currentDate = selectedDate || studentBirthDate;
+        setStudentBirthDate(currentDate);
+        setDateSelected(true);
+      }
+      setShowBirthdayPicker(false);
     }
+  }
+
+  // Close the picker manually for iOS
+  const closePicker = () => {
+    setShowBirthdayPicker(false);
   };
 
   // Student Sex
@@ -106,34 +121,98 @@ const addData = () => {
 
   // School time table
   const [schoolTimetable, setSchoolTimetable] = useState([
+    { id:7,day: "الأحد", active: false, startTime: null, endTime: null },
     { id:1,day: "الاثنين", active: false, startTime: null, endTime: null },
     { id:2,day: "الثلاثاء", active: false, startTime: null, endTime: null },
-    { id:3,day: "الاربعاء", active: false, startTime: null, endTime: null },
+    { id:3,day: "الأربعاء", active: false, startTime: null, endTime: null },
     { id:4,day: "الخميس", active: false, startTime: null, endTime: null },
     { id:5,day: "الجمعة", active: false, startTime: null, endTime: null },
     { id:6,day: "السبت", active: false, startTime: null, endTime: null },
-    { id:7,day: "الاحد", active: false, startTime: null, endTime: null },
   ]);
 
   // Open the time-table picker
   const handleTimeSelect = (day, field) => {
+    const selectedDay = schoolTimetable.find((item) => item.day === day);
+
+    // Use the existing time or fallback to the current time
+    const initialTime = selectedDay[field] ? new Date(selectedDay[field]) : new Date();
+
+    // Set a neutral base date for consistent handling
+    initialTime.setFullYear(2000, 0, 1);
+
+    setPickerTime(initialTime);
     setCurrentPicker({ day, field });
     setPickerVisible(true);
   };
     
-  // Change student time-table
+  // Handle picker time change
   const handlePickerChange = (event, selectedTime) => {
-    setPickerVisible(false);
-    if (event.type === "set" && selectedTime) {
+    if (Platform.OS === "ios") {
+      if (selectedTime) {
+        // Temporarily store the selected time
+        const neutralTime = new Date(selectedTime);
+        neutralTime.setFullYear(2000, 0, 1); // Use a neutral base date
+        setPickerTime(neutralTime);
+      }
+    } else {
+      if (event.type === "set" && selectedTime) {
+        const neutralTime = new Date(selectedTime);
+        neutralTime.setFullYear(2000, 0, 1);
+
+        setSchoolTimetable((prev) =>
+          prev.map((item) =>
+            item.day === currentPicker.day
+              ? { ...item, [currentPicker.field]: neutralTime }
+              : item
+          )
+        );
+      }
+      setPickerVisible(false);
+    }
+  };
+
+  // Confirm time-table selection (for iOS)
+  const confirmPickerSelection = () => {
+    if (pickerTime) {
       setSchoolTimetable((prev) =>
         prev.map((item) =>
           item.day === currentPicker.day
-            ? { ...item, [currentPicker.field]: selectedTime }
+            ? { ...item, [currentPicker.field]: pickerTime }
             : item
         )
       );
+      setPickerVisible(false);
     }
   };
+
+  // Select active days
+  const toggleDayActive = (dayId) => {
+    const updatedTimetable = schoolTimetable.map((item) => {
+      if (item.id === dayId) {
+        // Reset startTime and endTime when day is deselected
+        return item.active
+          ? { ...item, active: false, startTime: null, endTime: null }
+          : { ...item, active: true }; // Keep times intact if re-activating
+      }
+      return item;
+    });
+    setSchoolTimetable(updatedTimetable);
+  };
+
+  // Track the first day times select for copy to all btn
+  useEffect(() => {
+    const firstDayWithTimes = schoolTimetable.find(
+      (item) => item.startTime && item.endTime
+    );
+    if (firstDayWithTimes) {
+      setFirstDayTimes({
+        startTime: new Date(firstDayWithTimes.startTime),
+        endTime: new Date(firstDayWithTimes.endTime),
+      });
+    } else {
+      setFirstDayTimes(null); // Clear the state if no valid day is found
+    }
+  }, [schoolTimetable]);
 
   //Handle the state change
   const handleStateChange = (state) => {
@@ -192,6 +271,70 @@ const addData = () => {
     );
   };
 
+  // Add default student monthly subs bill
+  const defaultBill = [
+    {
+      id:0,
+      month:'january',
+      paid:false
+    },
+    {
+      id:1,
+      month:'february',
+      paid:false
+    },
+    {
+      id:2,
+      month:'march',
+      paid:false
+    },
+    {
+      id:3,
+      month:'april',
+      paid:false
+    },
+    {
+      id:4,
+      month:'may',
+      paid:false
+    },
+    {
+      id:5,
+      month:'june',
+      paid:false
+    },
+    {
+      id:6,
+      month:'july',
+      paid:false
+    },
+    {
+      id:7,
+      month:'august',
+      paid:false
+    },
+    {
+      id:8,
+      month:'september',
+      paid:false
+    },
+    {
+      id:9,
+      month:'october',
+      paid:false
+    },
+    {
+      id:10,
+      month:'november',
+      paid:false
+    },
+    {
+      id:11,
+      month:'december',
+      paid:false
+    }
+  ]
+
   // Go to next page
   const handleNext = () => {
     if (currentPage < totalSteps) setCurrentPage(currentPage + 1);
@@ -210,26 +353,65 @@ const addData = () => {
       createAlert('المستخدم غير معرف')
       return
     }
+    
+    if (!dateSelected) {
+      createAlert("يرجى إدخال تاريخ الميلاد");
+      return;
+    }
+    
+    if (!studentSex) {
+      createAlert("يرجى تحديد الجنس");
+      return;
+    }
+    
+    if (!carType) {
+      createAlert("يرجى اختيار نوع السيارة");
+      return;
+    }
 
-    // Validate all required fields
-    if (
-      !studentBirthDate ||
-      !studentSex ||
-      !carType ||
-      !studentSchool ||
-      !schoolLocation ||
-      schoolTimetable.some((entry) => entry.active && (!entry.startTime || !entry.endTime)) ||
-      !studentState ||
-      !studentCity ||
-      !studentStreet ||
-      !homeAdress
-    ) {
-        createAlert('يرجى ملء جميع الحقول المطلوبة');
-        return;
-      }
+    if (!studentSchool) {
+      createAlert("يرجى اختيار المدرسة");
+      return;
+    }
+
+    if(!firstDayTimes) {
+      createAlert("يرجى ادخال الجدول الزمني للمدرسة")
+      return
+    }
+
+    // Check school timetable for missing times
+    const incompleteTimetable = schoolTimetable.find(
+      (entry) => entry.active && (!entry.startTime || !entry.endTime)
+    );
+    if (incompleteTimetable) {
+      createAlert(
+        `يرجى تحديد وقت الدخول والخروج ليوم ${incompleteTimetable.day}`
+      );
+      return;
+    }
+
+    if (!studentState) {
+      createAlert("يرجى اختيار المحافظة");
+      return;
+    }
+    
+    if (!studentCity) {
+      createAlert("يرجى اختيار القضاء");
+      return;
+    }
+    
+    if (!studentStreet) {
+      createAlert("يرجى إدخال اسم الحي");
+      return;
+    }
+    
+    if (!homeAdress) {
+      createAlert("يرجى تحديد اقرب نقطة دالة على عنوانكم");
+      return;
+    }
 
     if (!location) {
-      createAlert('يرجى تحديد موقعك اولا')
+      createAlert('يرجى تحديد الموقع')
       return
     }
 
@@ -259,6 +441,7 @@ const addData = () => {
         driver_id:null,
         picked_up:false,
         tomorrow_trip_canceled:false,
+        bill:defaultBill
       }
       const docRef = await addDoc(studentsCollectionRef,studentData)
 
@@ -266,6 +449,7 @@ const addData = () => {
       
       // Clear the form fields
       setDateSelected(false)
+      setStudentBirthDate(new Date())
       setStudentSex('')
       setLocation(null)
       setStudentSchool('')
@@ -276,13 +460,13 @@ const addData = () => {
       setStudentStreet('')
       setHomeAdress('')
       setSchoolTimetable([
-        { day: "الاثنين", active: false, startTime: null, endTime: null },
-        { day: "الثلاثاء", active: false, startTime: null, endTime: null },
-        { day: "الاربعاء", active: false, startTime: null, endTime: null },
-        { day: "الخميس", active: false, startTime: null, endTime: null },
-        { day: "الجمعة", active: false, startTime: null, endTime: null },
-        { day: "السبت", active: false, startTime: null, endTime: null },
-        { day: "الاحد", active: false, startTime: null, endTime: null },
+        { id:7,day: "الأحد", active: false, startTime: null, endTime: null },
+        { id:1,day: "الاثنين", active: false, startTime: null, endTime: null },
+        { id:2,day: "الثلاثاء", active: false, startTime: null, endTime: null },
+        { id:3,day: "الأربعاء", active: false, startTime: null, endTime: null },
+        { id:4,day: "الخميس", active: false, startTime: null, endTime: null },
+        { id:5,day: "الجمعة", active: false, startTime: null, endTime: null },
+        { id:6,day: "السبت", active: false, startTime: null, endTime: null },
       ]);
       setCurrentPage(1)
 
@@ -296,34 +480,31 @@ const addData = () => {
 
   // Utility function to format time as HH:mm
   const formatTime = (date) => {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
+    if (!(date instanceof Date) || isNaN(date)) return "00:00"; // Fallback for invalid dates
+  
+    const hours = date.getHours()?.toString().padStart(2, "0");
+    const minutes = date.getMinutes()?.toString().padStart(2, "0");
     return `${hours}:${minutes}`;
   };
 
   // School time-table component
-  const SchoolTimetableComponent = ({ timetable, onUpdate, onTimeSelect }) => {
-    const updateDay = (day, field, value) => {
-      const newTimetable = timetable.map((item) =>
-        item.day === day ? { ...item, [field]: value } : item
-      );
-      onUpdate(newTimetable);
-    };
-    
+  const SchoolTimetableComponent = ({ timetable, onUpdate, onTimeSelect }) => {    
     return (
       <FlatList
         data={timetable}
-        keyExtractor={(item) => item.id.toString()}
-        extraData={schoolTimetable}
+        keyExtractor={(item) => item.id}
+        extraData={timetable} 
         contentContainerStyle={styles.flatList_style}
         renderItem={({ item }) => (
           <View style={styles.dayRow}>
-            {/* Enable/Disable Day */}
-            <Switch
+            <Checkbox
+              style={styles.checkbox}
               value={item.active}
-              onValueChange={(value) => updateDay(item.day, "active", value)}
+              onValueChange={() => toggleDayActive(item.id)}
+              color={item.active ? '#16B1FF' : undefined}
             />
             <Text style={styles.dayText}>{item.day}</Text>
+
             {/* Start Time Picker */}
             <TouchableOpacity
               style={[styles.timeInput, !item.active && styles.disabledInput]}
@@ -334,9 +515,13 @@ const addData = () => {
               }}
               disabled={!item.active}
             >
-              <Text style={styles.timeText}>{item.active && item.startTime ? formatTime(item.startTime) : "الدخول"}</Text>
+              <Text 
+                style={[styles.timeText, item.active && styles.activeTimeText]}
+              >{item.active && item.startTime ? formatTime(item.startTime) : "الدخول"}</Text>
             </TouchableOpacity>
+
             <Text style={styles.timeSeparator}>-</Text>
+
             {/* End Time Picker */}
             <TouchableOpacity
               style={[styles.timeInput, !item.active && styles.disabledInput]}
@@ -347,8 +532,11 @@ const addData = () => {
               }}
               disabled={!item.active}
             >
-              <Text style={styles.timeText}>{item.active && item.endTime ? formatTime(item.endTime) : "الخروج"}</Text>
+              <Text 
+                style={[styles.timeText, item.active && styles.activeTimeText]}
+              >{item.active && item.endTime ? formatTime(item.endTime) : "الخروج"}</Text>
             </TouchableOpacity>
+
           </View>
         )}
       />
@@ -372,25 +560,47 @@ const addData = () => {
     );
   };
 
+  // Check if there is active days to render the copy to all btn
+  const hasActiveDays = schoolTimetable.some((item) => item.active);
+
   // Render full pages
   const renderPage = () => {
     switch (currentPage) {
       case 1:
         return (
           <View>
-            <TouchableOpacity style={styles.fullButton} onPress={showDatePicker}>
+            <TouchableOpacity style={styles.fullButton} onPress={showBirthDayDatePicker}>
               <Text style={styles.fullBtnText}>
                 {dateSelected ? studentBirthDate.toLocaleDateString() : 'تاريخ الميلاد'}
               </Text>
             </TouchableOpacity>
-            {showPicker && (
-              <DateTimePicker
-                value={studentBirthDate}
-                mode="date"
-                display="default"
-                onChange={handleDateChange}
-                maximumDate={new Date()}
-              />
+            {showBirthdayPicker && (
+              Platform.OS === 'ios' ? (
+                <Modal transparent animationType="slide" visible={showBirthdayPicker}>
+                  <View style={styles.modalContainer}>
+                    <View style={styles.pickerContainer}>
+                      <DateTimePicker
+                        value={studentBirthDate}
+                        mode="date"
+                        display="spinner"
+                        onChange={handleBirthDayDateChange}
+                        maximumDate={new Date()}
+                      />
+                      <TouchableOpacity onPress={closePicker} style={styles.doneButton}>
+                        <Text style={styles.doneButtonText}>تأكيد</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Modal>
+              ) : (
+                <DateTimePicker
+                  value={studentBirthDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={handleBirthDayDateChange}
+                  maximumDate={new Date()}
+                />
+              )
             )}
             <Dropdown
               style={styles.dropdown}
@@ -439,13 +649,58 @@ const addData = () => {
               onTimeSelect={handleTimeSelect}
             />
             {pickerVisible && (
-              <DateTimePicker
-                value={new Date()}
-                mode="time"
-                display="default"
-                onChange={handlePickerChange}
-                is24Hour={true}
-              />
+              Platform.OS === "ios" ? (
+                <Modal transparent animationType="slide" visible={pickerVisible}>
+                  <View style={styles.modalContainer}>
+                    <View style={styles.pickerContainer}>
+                      <DateTimePicker
+                        value={pickerTime || new Date()}
+                        mode='time'
+                        display="spinner"
+                        onChange={handlePickerChange}
+                        is24Hour={true}
+                        minimumDate={new Date(1980, 0, 1)}
+                        maximumDate={new Date(new Date().getFullYear() - 1, 0, 1)}
+                      />
+                      <TouchableOpacity onPress={confirmPickerSelection} style={styles.doneButton}>
+                        <Text style={styles.doneButtonText}>تأكيد</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Modal>
+              ) : (
+                <DateTimePicker
+                  value={pickerTime}
+                  mode="time"
+                  display='spinner'
+                  onChange={handlePickerChange}
+                  is24Hour={true}
+                />
+              )
+              
+            )}
+            {firstDayTimes && hasActiveDays  && (
+              <View style={styles.copyButtonContainer}>
+              <TouchableOpacity
+                style={styles.copyButton}
+                onPress={() => {
+                  const newTimetable = schoolTimetable.map((item) => {
+                    if (item.day !== "الجمعة" && item.day !== "السبت") {
+                      return {
+                        ...item,
+                        active:true,
+                        startTime: firstDayTimes.startTime,
+                        endTime: firstDayTimes.endTime,
+                      };
+                    }
+                    return item;
+                  });
+                  setSchoolTimetable(newTimetable);
+                }}
+              >
+                <Text style={styles.copyButtonText}>نسخ لجميع الأيام</Text>
+              </TouchableOpacity>
+              </View>
             )}
           </View>
         );
@@ -483,12 +738,16 @@ const addData = () => {
                 }}
               />
             </View>
-            <CustomeInput
+            <TextInput
+              style={styles.customeInput}
+              placeholderTextColor={colors.BLACK}
               placeholder="الحي"
               value={studentStreet}
               onChangeText={(text) => setStudentStreet(text)}
             />
-            <CustomeInput
+            <TextInput
+              style={styles.customeInput}
+              placeholderTextColor={colors.BLACK}
               placeholder="اقرب نقطة دالة"
               value={homeAdress}
               onChangeText={(text) => setHomeAdress(text)}
@@ -511,8 +770,6 @@ const addData = () => {
     }
   };
 
-
-
   // Loading till adding student data
   if (addingNewStudentLoading || fetchingUserDataLoading || fetchingSchoolsLoading || fetchingState) {
     return (
@@ -524,11 +781,14 @@ const addData = () => {
     )
   }
 
-// Check whether the user add data or no
+  // Check whether the user add data or no
   if(students.length > 0 && addingNewStudentLoading === false) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.spinner_error_container}>
+      <SafeAreaView style={styles.data_already_added_container}>
+        <View style={styles.data_already_added_box}>
+          <View style={styles.logo}>
+            <Image source={logo} style={styles.logo_image}/>
+          </View>
           <View style={styles.student_data_already_added}>
             <Text style={styles.student_data_already_added_text}>لقد تمت اضافة بياناتك</Text>
           </View>
@@ -574,254 +834,263 @@ export default addData
 
 const styles = StyleSheet.create({
   container:{
-      flex:1,
-      alignItems:'center',
-      justifyContent:'space-between',
-      paddingVertical:20,
-      backgroundColor:colors.WHITE
-    },
-    title:{
-      marginBottom:20,
-      fontFamily:'Cairo_400Regular',
-      fontSize:24,
-    },
-    pageIndicatorContainer:{ 
-      flexDirection: 'row', 
-      justifyContent: 'center', 
-    },
-    pageIndicator: { 
-      width: 20, 
-      height: 8, 
-      borderRadius: 10,
-      margin: 5 
-    },
-    activeIndicator: { 
-      backgroundColor: colors.PRIMARY
-    },
-    inactiveIndicator: { 
-      backgroundColor: '#CCC' 
-    },
-    form:{
-      height:500,
-      width:300,
-      justifyContent:'center',
-      alignItems:'center',
-    },
-    dropdown:{
-      width:280,
-      height:50,
-      borderWidth:1,
-      marginBottom:10,
-      borderColor:colors.PRIMARY,
-      borderRadius:15,
-    },
-    HalfDropDownContainer:{
-      width:280,
-      flexDirection:'row-reverse',
-      justifyContent:'space-between'
-    },
-    dropdownHalf:{
-      width:135,
-      height:50,
-      borderWidth:1,
-      marginBottom:10,
-      borderColor:colors.PRIMARY,
-      borderRadius:15,
-    },
-    dropdownStyle:{
-      height:50,
-      verticalAlign:'middle',
-      fontFamily:'Cairo_400Regular',
-      textAlign:'center',
-      fontSize:14
-    },
-    dropdownTextStyle:{
-      textAlign:'center',
-    },
-    age_sex_input_container:{
-      flexDirection:'row',
-      width:280,
-      alignItems:'center',
-      justifyContent:'space-between'
-    },
-    age_input:{
-      width:135,
-      height:50,
-      marginBottom:10,
-      borderWidth:1,
-      borderColor:colors.PRIMARY,
-      borderRadius:15,
-      textAlign:'center',
-      fontFamily:'Cairo_400Regular'
-    },
-    sex_dropdown:{
-      width:135,
-      height:50,
-      borderWidth:1,
-      marginBottom:10,
-      borderColor:colors.PRIMARY,
-      borderRadius:15,
-    },
-    flatList_style:{
-      marginTop:20
-    },
-    dayRow: {
-      height:50,
-      marginBottom: 7,
-      flexDirection: "row",
-      alignItems: "center", 
-      borderWidth:1,
-      borderColor:colors.PRIMARY,
-      borderRadius:15,
-    },
-    dayText: {
-      height:40,
-      verticalAlign:'middle',
-      textAlign:'center',
-      fontFamily:'Cairo_400Regular',
-      flex: 1,
-      fontSize: 14,
-    },
-    timeInput: {
-      height:40,
-      flex: 1,
-      alignItems: "center",
-      justifyContent:'center',
-      borderRadius: 15,
-    },
-    disabledInput: {
-      backgroundColor: "#e0e0e0",
-    },
-    timeText: {
-      height:40,
-      verticalAlign:'middle',
-      textAlign:'center',
-      fontFamily:'Cairo_400Regular',
-      fontSize: 14,
-    },
-    timeSeparator: {
-      marginHorizontal: 5,
-      fontSize: 14,
-      fontWeight: "bold",
-    },
-    submitButton: {
-      marginTop: 20,
-      padding: 15,
-      backgroundColor: "#28a745",
-      borderRadius: 5,
-      alignItems: "center",
-    },
-    submitButtonText: {
-      color: "#fff",
-      fontSize: 16,
-      fontWeight: "bold",
-    },
-    location_msg_view:{
-      width:280,
-      paddingHorizontal:10,
-      marginBottom:20,
-    },
-    location_warning_text:{
-      fontFamily:'Cairo_700Bold',
-      fontSize:11,
-      textAlign:'center',
-      marginBottom:10,
-    },
-    address_warning_text:{
-      fontFamily:'Cairo_700Bold',
-      fontSize:11,
-      textAlign:'center',
-      marginBottom:20,
-    },
-    fullButton:{
-      width:280,
-      height:50,
-      marginBottom:10,
-      borderColor:colors.PRIMARY,
-      borderWidth:1,
-      borderRadius:15,
-      flexDirection:'row',
-      alignItems:'center',
-      justifyContent:'center'
-    },  
-    fullBtnText:{
-      height:50,
-      verticalAlign:'middle',
-      fontFamily:'Cairo_400Regular',
-      fontSize:15,
-      color:colors.BLACK
-    },
-    icon:{
-      marginRight:10,
-    },
-    BtnHalfContainer:{
-      width:280,
-      flexDirection:'row',
-      justifyContent:'center'
-    },
-    halfButton:{
-      width:130,
-      height:50,
-      marginHorizontal:5,
-      backgroundColor:colors.PRIMARY,
-      borderRadius:15,
-      flexDirection:'row',
-      alignItems:'center',
-      justifyContent:'center'
-    },
-    btnText:{
-      height:50,
-      verticalAlign:'middle',
-      fontFamily:'Cairo_700Bold',
-      fontSize:15,
-      color:colors.WHITE
-    },
-    halfButtonClearForm:{
-      width:135,
-      height:50,
-      marginHorizontal:5,
-      backgroundColor:colors.GRAY,
-      borderRadius:15,
-      flexDirection:'row',
-      alignItems:'center',
-      justifyContent:'center'
-    },
-    btnTextClearForm:{
-      fontFamily:'Cairo_700Bold',
-      fontSize:15,
-      color:colors.BLACK
-    },
-    map: {
-      width: '95%',
-      height: 270,
-      marginVertical: 10,
-    },
-    distanceText: {
-      fontFamily: 'Cairo_700Bold',
-      fontSize: 12,
-    },
-    student_data_already_added:{
-      backgroundColor:colors.GRAY,
-      width:250,
-      height:50,
-      borderRadius:15,
-      alignItems:'center',
-      justifyContent:'center'
-    },
-    student_data_already_added_text:{
-      height:50,
-      verticalAlign:'middle',
-      textAlign:'center',
-      fontFamily: 'Cairo_400Regular',
-      fontSize:15,
-    },
-    spinner_error_container: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    already_added_style:{
-      fontFamily: 'Cairo_400Regular',
-      fontSize:16
-    }
+    flex:1,
+    alignItems:'center',
+    justifyContent:'space-between',
+    paddingVertical:20,
+    backgroundColor:colors.WHITE
+  },
+  data_already_added_container:{
+    flex:1,
+    backgroundColor: colors.WHITE,
+  },
+  data_already_added_box:{
+    height:400,
+    paddingTop:30,
+    alignItems:'center',
+    justifyContent:'space-between',
+  },
+  logo:{
+    width:'100%',
+    height:150,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  logo_image:{
+    height:120,
+    width:120,
+    resizeMode:'contain',
+  },
+  student_data_already_added:{
+    backgroundColor:colors.GRAY,
+    width:250,
+    height:50,
+    borderRadius:15,
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  student_data_already_added_text:{
+    lineHeight:50,
+    verticalAlign:'middle',
+    textAlign:'center',
+    fontFamily: 'Cairo_400Regular',
+    fontSize:15,
+  },
+  title:{
+    marginBottom:20,
+    fontFamily:'Cairo_400Regular',
+    fontSize:24,
+  },
+  pageIndicatorContainer:{ 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+  },
+  pageIndicator: { 
+    width: 20, 
+    height: 8, 
+    borderRadius: 10,
+    margin: 5 
+  },
+  activeIndicator: { 
+    backgroundColor: colors.PRIMARY
+  },
+  inactiveIndicator: { 
+    backgroundColor: '#CCC' 
+  },
+  form:{
+    height:500,
+    width:300,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  customeInput:{
+    width:280,
+    height:50,
+    marginBottom:10,
+    borderWidth:1,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+    color:colors.BLACK,
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular'
+  },
+  dropdown:{
+    width:280,
+    height:50,
+    borderWidth:1,
+    marginBottom:10,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+  },
+  HalfDropDownContainer:{
+    width:280,
+    flexDirection:'row-reverse',
+    justifyContent:'space-between'
+  },
+  dropdownHalf:{
+    width:135,
+    height:50,
+    borderWidth:1,
+    marginBottom:10,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+  },
+  dropdownStyle:{
+    lineHeight:50,
+    fontFamily:'Cairo_400Regular',
+    textAlign:'center',
+    fontSize:14
+  },
+  dropdownTextStyle:{
+    textAlign:'center',
+  },
+  flatList_style:{
+    marginTop:3,
+  },
+  dayRow: {
+    height:50,
+    marginBottom: 6,
+    paddingHorizontal:7,
+    flexDirection: "row-reverse",
+    alignItems: "center", 
+    borderWidth:1,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+  },
+  checkbox:{
+    borderColor:'#777'
+  },
+  dayText: {
+    lineHeight:40,
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular',
+    flex: 1,
+    fontSize: 15,
+  },
+  timeInput: {
+    width:60,
+    height:30,
+    borderRadius: 5,
+    backgroundColor:'#e0e0e0',
+    backgroundColor:colors.BLUE
+  },
+  disabledInput:{
+    backgroundColor:null
+  },
+  timeText: {
+    lineHeight:30,
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular',
+    fontSize: 14,
+  },
+  activeTimeText:{
+    color:colors.WHITE
+  },
+  timeSeparator: {
+    marginHorizontal: 5,
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  address_warning_text:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:11,
+    textAlign:'center',
+    marginBottom:20,
+  },
+  fullButton:{
+    width:280,
+    height:50,
+    marginBottom:10,
+    borderColor:colors.PRIMARY,
+    borderWidth:1,
+    borderRadius:15,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'
+  },  
+  fullBtnText:{
+    lineHeight:50,
+    verticalAlign:'middle',
+    fontFamily:'Cairo_400Regular',
+    fontSize:15,
+    color:colors.BLACK,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  pickerContainer: {
+    backgroundColor: colors.DARKGRAY,
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  doneButton: {
+    width:100,
+    marginTop: 10,
+    backgroundColor: colors.PRIMARY,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 5,
+  },
+  doneButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  copyButtonContainer:{
+    alignItems:'center',
+  },
+  copyButton:{
+    width:170,
+    height:40,
+    backgroundColor:colors.BLUE,
+    borderRadius:15,
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  copyButtonText:{
+    lineHeight:40,
+    fontFamily:'Cairo_400Regular',
+    fontSize:15,
+    color:colors.WHITE
+  },
+  icon:{
+    marginRight:10,
+  },
+  BtnHalfContainer:{
+    width:280,
+    flexDirection:'row',
+    justifyContent:'center'
+  },
+  halfButton:{
+    width:130,
+    height:50,
+    marginHorizontal:5,
+    backgroundColor:colors.PRIMARY,
+    borderRadius:15,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  btnText:{
+    lineHeight:50,
+    verticalAlign:'middle',
+    fontFamily:'Cairo_700Bold',
+    fontSize:15,
+    color:colors.WHITE
+  },
+  map: {
+    width: '95%',
+    height: 270,
+    marginVertical: 10,
+  },
+  spinner_error_container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
 })

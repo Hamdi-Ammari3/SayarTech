@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { StyleSheet, Text, View, ActivityIndicator,Image,ScrollView,TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, ActivityIndicator,Image,ScrollView,TouchableOpacity,Dimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Link } from 'expo-router'
 import { useDriverData } from '../../../stateManagment/DriverContext'
@@ -63,6 +63,7 @@ const Home = () => {
 
   return(
     <SafeAreaView style={styles.container}>
+
       <View style={styles.scrollViewContainer}>
         <ScrollView
           horizontal
@@ -89,16 +90,21 @@ const Home = () => {
           ))}
         </ScrollView>
       </View>
+
       <View style={styles.student_info_container}>
         {driverData[0].line[selectedLine] && (
           <LinePage line={driverData[0].line[selectedLine]} selectedLine={selectedLine}/>
         )}
       </View>
+
     </SafeAreaView>
   )
 }
 
 export default Home;
+
+//get screen height
+const { width: SCwidth, height: SCheight } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -117,90 +123,93 @@ const styles = StyleSheet.create({
     justifyContent:'space-between',
   },
   logo:{
-      width:'100%',
-      height:150,
-      justifyContent:'center',
-      alignItems:'center',
-    },
-    logo_image:{
-      height:120,
-      width:120,
-      resizeMode:'contain',
-    },
-    no_registered_students: {
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    link_container: {
-      backgroundColor: colors.PRIMARY,
-      padding: 15,
-      marginTop:10,
-      borderRadius: 20,
-    },
-    link_text: {
-      color: colors.WHITE,
-      fontFamily: 'Cairo_700Bold',
-      fontSize: 14,
-    },
-    no_assigned_students_box:{
-      height:50,
-      width:300,
-      marginTop:95,
-      backgroundColor:colors.GRAY,
-      borderRadius:15,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    no_student_text: {
-      height:50,
-      verticalAlign:'middle',
-      fontFamily: 'Cairo_400Regular',
-    },
-    scrollViewContainer:{
-      height:60,
-      width:'100%',
-      position:'absolute',
-      top:60,
-      left:0,
-      zIndex:100,
-      alignItems:'center',
-      justifyContent:'center',
-    },
-    line_name_buttons_container:{
-      flexDirection:'row',
-      alignItems:'center',
-      justifyContent:'center',
-    },
-    line_name_button:{
-      backgroundColor:colors.WHITE,
-      borderColor:'#ddd',
-      borderWidth:1,
-      minWidth:150,
-      height:40,
-      borderRadius:15,
-      alignItems:'center',
-      justifyContent:'center',
-      marginHorizontal: 5
-    },
-    line_name_button_text:{
-      height:40,
-      verticalAlign:'middle',
-      textAlign:'center',
-      fontFamily: 'Cairo_400Regular',
-      fontSize:13,
-    },
-    active_line_name_button:{
-      backgroundColor:colors.PRIMARY,
-      borderColor:colors.PRIMARY,
-    },
-    active_line_name_button_text:{
-      color:colors.WHITE,
-      fontFamily: 'Cairo_700Bold',
-    },
-    student_info_container:{
-      flex:1,
-      alignItems:'center',
-      justifyContent:'center',
-      position:'relative',
-    },
+    width:'100%',
+    height:150,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  logo_image:{
+    height:120,
+    width:120,
+    resizeMode:'contain',
+  },
+  no_registered_students: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  link_container: {
+    backgroundColor: colors.PRIMARY,
+    width:100,
+    height:50,
+    textAlign:'center',
+    marginTop:10,
+    borderRadius: 20,
+  },
+  link_text: {
+    lineHeight:50,
+    color: colors.WHITE,
+    fontFamily: 'Cairo_700Bold',
+    fontSize: 14,
+  },
+  no_assigned_students_box:{
+    height:50,
+    width:300,
+    marginTop:95,
+    backgroundColor:colors.BLUE,
+    borderRadius:15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  no_student_text: {
+    lineHeight:50,
+    verticalAlign:'middle',
+    fontFamily: 'Cairo_400Regular',
+    color:colors.WHITE
+  },
+  scrollViewContainer:{
+    height:60,
+    width:'100%',
+    position:'absolute',
+    top:40,
+    left:0,
+    zIndex:100,
+    alignItems:'center',
+    justifyContent:'center',
+  },
+  line_name_buttons_container:{
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center',
+  },
+  line_name_button:{
+    backgroundColor:colors.WHITE,
+    borderColor:'#ddd',
+    borderWidth:1,
+    minWidth:150,
+    height:40,
+    borderRadius:15,
+    alignItems:'center',
+    justifyContent:'center',
+    marginHorizontal: 5
+  },
+  line_name_button_text:{
+    lineHeight:40,
+    textAlign:'center',
+    fontFamily: 'Cairo_400Regular',
+    fontSize:13,
+  },
+  active_line_name_button:{
+    backgroundColor:colors.PRIMARY,
+    borderColor:colors.PRIMARY,
+  },
+  active_line_name_button_text:{
+    color:colors.WHITE,
+    fontFamily: 'Cairo_700Bold',
+  },
+  student_info_container:{
+    flex:1,
+    height:SCheight,
+    alignItems:'center',
+    justifyContent:'center',
+  },
 })

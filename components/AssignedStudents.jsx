@@ -34,7 +34,7 @@ const AssignedStudents = ({item}) => {
         <Text style={{marginHorizontal:5}}>-</Text>
         <Text style={styles.student_info}>{userAge} سنة</Text>
       </View>
-      <Text style={styles.student_info}>{item.student_street} - {item.student_state}</Text>
+      <Text style={styles.student_info}>{item.student_street} - {item.student_city} - {item.student_state}</Text>
     </View>
   )
 }
@@ -43,7 +43,7 @@ export default AssignedStudents
 
 const styles = StyleSheet.create({
   container:{
-    width:280,
+    width:340,
     height:60,
     marginVertical:10,
     alignItems:'center',

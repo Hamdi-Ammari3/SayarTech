@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react'
-import { Text, View,StyleSheet,Image, Alert,Platform,TouchableOpacity,TextInput,Modal,ScrollView,Pressable } from 'react-native'
+import { Text,View,StyleSheet,Image, Alert,ActivityIndicator,Platform,TouchableOpacity,TextInput,Modal,ScrollView,Keyboard,TouchableWithoutFeedback} from 'react-native'
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useSignUp } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
@@ -14,8 +14,6 @@ import Constants from 'expo-constants'
 import Checkbox from 'expo-checkbox'
 import { Dropdown } from 'react-native-element-dropdown'
 import { generate } from 'referral-codes';
-import CustomeButton from '../../components/CustomeButton'
-import CustomeInput from '../../components/CustomeInput'
 import logo from '../../assets/images/logo.jpeg'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import FontAwesome from '@expo/vector-icons/FontAwesome'
@@ -299,6 +297,7 @@ export default function SignUpScreen() {
       <View style={styles.logo}>
         <Image source={logo} style={styles.logo_image}/>
       </View>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.form}>
       {!verifying ? (
         <>
@@ -316,14 +315,18 @@ export default function SignUpScreen() {
               handleCompteOwner(item.value)
               }}
           />
-          <CustomeInput
+          <TextInput
+            style={styles.customeInput}
             value={userName}
             placeholder="الاسم الكامل"
+            placeholderTextColor={colors.BLACK}
             onChangeText={(text) => setUserName(text)}
           />
-          <CustomeInput
+          <TextInput
+            style={styles.customeInput}
             value={userFamilyName}
             placeholder="اللقب"
+            placeholderTextColor={colors.BLACK}
             onChangeText={(text) => setUserFamilyName(text)}
           />
           <View style={styles.input_with_picker}>
@@ -343,6 +346,7 @@ export default function SignUpScreen() {
               style={styles.phone_input}
               value={phone}
               placeholder="رقم الهاتف"
+              placeholderTextColor={colors.BLACK}
               onChangeText={(text) => setPhone(text)}
               keyboardType='numeric'
             />
@@ -363,6 +367,7 @@ export default function SignUpScreen() {
                   value={friendReferralCode}
                   onChangeText={setFriendReferralCode}
                   placeholder="ادخل الكود"
+                  placeholderTextColor={colors.BLACK}
                 />
                 <View style={styles.rfCode_btn_container}>
                   <TouchableOpacity style={styles.deny_rfCode_btn} onPress={closeReferredBy}>
@@ -599,34 +604,54 @@ export default function SignUpScreen() {
                    )}             
                 </View>
              
-            </View>
-                   
+            </View>               
           </Modal>
-
-          <CustomeButton 
-            title="تسجيل" 
-            onPressHandler={onSignUpPress} 
-            disabledStatus={!compteOwner ||!userName || !userFamilyName || !phone || isSigningUp || !privacyAccepted || !termsAccepted }
-            loading={isSigningUp}
-          />
+          {isSigningUp ? (
+            <TouchableOpacity style={styles.button}>
+                <ActivityIndicator size='small' color={colors.WHITE} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.button}
+              onPress={onSignUpPress}
+              disabled={!compteOwner ||!userName || !userFamilyName || !phone || isSigningUp || !privacyAccepted || !termsAccepted}
+            >
+              <View style={styles.btnView}>
+                <Text style={styles.btntext}>تسجيل</Text>
+              </View>
+              
+            </TouchableOpacity>
+          )}
+          
           <Link href={'/login'}>
             <Text style={styles.link_text}>لديك حساب بالفعل؟ ادخل الان</Text>
           </Link>
         </>
       ) : (
         <>
-          <CustomeInput
-           keyboardType='numeric'
-           value={code} 
-           placeholder="رمز التاكيد" 
-           onChangeText={(code) => setCode(code)} 
+          <TextInput
+            style={styles.customeInput}
+            keyboardType='numeric'
+            value={code} 
+            placeholder="رمز التاكيد" 
+            placeholderTextColor={colors.BLACK}
+            onChangeText={(code) => setCode(code)} 
           />
-          <CustomeButton
-            title="تاكيد" 
-            onPressHandler={onPressVerify}
-            disabledStatus={!code || isVerifying}
-            loading={isVerifying}
-           />
+          {isVerifying ? (
+            <TouchableOpacity style={styles.button}>
+                <ActivityIndicator size="small" color={colors.WHITE} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.button}
+              onPress={onPressVerify}
+              disabled={!code || isVerifying}
+            >
+              <View style={styles.btnView}>
+                <Text style={styles.btntext}>تاكيد</Text>
+              </View>
+            </TouchableOpacity>
+          )}
           <View style={styles.timer_container}>
             <View style={styles.timer_box}>
               <Text style={styles.timer_text}>رمز التاكيد سيصل الى</Text>
@@ -641,8 +666,9 @@ export default function SignUpScreen() {
         </>
       )}
       </View>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
-)}
+  )}
 
 
 const styles = StyleSheet.create({
@@ -670,6 +696,37 @@ const styles = StyleSheet.create({
     justifyContent:'space-between',
     alignItems:'center',
   },
+  button:{
+    width:280,
+    height:50,
+    marginBottom:10,
+    backgroundColor:colors.PRIMARY,
+    borderRadius:15,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  btnView:{
+      alignItems:'center',
+      justifyContent:'center',
+    },  
+    btntext:{
+      fontFamily:'Cairo_700Bold',
+      fontSize:15,
+      color:colors.WHITE,
+      lineHeight:50,
+  },
+  customeInput:{
+    width:280,
+    height:50,
+    marginBottom:10,
+    borderWidth:1,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+    color:colors.BLACK,
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular'
+  },
   dropdown:{
     width:280,
     height:50,
@@ -677,16 +734,30 @@ const styles = StyleSheet.create({
     marginBottom:10,
     borderColor:colors.PRIMARY,
     borderRadius:20,
+    justifyContent:'center',
+    alignItems:'center'
   },
   dropdownStyle:{
     height:50,
     verticalAlign:'middle',
     fontFamily:'Cairo_400Regular',
     textAlign:'center',
-    fontSize:14
+    fontSize:14,
+    lineHeight:50
   },
   dropdownTextStyle:{
     textAlign:'center',
+  },
+  customeInput:{
+    width:280,
+    height:50,
+    marginBottom:10,
+    borderWidth:1,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+    color:colors.BLACK,
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular'
   },
   input_with_picker:{
     flexDirection:'row',
@@ -701,14 +772,15 @@ const styles = StyleSheet.create({
     backgroundColor:colors.PRIMARY,
     borderTopStartRadius:13,
     borderBottomStartRadius:13,
+    justifyContent:'center',
+    alignItems:'center'
   },
   country_code_dropdownStyle:{
     color:colors.WHITE,
     fontFamily:'Cairo_700Bold',
     textAlign:'center',
     fontSize:14,
-    height:50,
-    verticalAlign:'middle',
+    lineHeight:50
   },
   phone_input:{
     width:200,
@@ -803,7 +875,7 @@ const styles = StyleSheet.create({
     justifyContent:'space-between',
   },
   privacy_terms_approve_btn_text:{
-    height:50,
+    lineHeight:50,
     fontFamily:'Cairo_700Bold',
     fontSize:12,
     color:'#295F98',

@@ -143,7 +143,7 @@ const profile = () => {
       contentContainerStyle={styles.flatList_style}
       ListEmptyComponent={() => (
         <View style={styles.no_registered_students}>
-          <Text style={styles.no_student_text}>ليس لديك طلاب مسجلين بالتطبيق</Text>
+          <Text style={styles.no_student_text}>الرجاء اضافة بياناتك الخاصة</Text>
           <Link href="/addData" style={styles.link_container}>
             <Text style={styles.link_text}>اضف الآن</Text>
           </Link>
@@ -157,42 +157,42 @@ export default profile
 
 const styles = StyleSheet.create({
   container:{
-    height:'100%',
+    flex:1,
     alignItems:'center',
     backgroundColor: colors.WHITE,
   },  
   header:{
     justifyContent:'space-around',
     alignItems:'center',
-    paddingTop:20,
-    marginVertical:30,
+    marginVertical:15,
     borderRadius:15,
   },
   user_info:{
     width:340,
-    height:60,
+    height:50,
     flexDirection:'row-reverse',
     alignItems:'center',
     justifyContent:'space-around',
     backgroundColor:colors.PRIMARY,
     borderRadius:15,
-    marginBottom:10
   },
   user_info_text:{
     fontFamily:'Cairo_700Bold',
     fontSize:14,
     color:colors.WHITE,
+    lineHeight:50,
   },
   button_container:{
+    width:340,
+    height:40,
     flexDirection:'row-reverse',
     justifyContent:'space-around',
-    width:340,
-    height:60,
-    marginBottom:10
+    alignItems:'center',
+    marginVertical:7,
   },
   logout_button:{
-    width:140,
-    height:50,
+    width:130,
+    height:40,
     backgroundColor:colors.BLUE,
     borderRadius:15,
     flexDirection:'row',
@@ -200,16 +200,16 @@ const styles = StyleSheet.create({
     justifyContent:'center'
   },
   logout_button_text:{
-    height:50,
+    lineHeight:40,
     fontFamily: 'Cairo_400Regular',
-    fontSize:15,
+    fontSize:14,
     marginRight:10,
     verticalAlign:'middle',
     color:colors.WHITE,
   },
   delete_button:{
-    width:140,
-    height:50,
+    width:130,
+    height:40,
     borderColor:'#DAD9D8',
     borderWidth:1,
     borderRadius:15,
@@ -219,21 +219,21 @@ const styles = StyleSheet.create({
   },
   delete_text:{
     color:'#898989',
-    height:50,
+    lineHeight:40,
     fontFamily: 'Cairo_400Regular',
-    fontSize:15,
+    fontSize:14,
     marginRight:10,
     verticalAlign:'middle',
   },
   privacy_button_container:{
     width:340,
-    height:40,
+    height:35,
     flexDirection:'row',
     alignItems:'center',
     justifyContent:'space-around',
   },
   privacy_button:{
-    width:140,
+    width:120,
     height:35,
     backgroundColor:'#F6F8FA',
     borderRadius:7,
@@ -244,10 +244,10 @@ const styles = StyleSheet.create({
   privacy_button_text:{
     fontFamily: 'Cairo_400Regular',
     fontSize:14,
-    marginBottom:5
+    lineHeight:35,
   },
   flatList_style:{
-    marginTop:10,
+    marginTop:100,
     paddingBottom:40,
   },
   no_registered_students: {
@@ -273,5 +273,5 @@ const styles = StyleSheet.create({
     flex:1,
     justifyContent:'center',
     alignItems:'center'
-  },
+  }
 })

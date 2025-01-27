@@ -84,10 +84,9 @@ const ChildCard = ({ item }) => {
           <View style={styles.driver_info_modal_container}>
             <View style={styles.driver_info_modal_box}>
               <View style={styles.driver_info_modal_inner_box}>
-                <TouchableOpacity onPress={closeDriverInfoModal} style={{marginBottom:10}}>
+                <TouchableOpacity onPress={closeDriverInfoModal}>
                   <AntDesign name="closecircleo" size={24} color="gray" />
                 </TouchableOpacity>
-                <Text style={styles.driver_title_text}>السائق</Text>
               </View>
 
               <View style={styles.driver_info_modal_inner_box}>
@@ -106,18 +105,14 @@ const ChildCard = ({ item }) => {
                 {driverData && (
                   <View style={styles.driver_details_box}>
 
-                    <View style={styles.driver_info}>
-                      <View style={styles.driver_photo_box}>
-                        <Image source={{uri:driverData.driver_personal_image}} style={styles.driver_photo}/>
-                      </View>
+                    <View style={styles.driver_info}> 
+                      <Image source={{uri:driverData.driver_personal_image}} style={styles.driver_photo}/> 
                       <Text style={styles.info_text}>{driverData.driver_full_name} {driverData.driver_family_name}</Text>
                       <Text style={styles.info_text}>{driverData.driver_phone_number}</Text>
                     </View>
 
                     <View style={styles.driver_info}>
-                      <View style={styles.driver_photo_box}>
-                        <Image source={{uri:driverData.driver_car_image}} style={styles.driver_photo}/>
-                      </View>
+                      <Image source={{uri:driverData.driver_car_image}} style={styles.driver_photo}/>
                       <Text style={styles.info_text}>نوع السيارة: {driverData.driver_car_type}</Text>
                       <Text style={styles.info_text}>موديل السيارة: {driverData.driver_car_model}</Text>
                       <Text style={styles.info_text}>رقم السيارة: {driverData.driver_car_plate}</Text>
@@ -147,18 +142,18 @@ const styles = StyleSheet.create({
   },
   student_info_box:{
     width:350,
-    height:40,
+    height:30,
     flexDirection:'row',
     justifyContent:'space-around',
     alignItems:'center',
   },
-  info_text:{ 
-    height:40,
-    verticalAlign:'middle',
+  info_text:{
+    lineHeight:30,
     fontFamily:'Cairo_400Regular',
-    fontSize:14
+    fontSize:14,
   },
   info_text_bold:{
+    lineHeight:30,
     fontFamily:'Cairo_700Bold',
     fontSize:14,
     marginRight:7
@@ -168,22 +163,20 @@ const styles = StyleSheet.create({
     marginTop:10,
     flexDirection:'column-reverse',
     alignItems:'center',
-    justifyContent:'center'
+    justifyContent:'center',
   },
   driver_car_box_inner:{
     flexDirection:'row-reverse',
     alignItems:'center',
-    marginVertical:10,
+    marginVertical:5,
   },
   driver_car_box_inner_btn:{
     width:80,
-    height:40,
+    height:35,
+    alignItems:'center',
     borderColor:'#DAD9D8',
     borderWidth:1,
     borderRadius:5,
-    flexDirection:'row',
-    alignItems:'center',
-    justifyContent:'center'
   },
   driver_info_modal_container:{
     flex: 1,
@@ -203,11 +196,7 @@ const styles = StyleSheet.create({
   driver_info_modal_inner_box:{
     width:'90%',
     alignItems:'center',
-    justifyContent:'center'
-  },
-  driver_title_text:{
-    fontFamily:'Cairo_700Bold',
-    fontSize:14
+    justifyContent:'center',
   },
   driver_details_box:{
     width:'90%',
@@ -216,12 +205,9 @@ const styles = StyleSheet.create({
     marginVertical:10,
     alignItems:'center',
   },
-  driver_photo_box: {
-
-  },
-  driver_photo: {
-    height:120,
-    width:120,
+  driver_photo:{
+    height:130,
+    width:130,
     borderRadius:5,
     resizeMode:'contain',
   },

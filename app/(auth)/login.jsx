@@ -1,13 +1,11 @@
 import React,{useState,useEffect} from 'react'
 import { useSignIn,useAuth } from '@clerk/clerk-expo'
 import { Link,Redirect } from 'expo-router'
-import { View,Text,TouchableOpacity,TextInput,SafeAreaView,StyleSheet,Image,Alert,ActivityIndicator } from 'react-native'
+import { View,Text,TouchableOpacity,TextInput,SafeAreaView,StyleSheet,Image,Alert,ActivityIndicator,TouchableWithoutFeedback,Keyboard } from 'react-native'
 import { Dropdown } from 'react-native-element-dropdown'
 import { collection,getDocs,where,query } from 'firebase/firestore'
 import { DB } from '../../firebaseConfig'
 import colors from '../../constants/Colors'
-import CustomeInput from '../../components/CustomeInput'
-import CustomeButton from '../../components/CustomeButton'
 import logo from '../../assets/images/logo.jpeg'
 
 export default function Page() {
@@ -184,21 +182,34 @@ export default function Page() {
       <View style={styles.logo}>
         <Image source={logo} style={styles.logo_image}/>
       </View>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.form}>
       {verifying ? (
         <>
-          <CustomeInput
+          <TextInput
+            style={styles.customeInput}
+            placeholderTextColor={colors.BLACK}
             keyboardType='numeric'
             value={code}
             placeholder="رمز التاكيد"
             onChangeText={(text) => setCode(text)}
           />
-          <CustomeButton 
-            title="دخول" 
-            onPressHandler={handlerVerification}
-            disabledStatus={!code || isVerifyingCode}
-            loading={isVerifyingCode}
-          />
+          {isVerifyingCode ? (
+            <TouchableOpacity style={styles.button}>
+                <ActivityIndicator size="small" color={colors.WHITE} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.button}
+              onPress={handlerVerification}
+              disabled={!code || isVerifyingCode}
+            >
+              <View style={styles.btnView}>
+                <Text style={styles.btntext}>دخول</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          
           <View style={styles.timer_container}>
             <View style={styles.timer_box}>
               <Text style={styles.timer_text}>رمز التاكيد سيصل الى</Text>
@@ -231,22 +242,34 @@ export default function Page() {
               style={styles.input}
               value={phone}
               placeholder="رقم الهاتف"
+              placeholderTextColor={colors.BLACK}
               onChangeText={(text) => setPhone(text)}
               keyboardType='numeric'
             />
           </View>
-          <CustomeButton 
-            title="تاكيد" 
-            onPressHandler={onSignInPress}
-            disabledStatus={!phone || isSigningIn}
-            loading={isSigningIn}
-          />
+          {isSigningIn ? (
+            <TouchableOpacity style={styles.button}>
+                <ActivityIndicator size="small" color={colors.WHITE} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={onSignInPress}
+              disabled={!phone || isSigningIn}
+            >
+              <View style={styles.btnView}>
+                <Text style={styles.btntext}>تأكيد</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          
           <Link href={'/signup'}>
             <Text style={styles.link_text}>ليس لديك حساب؟ سجل الآن</Text>
           </Link>
         </>
       )}
       </View>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   )
 }
@@ -275,6 +298,17 @@ const styles = StyleSheet.create({
     justifyContent:'space-between',
     alignItems:'center',
   },
+  customeInput:{
+    width:280,
+    height:50,
+    marginBottom:10,
+    borderWidth:1,
+    borderColor:colors.PRIMARY,
+    borderRadius:15,
+    color:colors.BLACK,
+    textAlign:'center',
+    fontFamily:'Cairo_400Regular'
+  },
   input_with_picker:{
     flexDirection:'row',
     borderWidth:1,
@@ -288,14 +322,15 @@ const styles = StyleSheet.create({
     backgroundColor:colors.PRIMARY,
     borderTopStartRadius:13,
     borderBottomStartRadius:13,
+    justifyContent:'center',
+    alignItems:'center'
   },
   dropdownStyle:{
     color:colors.WHITE,
     fontFamily:'Cairo_700Bold',
     textAlign:'center',
     fontSize:14,
-    height:50,
-    verticalAlign:'middle',
+    lineHeight:50,
   },
   dropdownTextStyle:{
     textAlign:'center',
@@ -304,7 +339,28 @@ const styles = StyleSheet.create({
     width:200,
     height:50,
     textAlign:'center',
-    fontFamily:'Cairo_400Regular'
+    fontFamily:'Cairo_400Regular',
+    color:colors.BLACK,
+  },
+  button:{
+    width:280,
+    height:50,
+    marginBottom:10,
+    backgroundColor:colors.PRIMARY,
+    borderRadius:15,
+    flexDirection:'row',
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  btnView:{
+    alignItems:'center',
+    justifyContent:'center',
+  },  
+  btntext:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:15,
+    color:colors.WHITE,
+    lineHeight:50,
   },
   link_text:{
     fontFamily:'Cairo_700Bold',

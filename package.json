@@ -24,6 +24,7 @@
     "@react-native-picker/picker": "2.9.0",
     "@react-navigation/native": "^6.0.2",
     "axios": "^1.7.7",
+    "dayjs": "^1.11.13",
     "dotenv": "^16.4.5",
     "expo": "52.0.20",
     "expo-checkbox": "~4.0.0",
@@ -60,6 +61,7 @@
     "react-native-screens": "~4.4.0",
     "react-native-svg": "15.8.0",
     "react-native-swiper": "^1.6.0",
+    "react-native-switch": "^1.5.1",
     "react-native-web": "~0.19.13",
     "referral-codes": "^3.0.0"
   },
