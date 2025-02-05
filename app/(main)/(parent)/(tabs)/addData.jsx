@@ -149,15 +149,15 @@ const addData = () => {
   const handlePickerChange = (event, selectedTime) => {
     if (Platform.OS === "ios") {
       if (selectedTime) {
-        // Temporarily store the selected time
-        const neutralTime = new Date(selectedTime);
-        neutralTime.setFullYear(2000, 0, 1); // Use a neutral base date
-        setPickerTime(neutralTime);
-      }
-    } else {
-      if (event.type === "set" && selectedTime) {
         const neutralTime = new Date(selectedTime);
         neutralTime.setFullYear(2000, 0, 1);
+        setPickerTime(neutralTime);
+      }
+    } else if (event.type === "set" && selectedTime) {
+        setPickerVisible(false);
+        const neutralTime = new Date(selectedTime);
+        neutralTime.setFullYear(2000, 0, 1);
+        setPickerTime(neutralTime);
 
         setSchoolTimetable((prev) =>
           prev.map((item) =>
@@ -165,9 +165,7 @@ const addData = () => {
               ? { ...item, [currentPicker.field]: neutralTime }
               : item
           )
-        );
-      }
-      setPickerVisible(false);
+        )
     }
   };
 
@@ -691,8 +689,7 @@ const addData = () => {
                   onChange={handlePickerChange}
                   is24Hour={true}
                 />
-              )
-              
+              )             
             )}
             {firstDayTimes && hasActiveDays  && (
               <View style={styles.copyButtonContainer}>

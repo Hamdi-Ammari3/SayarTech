@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState,useEffect } from 'react'
 import { StyleSheet, Text, View, ActivityIndicator,Image,ScrollView,TouchableOpacity,Dimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Link } from 'expo-router'
+import { writeBatch, doc } from "firebase/firestore"
+import { DB } from '../../../../firebaseConfig'
 import { useDriverData } from '../../../stateManagment/DriverContext'
 import { useUser } from '@clerk/clerk-expo'
 import colors from '../../../../constants/Colors'
@@ -12,8 +14,84 @@ const Home = () => {
   const {driverData,fetchingDriverDataLoading} = useDriverData()
   const { isLoaded } = useUser()
   const [selectedLine,setSelectedLine] = useState(0)
+  const [todayDate, setTodayDate] = useState("")
+
+  // Find the today date
+  useEffect(() => {
+    const getTodayDate = () => {
+      const now = new Date();
+      const options = { weekday: "long", day: "2-digit", month: "long", year: "numeric" };
+      const formattedDate = now.toLocaleDateString("ar-IQ", options);
+      setTodayDate(formattedDate);
+    };
+
+    getTodayDate();
+  }, []);
 
 
+  // Start the today jouney  
+  const startTodayJourney = async () => {
+    try {
+      const batch = writeBatch(DB);
+      const driverRef = doc(DB, "drivers", driverData[0].id);
+  
+      // Get today's day index (0=Sunday, ..., 6=Saturday)
+      const todayIndex = new Date().getDay();
+  
+      // Filter only active lines for today with students
+      const activeLinesToday = driverData[0].line
+        .map((line) => {
+          const todaySchedule = line.lineTimeTable?.find(
+            (day) => day.dayIndex === todayIndex
+          );
+  
+          if (todaySchedule?.active && line.students.length > 0) {
+            return {
+              ...line,
+              startTime: todaySchedule.startTime, // Store today's start time for sorting
+            };
+          }
+          return null;
+        })
+        .filter(Boolean); // Remove null values
+  
+      if (activeLinesToday.length === 0) {
+        alert("لا يوجد خطوط لهذا اليوم");
+        return;
+      }
+
+      // Normalize Time for Sorting
+      const getTimeInMinutes = (timestamp) => {
+        if (!timestamp) return Infinity; // Put invalid times at the end
+        const date = new Date(timestamp.seconds * 1000);
+        return date.getHours() * 60 + date.getMinutes(); // Convert to total minutes
+      };
+  
+      // Sort active lines by start time
+      activeLinesToday.sort((a, b) => getTimeInMinutes(a.startTime) - getTimeInMinutes(b.startTime));
+  
+      // Assign indexes and activate the first line only
+      const sortedLines = activeLinesToday.map((line, index) => ({
+        ...line,
+        line_index: index + 1, // Number the lines
+        line_active: index === 0, // Activate only the first one
+      }));
+  
+      // Update Firestore with batch
+      batch.update(driverRef, {
+        start_the_journey: true,
+        line: sortedLines, // Update sorted & activated lines
+      });
+  
+      // Commit batch updates
+      await batch.commit();
+  
+    } catch (error) {
+      console.error("Error starting the journey:", error);
+      alert("حدث خطأ أثناء بدء الرحلة.");
+    }
+  };
+  
   //Loading State
   if( fetchingDriverDataLoading  || !isLoaded) {
     return (
@@ -29,12 +107,12 @@ const Home = () => {
   if(!driverData?.length) {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.no_registered_students_container}>
+        <View style={styles.no_driver_data_container}>
           <View style={styles.logo}>
             <Image source={logo} style={styles.logo_image}/>
           </View>
-          <View style={styles.no_registered_students}>
-            <Text style={styles.no_student_text}>الرجاء اضافة بياناتك الخاصة</Text>
+          <View style={styles.no_driver_data}>
+            <Text style={styles.no_driver_data_text}>الرجاء اضافة بياناتك الخاصة</Text>
             <Link href="/addData" style={styles.link_container}>
               <Text style={styles.link_text}>اضف الآن</Text>
             </Link>
@@ -43,12 +121,12 @@ const Home = () => {
       </SafeAreaView>
     )
   }
-  
+
   //if the driver have no assigned students
   if(driverData?.length > 0 && driverData[0].line.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.no_registered_students_container}>
+        <View style={styles.no_driver_data_container}>
           <View style={styles.logo}>
             <Image source={logo} style={styles.logo_image}/>
           </View>
@@ -56,7 +134,27 @@ const Home = () => {
             <Text style={styles.no_student_text}>ليس لديك خطوط في حسابك</Text>
           </View>
         </View>
-        
+      </SafeAreaView>
+    )
+  }
+
+  // if the driver didnt start the today journey
+  if(driverData?.length > 0 && driverData[0].line.length > 0 && driverData[0].start_the_journey === false) {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.no_driver_data_container}>
+          <View style={styles.logo}>
+            <Image source={logo} style={styles.logo_image}/>
+          </View>
+          
+          <View style={styles.start_today_trip_container}>
+            <Text style={styles.today_date_text}>{todayDate}</Text>
+            <TouchableOpacity style={styles.start_today_trip_btn} onPress={() => startTodayJourney()}>
+              <Text style={styles.start_today_trip_btn_text}>ابدا خطوط اليوم</Text>
+            </TouchableOpacity>
+          </View>
+          
+        </View>
       </SafeAreaView>
     )
   }
@@ -70,7 +168,10 @@ const Home = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.line_name_buttons_container}
         >
-          {driverData[0].line.map((li,index) => (
+          {driverData[0].line
+          .filter((li) => li.students.length > 0)
+          .sort((a, b) => (a.line_index || 999) - (b.line_index || 999))
+          .map((li,index) => (
             <TouchableOpacity
               key={index}
               style={[
@@ -116,7 +217,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  no_registered_students_container:{
+  no_driver_data_container:{
     height:400,
     paddingTop:30,
     alignItems:'center',
@@ -133,9 +234,12 @@ const styles = StyleSheet.create({
     width:120,
     resizeMode:'contain',
   },
-  no_registered_students: {
+  no_driver_data: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  no_driver_data_text:{
+    fontFamily: 'Cairo_400Regular',
   },
   link_container: {
     backgroundColor: colors.PRIMARY,
@@ -162,7 +266,29 @@ const styles = StyleSheet.create({
   },
   no_student_text: {
     lineHeight:50,
-    verticalAlign:'middle',
+    fontFamily: 'Cairo_400Regular',
+    color:colors.WHITE
+  },
+  start_today_trip_container:{
+    alignItems:'center',
+    justifyContent:'center',
+  },
+  today_date_text:{
+    fontFamily: 'Cairo_400Regular',
+    marginBottom:15
+  },
+  start_today_trip_btn:{
+    width:250,
+    height:50,
+    borderRadius:15,
+    marginBottom:20,
+    alignItems:'center',
+    justifyContent:'center',
+    backgroundColor:colors.BLUE
+  },
+  start_today_trip_btn_text:{
+    lineHeight:50,
+    fontSize:16,
     fontFamily: 'Cairo_400Regular',
     color:colors.WHITE
   },

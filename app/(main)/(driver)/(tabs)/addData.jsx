@@ -210,61 +210,73 @@ const addData = () => {
     {
       id:0,
       month:'january',
+      amount:0,
       paid:false
     },
     {
       id:1,
       month:'february',
+      amount:0,
       paid:false
     },
     {
       id:2,
       month:'march',
+      amount:0,
       paid:false
     },
     {
       id:3,
       month:'april',
+      amount:0,
       paid:false
     },
     {
       id:4,
       month:'may',
+      amount:0,
       paid:false
     },
     {
       id:5,
       month:'june',
+      amount:0,
       paid:false
     },
     {
       id:6,
       month:'july',
+      amount:0,
       paid:false
     },
     {
       id:7,
       month:'august',
+      amount:0,
       paid:false
     },
     {
       id:8,
       month:'september',
+      amount:0,
       paid:false
     },
     {
       id:9,
       month:'october',
+      amount:0,
       paid:false
     },
     {
       id:10,
       month:'november',
+      amount:0,
       paid:false
     },
     {
       id:11,
       month:'december',
+      amount:0,
       paid:false
     }
   ]
@@ -339,6 +351,7 @@ const addData = () => {
         driver_family_name:userData.user_family_name,
         driver_user_id:userData.user_id,
         driver_phone_number:userData.phone_number,
+        driver_notification_token:userData.user_notification_token,
         current_location:{latitude:location.coords.latitude,longitude:location.coords.longitude},
         driver_home_location:location,
         driver_birth_date:driverBirthDate,
@@ -349,6 +362,7 @@ const addData = () => {
         driver_personal_image: personalImageUrl,
         driver_car_image: carImageUrl,
         line:[],
+        start_the_journey:false,
         school_rating:[],
         student_rating:[],
         sayartech_team_rating:[],
@@ -370,6 +384,7 @@ const addData = () => {
       setDriverBirthDate(new Date())
       setPersonalImage(null)
       setCarImage(null)
+      setCurrentPage(1)
 
     } catch (error) {
       createAlert('. يرجى المحاولة مرة أخرى')
@@ -423,7 +438,7 @@ const addData = () => {
                       <DateTimePicker
                         value={driverBirthDate}
                         mode="date"
-                        display="spinner" // Spinner for better iOS experience
+                        display="spinner"
                         onChange={handleDateChange}
                         maximumDate={new Date()}
                       />
@@ -437,7 +452,7 @@ const addData = () => {
                 <DateTimePicker
                   value={driverBirthDate}
                   mode="date"
-                  display="default"
+                  display="spinner"
                   onChange={handleDateChange}
                   maximumDate={new Date()}
                 />

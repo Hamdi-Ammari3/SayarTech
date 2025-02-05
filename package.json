@@ -63,7 +63,8 @@
     "react-native-swiper": "^1.6.0",
     "react-native-switch": "^1.5.1",
     "react-native-web": "~0.19.13",
-    "referral-codes": "^3.0.0"
+    "referral-codes": "^3.0.0",
+    "twilio": "^5.4.3"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

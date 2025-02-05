@@ -12,7 +12,7 @@ import colors from '../constants/Colors'
 import AntDesign from '@expo/vector-icons/AntDesign'
 import Feather from '@expo/vector-icons/Feather'
 
-const LinePage = ({line,selectedLine}) => {
+const LinePage = ({line}) => {
 
     // handle the case where there is no student in the line
     
@@ -315,13 +315,12 @@ const LinePage = ({line,selectedLine}) => {
         try {
             const lines = driverData[0]?.line || [];
 
-             // Skip activation check if only one line exists
-            if (lines.length > 1 && !line.line_active) {
-                const nextLineIndex = selectedLine + 1;
-                const nextLine = lines[nextLineIndex] || lines[0];
-                const nextLineName = nextLine.lineName || `الخط ${nextLineIndex + 1}`;
+            // Find the currently active line
+            const activeLine = lines?.find(li => li?.line_active);
 
-                alert(`الرجاء انهاء رحلة ${nextLineName} قبل بدء هذا الخط`);
+            // Skip activation check if only one line exists
+            if (lines.length > 1 && activeLine && activeLine.line_index !== line.line_index) {
+                alert(`الرجاء إنهاء رحلة ${activeLine.lineName} قبل بدء هذا الخط`);
                 setIsMarkingStudent(false);
                 return;
             }
@@ -338,7 +337,7 @@ const LinePage = ({line,selectedLine}) => {
 
             // Update the driver's line data
             const updatedLines = driverData[0].line.map((li) =>
-                li.lineName === line.lineName ? updatedLine : li
+                li.id === line.id ? updatedLine : li
             );
 
             // Update the driver's line data in the batch
@@ -366,7 +365,6 @@ const LinePage = ({line,selectedLine}) => {
 
             sortStudentsByDistance()
             setDriverOriginLocation(driverData[0]?.current_location)
-
         } catch (error) {
             alert('حدث خطأ اثناء بدء الرحلة')
             console.error('Error starting the first trip:', error);
@@ -386,6 +384,7 @@ const LinePage = ({line,selectedLine}) => {
             const lines = driverData[0]?.line || [];
             const pickedUpStudents = line.students.filter(student => student.picked_up);
 
+            // Mark the current line as finished
             const updatedLine = {
                 ...line,
                 first_trip_finished: true,
@@ -394,13 +393,20 @@ const LinePage = ({line,selectedLine}) => {
                 line_active: lines.length === 1, // Keep line active if only one exists
             };
 
-            const updatedLines = lines.map((li, index) => {
-                if (index === selectedLine) {
-                    return updatedLine;
-                } else if (lines.length > 1 && index === (selectedLine + 1) % lines.length) {
-                    return { ...li, line_active: true };
+            // Find the next line in the round process
+            let nextLineIndex = null;
+            if (lines.length > 1) {
+                nextLineIndex = (line.line_index % lines.length) + 1; // Move to the next line in order
+            }
+
+            // Update the lines array with the new states
+            const updatedLines = lines.map(li => {
+                if (li.line_index === line.line_index) {
+                    return updatedLine; // Update the current line
+                } else if (lines.length > 1 && li.line_index === nextLineIndex) {
+                    return { ...li, line_active: true }; // Activate the next line
                 }
-                return li;
+                return { ...li, line_active: false }; // Deactivate all other lines
             });
 
             batch.update(driverDoc, { line: updatedLines });
@@ -416,7 +422,7 @@ const LinePage = ({line,selectedLine}) => {
                 if (student.notification_token) {
                     await sendNotification(
                         student.notification_token,
-                        "الطالب وصل المدرسة بسلام",
+                        "الطالب وصل المدرسة",
                         `${student.name} وصل المدرسة الان`
                     );
                 }
@@ -445,17 +451,16 @@ const LinePage = ({line,selectedLine}) => {
     // Check students list before starting the second trip
     const handleCheckPickedUpStudents = () => {
         const lines = driverData[0]?.line || [];
+
+        // Find the currently active line
+        const activeLine = lines?.find(li => li?.line_active);
         
-        if (lines.length > 1 && !line.line_active) {
-            const nextLineIndex = selectedLine + 1;
-            const nextLine = driverData[0].line[nextLineIndex] || driverData[0].line[0]; // Loop back to the first line if out of bounds
-            const nextLineName = nextLine.lineName || `الخط ${nextLineIndex + 1}`;
-            alert(`الرجاء انهاء رحلة ${nextLineName} قبل بدا هذا الخط`);
+        if (lines.length > 1 && activeLine && activeLine.line_index !== line.line_index) {
+            alert(`الرجاء إنهاء رحلة ${activeLine.lineName} قبل بدء هذا الخط`);
             return;
         } else {
             setCheckingPickedUpStudents(true)
-        }
-        
+        } 
     }
 
     // Start the second trip
@@ -465,14 +470,13 @@ const LinePage = ({line,selectedLine}) => {
 
         try {
             const lines = driverData[0]?.line || [];
+
+            // Find the currently active line
+            const activeLine = lines?.find(li => li?.line_active);
+
             // Check if the selected line is active
-            if (lines.length > 1 && !line.line_active) {
-                // Get the next line name or order dynamically
-                const nextLineIndex = selectedLine + 1;
-                const nextLine = driverData[0].line[nextLineIndex] || driverData[0].line[0]; // Loop back to the first line if out of bounds
-                const nextLineName = nextLine.lineName || `الخط ${nextLineIndex + 1}`;
-            
-                alert(`الرجاء انهاء رحلة ${nextLineName} قبل بدء هذا الخط`);
+            if (lines.length > 1 && activeLine?.line_index !== line.line_index) {            
+                alert(`الرجاء إنهاء رحلة ${activeLine.lineName} قبل بدء هذا الخط`);
                 setIsMarkingStudent(false);
                 return;
             }
@@ -488,7 +492,7 @@ const LinePage = ({line,selectedLine}) => {
 
             // Update the driver's line data
             const updatedLines = driverData[0].line.map((li) =>
-                li.lineName === line.lineName ? updatedLine : li
+                li.id === line.id ? updatedLine : li
             );
 
             // Update the driver's line data in the batch
@@ -538,35 +542,42 @@ const LinePage = ({line,selectedLine}) => {
             const lines = driverData[0]?.line || []
             const droppedOffStudents = line.students.filter(student => student.dropped_off)
 
-            // Update line states
-            const updatedLine = {
-                ...line,
-                first_trip_started: false,
-                first_trip_finished: false,
-                second_trip_started: false,
-                second_trip_finished: false,
-                current_trip: 'first',
-                line_active: lines.length === 1,
-                students: line.students.map((student) => ({
-                    ...student,
-                    picked_up: false,
-                    picked_from_school: false,
-                    dropped_off: false,
-                    tomorrow_trip_canceled: false,
-                    checked_in_front_of_school: false,
-                })),
-            }
+            // Get the last line index
+            const lastLineIndex = Math.max(...lines.map(li => li.line_index || 0))
 
-            const updatedLines = lines.map((li, index) => {
-                if (index === selectedLine) {
-                    return updatedLine;
-                } else if (lines.length > 1 && index === (selectedLine + 1) % lines.length) {
-                    return { ...li, line_active: true };
+            // Determine if the current line is the last one
+            const isLastLine = line.line_index === lastLineIndex
+
+            // Reset or switch to the next line
+            const updatedLines = lines.map((li) => {
+                if (li.line_index === line.line_index) {
+                    return {
+                        ...li,
+                        first_trip_started: false,
+                        first_trip_finished: false,
+                        second_trip_started: false,
+                        second_trip_finished: false,
+                        current_trip: 'first',
+                        line_active: false,
+                        students: li.students.map((student) => ({
+                            ...student,
+                            picked_up: false,
+                            picked_from_school: false,
+                            dropped_off: false,
+                            tomorrow_trip_canceled: false,
+                            checked_in_front_of_school: false,
+                        })),
+                    }
+                } else if (!isLastLine && li.line_index === line.line_index + 1) {
+                    return { ...li, line_active: true }; // Activate the next line only
                 }
                 return li;
             });
 
-            batch.update(driverDoc, { line: updatedLines });
+            batch.update(driverDoc, {
+                line: updatedLines,
+                start_the_journey:!isLastLine,
+            });
 
             // Update all dropped-off students' statuses
             for (const student of droppedOffStudents) {
@@ -645,7 +656,7 @@ const LinePage = ({line,selectedLine}) => {
 
                     // Update the driver's line data in Firestore
                     const updatedLines = driverData[0].line.map((li) =>
-                        li.lineName === line.lineName ? updatedLine : li
+                        li.id === line.id ? updatedLine : li
                     );
                     batch.update(driverDocRef, { line: updatedLines });
 
@@ -717,7 +728,7 @@ const LinePage = ({line,selectedLine}) => {
 
             // Update the driver's line data in Firestore
             const updatedLines = driverData[0].line.map((li) =>
-                li.lineName === line.lineName ? updatedLine : li
+                li.id === line.id ? updatedLine : li
             );
             batch.update(driverDocRef, { line: updatedLines });
 
@@ -772,7 +783,7 @@ const LinePage = ({line,selectedLine}) => {
 
             // Update the driver's `line` data in Firestore
             const updatedLines = driverData[0].line.map((li) =>
-                li.lineName === line.lineName ? resetLine : li
+                li.id === line.id ? resetLine : li
             );
             batch.update(driverDocRef, { line: updatedLines });
 

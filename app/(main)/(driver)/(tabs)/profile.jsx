@@ -147,7 +147,6 @@ const profile = () => {
             <Text style={styles.privacy_button_text}>Terms of Use</Text>
           </TouchableOpacity>
         </View>
-
       </View>
       <FlatList
         data={driverData[0]?.line}
@@ -155,8 +154,17 @@ const profile = () => {
           <TouchableOpacity style={styles.line_item} onPress={() => handleLinePress(item)}>
             <Text style={styles.line_name}>{item?.lineName}</Text>
             <Text style={styles.line_name}>{item?.lineSchool}</Text>
-            <Text style={styles.line_name}>انطلاق الخط  {dayjs(item?.line_school_startTime?.toDate()).format("HH:mm")}</Text>
             <Text style={styles.line_name}>{item?.students?.length}  طلاب</Text>
+            <View style={styles.line_startTime_container}>   
+              {item.lineTimeTable.map(li => (
+                <View key={li.dayIndex} style={styles.line_startTime_day}>
+                  <Text style={styles.line_startTime_name}>{li?.arabic_day}</Text>
+                  <Text style={styles.line_startTime_name}>
+                    {li.active ? dayjs(li?.startTime?.toDate()).format("HH:mm") : "--"}                  
+                  </Text>
+                </View>              
+              ))}
+            </View>
           </TouchableOpacity>
         )}
         keyExtractor={item => item.lineName}
@@ -290,8 +298,8 @@ const styles = StyleSheet.create({
     lineHeight:35,
   },
   line_item:{
-    width:340,
-    height:130,
+    width:350,
+    height:160,
     backgroundColor:colors.BLUE,
     borderRadius:15,
     marginBottom:10,
@@ -299,8 +307,23 @@ const styles = StyleSheet.create({
     justifyContent:'space-around'
   },
   line_name:{
+    height:25,
+    lineHeight:25,
     fontFamily:'Cairo_400Regular',
-    fontSize:16,
+    fontSize:15,
+    color:colors.WHITE,
+  },
+  line_startTime_container:{
+    flexDirection:'row-reverse',
+  },
+  line_startTime_day:{
+    alignItems:'center',
+    marginHorizontal:2,
+    width:45,
+  },
+  line_startTime_name:{
+    fontFamily:'Cairo_400Regular',
+    fontSize:13,
     color:colors.WHITE,
   },
   flatList_style:{
