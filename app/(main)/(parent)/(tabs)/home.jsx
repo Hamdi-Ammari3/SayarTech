@@ -4,14 +4,14 @@ import { useUser } from '@clerk/clerk-expo'
 import { useState,useEffect } from 'react'
 import { Link } from 'expo-router'
 import * as Notifications from 'expo-notifications'
-import { useStudentData } from '../../../stateManagment/StudentState'
+import { useRiderData } from '../../../stateManagment/RiderContext'
 import colors from '../../../../constants/Colors'
 import logo from '../../../../assets/images/logo.jpeg'
 import StudentHomePage from '../../../../components/StudentHomePage'
 
 const home = () => {
   const { isLoaded } = useUser()
-  const {students,fetchingStudentsLoading,fetchingdriverLoading} = useStudentData()
+  const {rider,fetchingRiderLoading} = useRiderData()
   const [selectedStudent,setSelectedStudent] = useState(0)
 
   useEffect(() => {
@@ -22,7 +22,7 @@ const home = () => {
   }, []);
   
   // Wait untill data load
-  if (fetchingStudentsLoading || fetchingdriverLoading || !isLoaded) {
+  if (fetchingRiderLoading || !isLoaded) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -33,7 +33,7 @@ const home = () => {
   }
 
   // if the user have no registered students yet
-  if(!students.length) {
+  if(!rider.length) {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.no_registered_students_container}>
@@ -59,7 +59,7 @@ const home = () => {
           showsHorizontalScrollIndicator={false} 
           contentContainerStyle={styles.student_name_buttons_container}
         >
-          {students.map((student,index) => (
+          {rider.map((student,index) => (
            <TouchableOpacity
               key={index}
               style={[
@@ -73,15 +73,15 @@ const home = () => {
                 selectedStudent === index && styles.active_student_name_button_text,
                 ]}
               >
-                {student.student_full_name}
+                {student.full_name}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
       <View style={styles.student_info_container}>
-        {students[selectedStudent] && (
-          <StudentHomePage student={students[selectedStudent]} selectedStudent={selectedStudent}/>
+        {rider[selectedStudent] && (
+          <StudentHomePage student={rider[selectedStudent]} selectedStudent={selectedStudent}/>
         )}
       </View>
    </SafeAreaView>

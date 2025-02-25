@@ -5,13 +5,21 @@ import { View,Text,TouchableOpacity,TextInput,SafeAreaView,StyleSheet,Image,Aler
 import { Dropdown } from 'react-native-element-dropdown'
 import { collection,getDocs,where,query } from 'firebase/firestore'
 import { DB } from '../../firebaseConfig'
+import axios from 'axios'
 import colors from '../../constants/Colors'
 import logo from '../../assets/images/logo.jpeg'
+import FontAwesome from '@expo/vector-icons/FontAwesome'
+import AntDesign from '@expo/vector-icons/AntDesign'
 
 export default function Page() {
   const { signIn, setActive, isLoaded } = useSignIn()
-  const { isSignedIn,userId } = useAuth()
-  const { signOut } = useAuth()
+  const { isSignedIn,userId,signOut } = useAuth()
+
+  const TWILIO_SERVICE_SID = "";
+  const TWILIO_ACCOUNT_SID = "";
+  const TWILIO_AUTH_TOKEN = "";
+  const TWILIO_API_URL = ``;
+  const TWILIO_VERIFY_URL = ``;
 
   const [verifying, setVerifying] = useState(false)
   const [countryCode, setCountryCode] = useState('+964')
@@ -22,26 +30,38 @@ export default function Page() {
   const [userType,setUserType] = useState('')
   const [loadingUserType, setLoadingUserType] = useState(false)
   const [timer, setTimer] = useState(60)
+  const [whatsapp,setWatsapp] = useState(true)
+  const [sms,setSms] = useState(false)
+  const [guestModeSigninLoading,setGuestModeSigninLoading] = useState(false)
+
+  const HARDCODED_PASSWORD = "SecurePass123!";
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
   }
 
   // Coutries Code
-  const countryCodeList = [
-    {name:'+964'},
-    {name:'+1'},
-    {name:'+216'},
-  ]
+  const countryCodeList = [{name:'+964'},{name:'+1'},{name:'+216'}]
 
   // Handle country code
-  const handleCountryCode = (code) => {
-    setCountryCode(code)
+  const handleCountryCode = (code) => setCountryCode(code)
+
+  // Using whatsapp for code
+  const whatsappChannelHandler = () => {
+    setWatsapp(true)
+    setSms(false)
+  }
+  
+  // Using sms for code
+  const smsChannelHandler = () => {
+    setSms(true)
+    setWatsapp(false)
   }
 
+  // Sign out from the existing session
   const handleSignOut = async () => {
     try {
-      await signOut(); // Sign out from the existing session
+      await signOut()
     } catch (error) {
       createAlert('حدث خطأ أثناء تسجيل الخروج')
     }
@@ -63,7 +83,7 @@ export default function Page() {
           createAlert('لا يمكن العثور على نوع المستخدم')
         }
       } catch (error) {
-        console.error('Error fetching user data:', error)
+        console.log('Error fetching user data:', error)
       } finally {
         setLoadingUserType(false)
       }
@@ -76,68 +96,159 @@ export default function Page() {
     }
   }, [isSignedIn, userId]);
 
-  //SignIn Button
-  const onSignInPress = async () => {
-    if (!isLoaded || !signIn || isSigningIn) return // Prevent double-click
-
-    // Sign out from any existing session before signing in
-    await handleSignOut()
-    setIsSigningIn(true); // Start loading
-    
+  // Check if the User Exists in Clerk Before Sending OTP
+  const checkUserExists = async () => {
     try {
-      const {supportedFirstFactors} = await signIn.create({
-        identifier: `${countryCode} ${phone}`,
-      })
+      const username = `user_${phone}`;
 
-      // Find the phoneNumberId from all the available first factors for the current sign-in
-      const firstPhoneFactor = supportedFirstFactors.find((factor) => {
-        return factor.strategy === 'phone_code'
-      })
-      
-      const { phoneNumberId } = firstPhoneFactor
+      const signInAttempt = await signIn.create({
+        identifier: username,
+      });
 
-      await signIn.prepareFirstFactor({
-        strategy: 'phone_code',
-        phoneNumberId,
-      })
+      if (signInAttempt.status === "needs_first_factor") {
+        return true; // User exists
+      }
+      return false; // User does not exist
+    } catch (error) {
+      if (error.errors?.[0]?.longMessage?.includes("Couldn't find your account")) {
+        return false; // User does not exist
+      }
+      return "error"; // Some other error occurred
+    }
+  };
+
+  // Send OTP Only If User Exists
+  const handleSendOTP = async () => {
+    if (!isLoaded || !signIn || isSigningIn) return;
+
+    if (!phone) {
+      createAlert("الرجاء إدخال رقم الهاتف");
+      return;
+    }
+
+    await handleSignOut()
+
+    setIsSigningIn(true)
+
+    try {
+      // Check if the user exists
+      const userExists = await checkUserExists();
+      if (userExists === false) {
+        createAlert("لا يوجد حساب مسجل بهذا الرقم! الرجاء التسجيل أولا");
+        setIsSigningIn(false);
+        return;
+      } else if (userExists === "error") {
+        createAlert("حدث خطأ أثناء التحقق من الحساب");
+        setIsSigningIn(false);
+        return;
+      }
+
+      // Step 2: Send OTP if the user exists
+      const otpResponse = await sendOTP();
+      if (!otpResponse.success) {
+        createAlert("فشل إرسال رمز التحقق، حاول مرة أخرى");
+      }
+    } catch (error) {
+      createAlert("حدث خطأ أثناء تسجيل الدخول، حاول مرة أخرى");
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  // Function to send OTP
+  const sendOTP = async () => {
+    try {
+      const response = await axios.post(
+        TWILIO_API_URL,
+        new URLSearchParams({
+          To: `${countryCode} ${phone}`,
+          Channel: whatsapp ? 'whatsapp' : 'sms',
+        }).toString(),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`)}`,
+          },
+        }
+      );
 
       setVerifying(true)
-
-    } catch (err) {
-      if(err.errors[0].longMessage === 'Identifier is invalid.' || err.errors[0].longMessage === `Couldn't find your account.`) {
-        createAlert('لا يوجد حساب مسجل بهذا الرقم!')
-      }
-    } finally {
-      setIsSigningIn(false) // End loading
+      
+      return { success: true, message: "OTP sent successfully" };
+    } catch (error) {
+      console.log("Error sending OTP:", error.response?.data || error.message);
+      return { success: false, message: "Failed to send OTP" };
     }
-  }
+  };
 
-  //Verification Code Button
-  const handlerVerification = async () => {
-    if (!isLoaded || !signIn || isVerifyingCode) return // Prevent double-click
+  // Verify code handler
+  const onVerifyPress = async () => {
+    if (!isLoaded || !signIn || isVerifyingCode) return;
+
+    if (!code) {
+      createAlert('يرجى ادخال الكود')
+      return;
+    }
 
     setIsVerifyingCode(true) // Start loading
+  
+    const verificationResult = await verifyOTP(`${countryCode}${phone}`, code);
+  
+    if (verificationResult.success) {
+      try {
+        const username = `user_${phone}`;
 
-    try {
-      // Use the code provided by the user and attempt verification
-      const signInAttempt = await signIn.attemptFirstFactor({
-        strategy: 'phone_code',
-        code,
-      })
+        const signInAttempt = await signIn.create({
+          identifier: username,
+          password: HARDCODED_PASSWORD,
+        });
 
-      if (signInAttempt.status === 'complete') {
-        await setActive({ session: signInAttempt.createdSessionId })
+        if (signInAttempt.status === "complete") {
+          await setActive({ session: signInAttempt.createdSessionId });
 
-      } else {
-        createAlert('رمز التاكيد غير صحيح')
+        } else {
+          createAlert("حدث خطأ أثناء تسجيل الدخول");
+        }     
+      } catch (error) {
+        createAlert("حدث خطأ أثناء تسجيل الدخول");
+      } finally {
+        setIsVerifyingCode(false)
       }
-    } catch (err) {
-      createAlert('حدث خطأ أثناء التحقق من رمز التاكيد')
-    } finally {
-      setIsVerifyingCode(false); // End loading
+    } else {
+      createAlert("رمز التاكيد غير صحيح");
+      setIsVerifyingCode(false)
     }
-  }
+  };
 
+  // Function to verify OTP
+  const verifyOTP = async (phoneNumber, code) => {
+    try {
+      const response = await axios.post(
+        TWILIO_VERIFY_URL,
+        new URLSearchParams({
+          To: phoneNumber,
+          Code: code,
+        }).toString(),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`)}`,
+          },
+        }
+      );
+    
+      if (response.data.status === "approved") {
+        return { success: true, message: "OTP verified successfully" };
+      } else {
+        return { success: false, message: "Invalid OTP" };
+      }
+    } catch (error) {
+      console.log("Error verifying OTP:", error.response?.data || error.message);
+      return { success: false, message: "Failed to verify OTP" };
+    } finally {
+    }
+  };
+  
   useEffect(() => {
     let timerInterval;
     if (verifying) {
@@ -157,6 +268,40 @@ export default function Page() {
   }, [verifying]);
 
 
+  // Guest Mode signin handler
+  const guestModeSigninHandler = async () => {
+    if (!isLoaded || !signIn) return;
+    
+    setGuestModeSigninLoading(true) // Start loading
+        
+    try {
+      const username = `user_${phone}`;
+
+      if(username === 'user_2015550101' || username === 'user_2015550102') {
+        const signInAttempt = await signIn.create({
+          identifier: username,
+          password: HARDCODED_PASSWORD,
+        });
+    
+        if (signInAttempt.status === "complete") {
+          await setActive({ session: signInAttempt.createdSessionId });
+    
+        } else {
+          createAlert("حدث خطأ أثناء تسجيل الدخول");
+        }  
+      } else {
+        createAlert('please enter a valid number')
+        setGuestModeSigninLoading(false)
+      }
+    } catch (error) {
+      createAlert("حدث خطأ أثناء تسجيل الدخول")
+      setGuestModeSigninLoading(false)
+    } finally {
+      setGuestModeSigninLoading(false)
+    }
+  };
+
+
   if (loadingUserType) {
     return (
       <View style={styles.spinner_error_container}>
@@ -173,8 +318,66 @@ export default function Page() {
     return <Redirect href={'/(main)/(student)/(tabs)/home'}/>
   }
 
+  if(isSignedIn && userType === 'employee') {
+    return <Redirect href={'/(main)/(employee)/(tabs)/home'}/>
+  }
+
   if(isSignedIn && userType === 'driver') {
     return <Redirect href={'/(main)/(driver)/(tabs)/home'}/>
+  }
+
+  // Guest Mode
+  if(countryCode === '+1') {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.logo}>
+          <Image source={logo} style={styles.logo_image}/>
+        </View>
+        <View style={styles.form}>
+
+          <View style={styles.input_with_picker}>
+            <Dropdown
+              style={styles.dropdown}
+              placeholderStyle={styles.dropdownStyle}
+              selectedTextStyle={styles.dropdownStyle}
+              itemTextStyle={styles.dropdownTextStyle}
+              data={countryCodeList}
+              labelField="name"
+              valueField="name"
+              placeholder=""
+              value={countryCode}
+              onChange={item => handleCountryCode(item.name)}
+            />
+            <TextInput
+              style={styles.input}
+              value={phone}
+              placeholder="رقم الهاتف"
+              placeholderTextColor={colors.BLACK}
+              onChangeText={(text) => setPhone(text)}
+              keyboardType='numeric'
+            />
+          </View>
+          {guestModeSigninLoading ? (
+            <TouchableOpacity style={styles.button}>
+              <ActivityIndicator size="small" color={colors.WHITE} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={guestModeSigninHandler}
+              disabled={guestModeSigninLoading}
+            >
+              <View style={styles.btnView}>
+                <Text style={styles.btntext}>Guest Mode</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          <Link href={'/signup'}>
+            <Text style={styles.link_text}>ليس لديك حساب؟ سجل الآن</Text>
+          </Link>
+        </View>
+      </SafeAreaView>
+    )
   }
 
   return (
@@ -196,13 +399,13 @@ export default function Page() {
           />
           {isVerifyingCode ? (
             <TouchableOpacity style={styles.button}>
-                <ActivityIndicator size="small" color={colors.WHITE} />
+              <ActivityIndicator size="small" color={colors.WHITE} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
               style={styles.button}
-              onPress={handlerVerification}
-              disabled={!code || isVerifyingCode}
+              onPress={onVerifyPress}
+              disabled={isVerifyingCode}
             >
               <View style={styles.btnView}>
                 <Text style={styles.btntext}>دخول</Text>
@@ -247,6 +450,26 @@ export default function Page() {
               keyboardType='numeric'
             />
           </View>
+
+          <View style={styles.whatsapp_sms_container}>
+            <View style={styles.whatsapp_sms_check}>
+              <TouchableOpacity 
+                style={[styles.whatsapp_sms_check_btn,whatsapp && styles.whatsapp_sms_check_btn_active]} 
+                onPress={whatsappChannelHandler}
+              >
+                <FontAwesome name="whatsapp" size={24} color={whatsapp ? colors.WHITE : colors.BLACK} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.whatsapp_sms_check}>
+              <TouchableOpacity 
+                style={[styles.whatsapp_sms_check_btn,sms && styles.whatsapp_sms_check_btn_active]} 
+                onPress={smsChannelHandler}
+              >
+                <AntDesign name="message1" size={21} color={sms ? colors.WHITE : colors.BLACK} />
+              </TouchableOpacity>
+            </View>       
+          </View>
+
           {isSigningIn ? (
             <TouchableOpacity style={styles.button}>
                 <ActivityIndicator size="small" color={colors.WHITE} />
@@ -254,8 +477,8 @@ export default function Page() {
           ) : (
             <TouchableOpacity 
               style={styles.button} 
-              onPress={onSignInPress}
-              disabled={!phone || isSigningIn}
+              onPress={handleSendOTP}
+              disabled={isSigningIn}
             >
               <View style={styles.btnView}>
                 <Text style={styles.btntext}>تأكيد</Text>
@@ -307,14 +530,14 @@ const styles = StyleSheet.create({
     borderRadius:15,
     color:colors.BLACK,
     textAlign:'center',
-    fontFamily:'Cairo_400Regular'
+    fontFamily:'Cairo_400Regular',
   },
   input_with_picker:{
     flexDirection:'row',
     borderWidth:1,
     borderColor:colors.PRIMARY,
     borderRadius:15,
-    marginBottom:10
+    marginBottom:20
   },
   dropdown:{
     width:80,
@@ -341,6 +564,36 @@ const styles = StyleSheet.create({
     textAlign:'center',
     fontFamily:'Cairo_400Regular',
     color:colors.BLACK,
+  },
+  whatsapp_sms_container:{
+    width:200,
+    height:40,
+    marginBottom:20,
+    flexDirection:'row-reverse',
+    justifyContent:'space-around',
+    alignItems:'center',
+  },
+  whatsapp_sms_check_btn:{
+    width:70,
+    height:40,
+    justifyContent:'center',
+    alignItems:'center',
+    borderRadius:15,
+    backgroundColor:colors.GRAY
+  },
+  whatsapp_sms_check_btn_active:{
+    width:70,
+    height:40,
+    justifyContent:'center',
+    alignItems:'center',
+    borderRadius:15,
+    backgroundColor:colors.PRIMARY
+  },
+  whatsapp_sms_check:{
+    width:70,
+    flexDirection:'row-reverse',
+    justifyContent:'space-between',
+    alignItems:'center',
   },
   button:{
     width:280,

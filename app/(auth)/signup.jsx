@@ -1,29 +1,37 @@
 import React,{useState,useEffect,useRef} from 'react'
 import { Text,View,StyleSheet,Image, Alert,ActivityIndicator,Platform,TouchableOpacity,TextInput,Modal,ScrollView,Keyboard,TouchableWithoutFeedback} from 'react-native'
 import { SafeAreaView } from "react-native-safe-area-context"
-import { useSignUp } from '@clerk/clerk-expo'
+import { useSignUp,useSignIn } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
 import colors from '../../constants/Colors'
 import { Link } from 'expo-router'
 import { addDoc, collection } from 'firebase/firestore'
 import { DB } from '../../firebaseConfig'
+import axios from 'axios'
 import * as Notifications from 'expo-notifications'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 import Checkbox from 'expo-checkbox'
 import { Dropdown } from 'react-native-element-dropdown'
-import { generate } from 'referral-codes';
 import logo from '../../assets/images/logo.jpeg'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import FontAwesome from '@expo/vector-icons/FontAwesome'
+import AntDesign from '@expo/vector-icons/AntDesign'
 
 
 export default function SignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp()
+  const { signIn } = useSignIn()
   const router = useRouter()
   const notificationListener = useRef()
   const responseListener = useRef()
+
+  const TWILIO_SERVICE_SID = "";
+  const TWILIO_ACCOUNT_SID = "";
+  const TWILIO_AUTH_TOKEN = "";
+  const TWILIO_API_URL = ``;
+  const TWILIO_VERIFY_URL = ``;
 
   const [compteOwner,setCompteOwner] = useState('')
   const [userName,setUserName] = useState('')
@@ -35,15 +43,15 @@ export default function SignUpScreen() {
   const [isSigningUp, setIsSigningUp] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [timer, setTimer] = useState(60)
-  const [showReferralModal,setShowReferralModal] = useState(false)
-  const [referralCode,setReferralCode] = useState('')
-  const [referredByFriend,setReferredByFriend] = useState(false)
-  const [friendReferralCode, setFriendReferralCode] = useState('')
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [expoPushToken, setExpoPushToken] = useState('')
   const [notification, setNotification] = useState(false)
+  const [whatsapp,setWatsapp] = useState(true)
+  const [sms,setSms] = useState(false)
+
+  const HARDCODED_PASSWORD = "SecurePass123!";
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
@@ -65,6 +73,7 @@ export default function SignUpScreen() {
   const compte_owner = [
     {label:'ولي أمر',value:'parent'},
     {label:'طالب',value:'student'},
+    {label:'موظف',value:'employee'},
     {label:'سائق',value:'driver'}
   ]
 
@@ -107,7 +116,7 @@ export default function SignUpScreen() {
         console.log('Must use physical device for Push Notifications...')
       }
     } catch (error) {
-      console.error('Error registering for notifications:', error);
+      console.log('Error registering for notifications:', error);
     }
   }
 
@@ -128,52 +137,56 @@ export default function SignUpScreen() {
     };
   }, []);
 
+  // Using whatsapp for code
+  const whatsappChannelHandler = () => {
+    setWatsapp(true)
+    setSms(false)
+  }
+
+  // Using sms for code
+  const smsChannelHandler = () => {
+    setSms(true)
+    setWatsapp(false)
+  }
+
+  // Open privacy terms
   const openPrivacyTermsModal = () => {
     if(privacyAccepted === false || termsAccepted === false) {
       setShowPrivacyModal(true);
     }
   }
 
+  // Accept terms of use
   const handleAccept = () => {
     if (privacyAccepted && termsAccepted) {
       setShowPrivacyModal(false);
     }
   };
 
-
   const handleCompteOwner = (owner) => {
     setCompteOwner(owner)
   }
 
-  const generateReferralCode = (phone) => {
-    // Get the last 2 digits of the phone number
-    const lastTwoDigits = phone.slice(-2);
+  // Check if User Exists Before Sending OTP
+  const checkUserExists = async () => {
+    try {
+      const username = `user_${phone}`;
 
-  // Generate a 4-character code using the referral-codes library
-    const randomCode = generate({
-      length: 4,
-      count: 1,
-    })[0];
+      // Try to sign in with a dummy password to check if the account exists
+      const signInAttempt = await signIn.create({
+        identifier: username,
+      });
 
-    // Combine the random code with the last 2 digits of the phone number
-    return `${randomCode}${lastTwoDigits}`;
-  }
-
-  // Update referredByFriend based on the friendReferralCode input
-  useEffect(() => {
-    setReferredByFriend(friendReferralCode.trim() !== '');
-  }, [friendReferralCode]);
-
-  // Press no for referred by friend
-  const closeReferredBy = () => {
-    setReferredByFriend(false)
-    setFriendReferralCode('')
-    setShowReferralModal(false)
-  }
-
-  // Press Yes for referred by friend
-  const confirmReferredBy = () => {
-    setShowReferralModal(false)
+      if (signInAttempt.status === "needs_first_factor") {
+        return true; // User exists
+      }
+      return false; // User does not exist
+    } catch (error) {
+      if (error.errors?.[0]?.longMessage?.includes("Couldn't find your account")) {
+        return false; // User does not exist
+      }
+      return "error"; // Some other error occurred
+    }
   }
 
   // Sign up button
@@ -182,36 +195,148 @@ export default function SignUpScreen() {
 
     if(!expoPushToken) {
       createAlert('يرجى تفعيل خدمة الاشعارات لتتمكن من استخدام التطبيق')
-      return
+      return;
     }
 
-    setIsSigningUp(true); // Start loading
+    if(!compteOwner) {
+      createAlert('الرجاء تحديد نوع الحساب')
+      return;
+    }
+
+    if(!userName) {
+      createAlert('الرجاء ادخال الاسم')
+      return;
+    }
+
+    if(!userFamilyName) {
+      createAlert('الرجاء ادخال اللقب')
+      return;
+    }
+
+    if(!phone) {
+      createAlert('الرجاء ادخال رقم الهاتف')
+      return;
+    }
+
+    if(!privacyAccepted) {
+      createAlert('يجب الموافقة على سياسة الخصوصية قبل الدخول')
+      return;
+    }
+
+    if(!termsAccepted) {
+      createAlert('يجب الموافقة على شروط الاستخدام قبل الدخول')
+      return;
+    }
+
+    setIsSigningUp(true)
 
     try {
-      // Generate the user's referral code
-      const newReferralCode = generateReferralCode(phone);
-      setReferralCode(newReferralCode);
-
-      await signUp.create({
-        phoneNumber:`${countryCode} ${phone}`,
-      });
-
-      await signUp.preparePhoneNumberVerification();
-      setVerifying(true);
-    } catch (err) {
-      if(err.errors[0].longMessage === 'phone_number must be a valid phone number according to E.164 international standard.') {
-        createAlert('يرجى ادخال رقم هاتف صحيح')
-      } else if (err.errors[0].longMessage === 'That phone number is taken. Please try another.') {
-        createAlert('يوجد حساب مسجل بهذا الرقم! الرجاء استعمال رقم آخر')
-      } else {
-        createAlert('يوجد خلل الرجاء المحاولة مرة ثانية')
-        console.log(err)
+      // Check if the user already exists
+      const userExists = await checkUserExists();
+      if (userExists === true) {
+        createAlert("يوجد حساب مسجل بهذا الرقم! الرجاء استعمال رقم آخر");
+        setIsSigningUp(false);
+        return;
+      } else if (userExists === "error") {
+        createAlert("حدث خطأ أثناء التحقق من الحساب");
+        setIsSigningUp(false);
+        return;
       }
+
+      // Send OTP only if user does not exist
+      const otpResponse = await sendOTP();
+      if (!otpResponse.success) {
+        createAlert("فشل إرسال رمز التحقق، حاول مرة أخرى");
+      }
+
+    } catch (err) {
+      createAlert("حدث خطأ أثناء التسجيل، حاول مرة أخرى");
     } finally{
       setIsSigningUp(false) // End Loading
     }
   }
 
+  // Function to send OTP
+  const sendOTP = async () => {
+    try {
+      const response = await axios.post(
+        TWILIO_API_URL,
+        new URLSearchParams({
+          To: `${countryCode} ${phone}`,
+          Channel: whatsapp ? 'whatsapp' : 'sms',
+        }).toString(),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`)}`,
+          },
+        }
+      );
+
+      setVerifying(true)
+      
+      return { success: true, message: "OTP sent successfully" };
+    } catch (error) {
+      console.log(error)
+      return { success: false, message: "Failed to send OTP" };
+    }
+  };
+
+  // Verify code handler
+  const onPressVerify = async () => {
+    if (!isLoaded || isVerifying) return;
+
+    if(!code) {
+      createAlert('يرجى ادخال الكود')
+      return;
+    }
+  
+    setIsVerifying(true);
+  
+    try {
+      // Verify OTP via Twilio
+      const verificationResult = await verifyOTP(`${countryCode}${phone}`, code);
+  
+      if (!verificationResult.success) {
+        createAlert("رمز التحقق غير صحيح");
+        return;
+      }
+  
+      // Create Clerk User
+      const username = `user_${phone}`;
+      const signUpAttempt = await signUp.create({
+        identifier: username,
+        password: HARDCODED_PASSWORD,
+        username: username,
+      });
+  
+      if (signUpAttempt.status === 'complete') {
+        await setActive({ session: signUpAttempt.createdSessionId });
+  
+        //Save user data in Firestore
+        await saveUserDataToFirestore(signUpAttempt.createdUserId);
+  
+        //Redirect user to the correct page
+        if (compteOwner === 'parent') {
+          router.replace('(main)/(parent)/(tabs)/home');
+        } else if (compteOwner === 'student') {
+          router.replace('(main)/(student)/(tabs)/home');
+        } else if (compteOwner === 'employee') {
+          router.replace('(main)/(employee)/(tabs)/home');
+        } else if (compteOwner === 'driver') {
+          router.replace('(main)/(driver)/(tabs)/home');
+        }
+      } else {
+        createAlert('يوجد خلل الرجاء المحاولة مرة ثانية');
+      }
+    } catch (error) {
+      createAlert('حدث خطأ أثناء التسجيل');
+      console.log(error)
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+  
   // Save user data to Firestore
   const saveUserDataToFirestore = async (userId) => {
     try {
@@ -223,9 +348,6 @@ export default function SignUpScreen() {
         compte_owner_type:compteOwner,
         phone_number:`${countryCode} ${phone}`,
         user_notification_token: expoPushToken,
-        user_referral_code:referralCode,
-        referred_by_friend:referredByFriend,
-        friend_referral_code:friendReferralCode || null,
         user_privacy_policy:privacyAccepted,
         user_terms_of_use:termsAccepted,
         user_signup_data: new Date()
@@ -238,39 +360,30 @@ export default function SignUpScreen() {
     }
   }
 
-  const onPressVerify = async () => {
-    if (!isLoaded || isVerifying) return // Prevent double-click
-
-    setIsVerifying(true) // Start loading
-
+  // Function to verify OTP
+  const verifyOTP = async (phoneNumber, code) => {
     try {
-      // Attempt to verify the SMS code
-      const completeSignUp = await signUp.attemptPhoneNumberVerification({
-        code,
-      });
-
-      if (completeSignUp.status === 'complete') {
-        await setActive({ session: completeSignUp.createdSessionId })
-
-        //save user data to firestore
-        await saveUserDataToFirestore(completeSignUp.createdUserId)
-        
-        if(compteOwner === 'parent') {
-          router.replace('(main)/(parent)/(tabs)/home')
-        } else if (compteOwner === 'student') {
-          router.replace('(main)/(student)/(tabs)/home')
-        } else if (compteOwner === 'driver') {
-          router.replace('(main)/(driver)/(tabs)/home')
+      const response = await axios.post(
+        TWILIO_VERIFY_URL,
+        new URLSearchParams({
+          To: phoneNumber,
+          Code: code,
+        }).toString(),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`)}`,
+          },
         }
+      );
+    
+      if (response.data.status === "approved") {
+        return { success: true, message: "OTP verified successfully" };
       } else {
-        createAlert('يوجد خلل الرجاء المحاولة مرة ثانية')
+        return { success: false, message: "Invalid OTP" };
       }
-    } catch (err) {
-      if(err.errors[0].longMessage === 'Incorrect code') {
-        createAlert('الرجاء التثبت من رمز التاكيد')
-      }
-    } finally {
-      setIsVerifying(false)
+    } catch (error) {
+      return { success: false, message: "Failed to verify OTP" };
     }
   };
 
@@ -350,38 +463,27 @@ export default function SignUpScreen() {
               onChangeText={(text) => setPhone(text)}
               keyboardType='numeric'
             />
-          </View>        
-          <TouchableOpacity style={styles.referralBtn} onPress={() => setShowReferralModal(true)}>
-            <Text style={styles.referralBtnText}>هل تمت دعوتك من قبل صديق؟</Text>
-          </TouchableOpacity>
-          <Modal
-            animationType="fade"
-            transparent={true}
-            visible={showReferralModal}
-            onRequestClose={() => setShowReferralModal(false)}
-          >
-            <View style={styles.rfCode_modal_container}>
-              <View style={styles.rfCode_modal_box}>
-                <TextInput
-                  style={styles.rfCode_input}
-                  value={friendReferralCode}
-                  onChangeText={setFriendReferralCode}
-                  placeholder="ادخل الكود"
-                  placeholderTextColor={colors.BLACK}
-                />
-                <View style={styles.rfCode_btn_container}>
-                  <TouchableOpacity style={styles.deny_rfCode_btn} onPress={closeReferredBy}>
-                    <Text style={styles.deny_rfCode_btn_text}>لا</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.add_rfCode_btn} onPress={confirmReferredBy}>
-                    <Text style={styles.add_rfCode_btn_text}>اضف</Text>
-                  </TouchableOpacity>
-                </View>
-                
-              </View>
-            </View>
-          </Modal>
+          </View>
 
+          <View style={styles.whatsapp_sms_container}>
+            <View style={styles.whatsapp_sms_check}>
+              <TouchableOpacity 
+                style={[styles.whatsapp_sms_check_btn,whatsapp && styles.whatsapp_sms_check_btn_active]} 
+                onPress={whatsappChannelHandler}
+              >
+                <FontAwesome name="whatsapp" size={24} color={whatsapp ? colors.WHITE : colors.BLACK} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.whatsapp_sms_check}>
+              <TouchableOpacity 
+                style={[styles.whatsapp_sms_check_btn,sms && styles.whatsapp_sms_check_btn_active]} 
+                onPress={smsChannelHandler}
+              >
+                <AntDesign name="message1" size={21} color={sms ? colors.WHITE : colors.BLACK} />
+              </TouchableOpacity>
+            </View>       
+          </View>   
+          
           <TouchableOpacity style={styles.privacy_terms_approve_btn} onPress={openPrivacyTermsModal}>
             {privacyAccepted && termsAccepted ? (
               <FontAwesome6 name="square-check" size={24} color="#295F98" />
@@ -606,6 +708,7 @@ export default function SignUpScreen() {
              
             </View>               
           </Modal>
+
           {isSigningUp ? (
             <TouchableOpacity style={styles.button}>
                 <ActivityIndicator size='small' color={colors.WHITE} />
@@ -614,7 +717,7 @@ export default function SignUpScreen() {
             <TouchableOpacity
               style={styles.button}
               onPress={onSignUpPress}
-              disabled={!compteOwner ||!userName || !userFamilyName || !phone || isSigningUp || !privacyAccepted || !termsAccepted}
+              disabled={isSigningUp}
             >
               <View style={styles.btnView}>
                 <Text style={styles.btntext}>تسجيل</Text>
@@ -645,7 +748,7 @@ export default function SignUpScreen() {
             <TouchableOpacity
               style={styles.button}
               onPress={onPressVerify}
-              disabled={!code || isVerifying}
+              disabled={isVerifying}
             >
               <View style={styles.btnView}>
                 <Text style={styles.btntext}>تاكيد</Text>
@@ -733,7 +836,7 @@ const styles = StyleSheet.create({
     borderWidth:1,
     marginBottom:10,
     borderColor:colors.PRIMARY,
-    borderRadius:20,
+    borderRadius:15,
     justifyContent:'center',
     alignItems:'center'
   },
@@ -864,10 +967,39 @@ const styles = StyleSheet.create({
     fontFamily:'Cairo_700Bold',
     color:colors.PRIMARY
   },
+  whatsapp_sms_container:{
+    width:200,
+    height:40,
+    flexDirection:'row-reverse',
+    justifyContent:'space-around',
+    alignItems:'center',
+  },
+  whatsapp_sms_check_btn:{
+    width:70,
+    height:40,
+    justifyContent:'center',
+    alignItems:'center',
+    borderRadius:15,
+    backgroundColor:colors.GRAY
+  },
+  whatsapp_sms_check_btn_active:{
+    width:70,
+    height:40,
+    justifyContent:'center',
+    alignItems:'center',
+    borderRadius:15,
+    backgroundColor:colors.PRIMARY
+  },
+  whatsapp_sms_check:{
+    width:70,
+    flexDirection:'row-reverse',
+    justifyContent:'space-between',
+    alignItems:'center',
+  },
   privacy_terms_approve_btn:{
     width:290,
     height:50,
-    marginBottom:20,
+    marginBottom:10,
     flexDirection:'row',
     alignItems:'center',
     justifyContent:'center',
@@ -996,3 +1128,73 @@ const styles = StyleSheet.create({
     marginHorizontal:5,
   }
 })
+
+/*
+
+  const generateReferralCode = (phone) => {
+    // Get the last 2 digits of the phone number
+    const lastTwoDigits = phone.slice(-2);
+
+  // Generate a 4-character code using the referral-codes library
+    const randomCode = generate({
+      length: 4,
+      count: 1,
+    })[0];
+
+    // Combine the random code with the last 2 digits of the phone number
+    return `${randomCode}${lastTwoDigits}`;
+  }
+
+  // Update referredByFriend based on the friendReferralCode input
+  useEffect(() => {
+    setReferredByFriend(friendReferralCode.trim() !== '');
+  }, [friendReferralCode]);
+  // Generate the user's referral code
+  const newReferralCode = generateReferralCode(phone);
+  setReferralCode(newReferralCode);
+
+
+  // Press no for referred by friend
+  const closeReferredBy = () => {
+    setReferredByFriend(false)
+    setFriendReferralCode('')
+    setShowReferralModal(false)
+  }
+
+  // Press Yes for referred by friend
+  const confirmReferredBy = () => {
+    setShowReferralModal(false)
+  }
+
+
+<TouchableOpacity style={styles.referralBtn} onPress={() => setShowReferralModal(true)}>
+            <Text style={styles.referralBtnText}>هل تمت دعوتك من قبل صديق؟</Text>
+          </TouchableOpacity>
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={showReferralModal}
+            onRequestClose={() => setShowReferralModal(false)}
+          >
+            <View style={styles.rfCode_modal_container}>
+              <View style={styles.rfCode_modal_box}>
+                <TextInput
+                  style={styles.rfCode_input}
+                  value={friendReferralCode}
+                  onChangeText={setFriendReferralCode}
+                  placeholder="ادخل الكود"
+                  placeholderTextColor={colors.BLACK}
+                />
+                <View style={styles.rfCode_btn_container}>
+                  <TouchableOpacity style={styles.deny_rfCode_btn} onPress={closeReferredBy}>
+                    <Text style={styles.deny_rfCode_btn_text}>لا</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.add_rfCode_btn} onPress={confirmReferredBy}>
+                    <Text style={styles.add_rfCode_btn_text}>اضف</Text>
+                  </TouchableOpacity>
+                </View>
+                
+              </View>
+            </View>
+          </Modal>
+*/

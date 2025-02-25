@@ -1,7 +1,7 @@
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
-const AssignedStudents = ({item}) => {
+const AssignedRiders = ({item}) => {
   
   const birthdate = new Date(item.birth_date.seconds * 1000)
   
@@ -34,12 +34,12 @@ const AssignedStudents = ({item}) => {
         <Text style={{marginHorizontal:5}}>-</Text>
         <Text style={styles.student_info}>{userAge} سنة</Text>
       </View>
-      <Text style={styles.student_info}>{item.student_street} - {item.student_city} - {item.student_state}</Text>
+      <Text style={styles.student_info}>{item.street} - {item.city} - {item.state}</Text>
     </View>
   )
 }
 
-export default AssignedStudents
+export default AssignedRiders
 
 const styles = StyleSheet.create({
   container:{

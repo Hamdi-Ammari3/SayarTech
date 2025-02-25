@@ -1,7 +1,7 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { collection, onSnapshot, getDocs, query, where } from 'firebase/firestore';
+import React, { createContext, useState, useEffect, useContext } from 'react'
+import { collection, onSnapshot, getDocs, query, where } from 'firebase/firestore'
 import {DB} from '../../firebaseConfig'
-import { useUser } from '@clerk/clerk-expo';
+import { useUser } from '@clerk/clerk-expo'
 
 // Create the context
 const StudentContext = createContext()
@@ -142,3 +142,5 @@ export const StudentProvider = ({ children }) => {
 export const useStudentData = () => {
   return useContext(StudentContext);
 };
+
+export default StudentContext;

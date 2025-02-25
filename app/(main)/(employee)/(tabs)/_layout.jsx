@@ -21,7 +21,7 @@ const TabsLayout = () => {
         />
         <Tabs.Screen name='profile' options={{headerShown:false,
           title:'Profile',
-          tabBarIcon:({color}) => <FontAwesome5 name="user-alt" size={22  } color={color}/>}}/>
+          tabBarIcon:({color}) => <FontAwesome5 name="user-alt" size={22} color={color}/>}}/>
     </Tabs>
   )
 }

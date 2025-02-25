@@ -45,7 +45,7 @@ const Home = () => {
             (day) => day.dayIndex === todayIndex
           );
   
-          if (todaySchedule?.active && line.students.length > 0) {
+          if (todaySchedule?.active && line.riders.length > 0) {
             return {
               ...line,
               startTime: todaySchedule.startTime, // Store today's start time for sorting
@@ -169,7 +169,7 @@ const Home = () => {
           contentContainerStyle={styles.line_name_buttons_container}
         >
           {driverData[0].line
-          .filter((li) => li.students.length > 0)
+          .filter((li) => li.riders.length > 0)
           .sort((a, b) => (a.line_index || 999) - (b.line_index || 999))
           .map((li,index) => (
             <TouchableOpacity

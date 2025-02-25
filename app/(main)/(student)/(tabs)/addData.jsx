@@ -12,13 +12,13 @@ import { useUser } from '@clerk/clerk-expo'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import { Dropdown } from 'react-native-element-dropdown'
-import { useStudentData } from '../../../stateManagment/StudentState'
+import { useRiderData } from '../../../stateManagment/RiderContext'
 import logo from '../../../../assets/images/logo.jpeg'
 
 const addData = () => {
   const { user } = useUser()
   const router = useRouter()
-  const {userData,fetchingUserDataLoading,students,schools,fetchingSchoolsLoading,states,fetchingState} = useStudentData()
+  const {userData,fetchingUserDataLoading,rider,schools,fetchingSchoolsLoading,states,fetchingState} = useRiderData()
 
   const totalSteps = 3;
   const [currentPage, setCurrentPage] = useState(1)
@@ -46,10 +46,10 @@ const addData = () => {
     Alert.alert(alerMessage)
   }
 
-  //Get the driver birth date
+  //Get the student birth date
   const showBirthDayDatePicker = () => {
-    setShowBirthdayPicker(true);
-  };
+    setShowBirthdayPicker(true)
+  }
 
   // Handle the BirthDate Change
   const handleBirthDayDateChange = (event, selectedDate) => {
@@ -71,7 +71,7 @@ const addData = () => {
   // Close the picker manually for iOS
   const closePicker = () => {
     setShowBirthdayPicker(false);
-  };
+  }
 
   // Student Sex
   const sex = [
@@ -121,7 +121,7 @@ const addData = () => {
 
   // School time table
   const [schoolTimetable, setSchoolTimetable] = useState([
-    { id:7,day: "الأحد", active: false, startTime: null, endTime: null },
+    { id:0,day: "الأحد", active: false, startTime: null, endTime: null },
     { id:1,day: "الاثنين", active: false, startTime: null, endTime: null },
     { id:2,day: "الثلاثاء", active: false, startTime: null, endTime: null },
     { id:3,day: "الأربعاء", active: false, startTime: null, endTime: null },
@@ -416,26 +416,27 @@ const addData = () => {
     setAddingNewStudentLoading(true)
 
     try {
-      const studentsCollectionRef = collection(DB,'students')
+      const studentsCollectionRef = collection(DB,'riders')
       const studentData = {
-        student_full_name: userData.user_full_name,
-        student_family_name:userData.user_family_name,
-        student_user_id:userData.user_id,
-        student_phone_number:userData.phone_number,
-        student_user_notification_token:userData.user_notification_token,
-        student_birth_date:studentBirthDate,
-        student_sex:studentSex,
-        student_state:studentState,
-        student_city:studentCity,
-        student_street:studentStreet,
-        student_home_address:homeAdress,
-        student_home_location:location,
-        student_school:studentSchool,
-        student_school_location:schoolLocation,
-        school_timetable: schoolTimetable,
-        student_car_type:carType,
+        full_name: userData.user_full_name,
+        family_name:userData.user_family_name,
+        rider_type:'student',
+        user_id:userData.user_id,
+        phone_number:userData.phone_number,
+        user_notification_token:userData.user_notification_token,
+        birth_date:studentBirthDate,
+        sex:studentSex,
+        state:studentState,
+        city:studentCity,
+        street:studentStreet,
+        home_address:homeAdress,
+        home_location:location,
+        destination:studentSchool,
+        destination_location:schoolLocation,
+        timetable: schoolTimetable,
+        car_type:carType,
         monthly_sub:0,
-        student_trip_status:'at home',
+        trip_status:'at home',
         driver_id:null,
         picked_up:false,
         tomorrow_trip_canceled:false,
@@ -458,7 +459,7 @@ const addData = () => {
       setStudentStreet('')
       setHomeAdress('')
       setSchoolTimetable([
-        { id:7,day: "الأحد", active: false, startTime: null, endTime: null },
+        { id:0,day: "الأحد", active: false, startTime: null, endTime: null },
         { id:1,day: "الاثنين", active: false, startTime: null, endTime: null },
         { id:2,day: "الثلاثاء", active: false, startTime: null, endTime: null },
         { id:3,day: "الأربعاء", active: false, startTime: null, endTime: null },
@@ -656,7 +657,7 @@ const addData = () => {
                         mode='time'
                         display="spinner"
                         onChange={handlePickerChange}
-                        is24Hour={true}
+                        is24Hour={false}
                         minimumDate={new Date(1980, 0, 1)}
                         maximumDate={new Date(new Date().getFullYear() - 1, 0, 1)}
                       />
@@ -672,7 +673,7 @@ const addData = () => {
                   mode="time"
                   display='spinner'
                   onChange={handlePickerChange}
-                  is24Hour={true}
+                  is24Hour={false}
                 />
               )        
             )}
@@ -779,7 +780,7 @@ const addData = () => {
   }
 
   // Check whether the user add data or no
-  if(students.length > 0 && addingNewStudentLoading === false) {
+  if(rider.length > 0 && addingNewStudentLoading === false) {
     return (
       <SafeAreaView style={styles.data_already_added_container}>
         <View style={styles.data_already_added_box}>

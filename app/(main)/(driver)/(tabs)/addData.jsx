@@ -18,6 +18,7 @@ import { useDriverData } from '../../../stateManagment/DriverContext'
 const addData = () => {
   const { user } = useUser()
   const router = useRouter()
+  const {userData,fetchingUserDataLoading,driverData,fetchingDriverDataLoading} = useDriverData()
 
   const totalSteps = 2;
   const [currentPage, setCurrentPage] = useState(1)
@@ -36,8 +37,6 @@ const addData = () => {
   const [carImage,setCarImage] = useState(null)
   const [carImageLoading,setCarImageLoading] = useState(false)
   
-  const {userData,fetchingUserDataLoading,driverData,fetchingDriverDataLoading} = useDriverData()
-
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
   }

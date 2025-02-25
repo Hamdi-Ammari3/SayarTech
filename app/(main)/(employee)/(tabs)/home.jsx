@@ -16,6 +16,9 @@ import AntDesign from '@expo/vector-icons/AntDesign'
 
 const toArabicNumbers = (num) => num.toString().replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d])
 
+// cloud function to reset all the lines at midnight
+// send notification to the driver before the line start time to be ready
+
 const home = () => {
 
   const GOOGLE_MAPS_APIKEY = ''
@@ -169,7 +172,9 @@ const home = () => {
 
     setReturnTripText(tripLabel);
   }, [rider[0]?.trip_status, rider[0]?.timetable]);
+
   
+
   const animatedDriverLocation = useRef(new AnimatedRegion({
     latitude: 0,
     longitude: 0,
@@ -205,8 +210,8 @@ const home = () => {
 
   const handleMapReady = () => {
     setMapReady(true);
-  };
-  
+  }
+
   // Fetch driver location
   useEffect(() => {
     if (rider[0]?.driver_id) {
@@ -241,7 +246,7 @@ const home = () => {
           }
         },
         (error) => {
-          console.log('Error fetching driver location:', error)
+          console.error('Error fetching driver location:', error)
           setDriverCurrentLocationLoading(false)
         }
       );
@@ -249,7 +254,7 @@ const home = () => {
       return () => unsubscribe();
     }
     setDriverCurrentLocationLoading(false)
-  }, [rider[0]?.driver_id, driverCurrentLocation]);
+  }, [rider[0]?.driver_id, driverCurrentLocation])
 
   // Function to check and update the origin location
   let lastOriginUpdateTime = Date.now();
@@ -320,40 +325,45 @@ const home = () => {
       createAlert('لتاكيد الالغاء يرجى كتابة نعم');
       return;
     }
-  
+
     try {
       const batch = writeBatch(DB);
       const riderDocRef = doc(DB, 'riders', rider[0].id);
-
+    
       // Step 1: Update Rider Document
       batch.update(riderDocRef, { tomorrow_trip_canceled: true });
-  
-      // Step 2: Fetch Driver Document
+
+    // Step 2: Fetch Driver Document
       const driverDocRef = doc(DB, 'drivers', rider[0].driver_id);
       const driverSnap = await getDoc(driverDocRef);
-  
+
       if (!driverSnap.exists()) {
         createAlert('لم يتم العثور على السائق');
         return;
       }
-  
+
       const driverData = driverSnap.data();
       const updatedLines = driverData.line.map((line) => {
-        if (line.line_destination === rider[0].destination) {
+        // Step 3: Find the correct line(s) where `lineSchool` matches rider's `destination`
+        if (line.lineSchool === rider[0].destination) {
           return {
             ...line,
             riders: line.riders.map((rider) =>
               rider.id === riderID
-                ? { ...rider, tomorrow_trip_canceled: true }
+                ? { ...rider, tomorrow_trip_canceled: true } // Step 4: Update student trip cancellation
                 : rider
             ),
           };
         }
         return line;
       });
-  
+
+      // Step 5: Update Driver Document with Modified `line`
       batch.update(driverDocRef, { line: updatedLines });
+
+      // Step 6: Commit batch
       await batch.commit();
+
       setIsCanceling(false);
       setCancelText('');
     } catch (error) {
@@ -361,7 +371,7 @@ const home = () => {
       createAlert('حدث خطأ أثناء إلغاء الرحلة. حاول مرة أخرى.');
     }
   }
-  
+
   // Deny canceling the trip
   const handleDenyCancelTrip = () => {
     setIsCanceling(false);
@@ -416,7 +426,7 @@ const home = () => {
       <Marker
         key={`Destination ${rider[0]?.id}`}
         coordinate={destination}
-        title={rider[0]?.trip_status === 'to destination' ? 'المدرسة' : 'المنزل'}
+        title={rider[0]?.trip_status === 'to destination' ? 'الشركة' : 'المنزل'}
         pinColor="red"
       />
     </MapView>
@@ -433,7 +443,7 @@ const home = () => {
     );
   }
 
-  // if the student haven't yet registered his info
+  // if the employee haven't yet registered his info
   if(!rider.length) {
     return(
       <SafeAreaView style={styles.container}>
@@ -451,8 +461,8 @@ const home = () => {
       </SafeAreaView>
     )
   }
-  
-  // If the student is not yet connected to a driver
+
+  // If the employee is not yet connected to a driver
   if(!rider[0]?.driver_id) {
     return(
       <SafeAreaView style={styles.container}>
@@ -468,7 +478,7 @@ const home = () => {
     )
   }
 
-  // If the student is at home
+  // If the employee is at home
   if(rider[0]?.driver_id && rider[0]?.trip_status === 'at home') {
     return(
       <SafeAreaView style={styles.container}>
@@ -476,16 +486,16 @@ const home = () => {
           <View style={styles.logo}>
             <Image source={logo} style={styles.logo_image}/>
           </View>
-          <View>
-            <View style={styles.student_box}>
-              <AntDesign name="calendar" size={24} color="black" />
-              <Text style={styles.student_text}>رحلتك القادمة الى المدرسة</Text>
-              <Text style={styles.counter_text}>{nextTripText}</Text>
-            </View> 
+          <View> 
+              <View style={styles.student_box}>
+                <AntDesign name="calendar" size={24} color="black" />
+                <Text style={styles.student_text}>رحلتك القادمة الى العمل</Text>
+                <Text style={styles.counter_text}>{nextTripText}</Text>
+              </View>           
             {!rider[0].tomorrow_trip_canceled && (
               <View style={styles.cancel_trip_box}>
                 <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
-                  <Text style={styles.cancel_trip_btn_text}>الغاء الرحلة القادمة</Text>
+                  <Text style={styles.cancel_trip_btn_text}>الغاء رحلة الغد</Text>
                 </TouchableOpacity>
                 {isCanceling && (
                   <View style={styles.cancel_trip_confirmation}>
@@ -513,7 +523,7 @@ const home = () => {
     )
   }
 
-  // If the student is at school
+  // If the employee is at work
   if(rider[0]?.driver_id && rider[0]?.trip_status === 'at destination') {
     return(
       <SafeAreaView style={styles.container}>
@@ -537,7 +547,7 @@ const home = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.student_route_status_container}>
           <View style={styles.student_route_status_box}>
-            <Text style={styles.student_route_status_text}>في اتجاه المدرسة</Text>
+            <Text style={styles.student_route_status_text}>في اتجاه مقر العمل</Text>
           </View>
         </View>
         <View style={styles.student_map_container}>
@@ -563,7 +573,8 @@ const home = () => {
     )
   }
 }
-export default home;
+
+export default home
 
 const styles = StyleSheet.create({
   container:{

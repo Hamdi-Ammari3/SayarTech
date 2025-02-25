@@ -13,8 +13,6 @@ import AntDesign from '@expo/vector-icons/AntDesign'
 import Feather from '@expo/vector-icons/Feather'
 
 const LinePage = ({line}) => {
-
-    // handle the case where there is no student in the line
     
     // disactivate the current line and activate the next if the line trip canceled
 
@@ -25,8 +23,6 @@ const LinePage = ({line}) => {
     // add points of the month in the driver profile
 
     // change driver location tracking from foreground to background
-
-    // change policies text and permission to meet with google and apple best practices
     
     const {driverData} = useDriverData()
     const GOOGLE_MAPS_APIKEY = ''
@@ -34,19 +30,19 @@ const LinePage = ({line}) => {
 
     const [driverOriginLocation,setDriverOriginLocation] = useState(null)
     const [destination,setDestination] = useState(null)
-    const [sortedStudents, setSortedStudents] = useState([])
-    const [currentStudentIndex, setCurrentStudentIndex] = useState(0)
+    const [sortedRiders, setSortedRiders] = useState([])
+    const [currentRiderIndex, setCurrentRiderIndex] = useState(0)
     const [displayFinalStation,setDisplayFinalStation] = useState(false)
-    const [isMarkingStudent, setIsMarkingStudent] = useState(false)
-    const [checkingPickedUpStudents, setCheckingPickedUpStudents] = useState(false)
-    const [checkingStudentId, setCheckingStudentId] = useState(null)
+    const [isMarkingRider, setIsMarkingRider] = useState(false)
+    const [checkingPickedUpRiders, setCheckingPickedUpRiders] = useState(false)
+    const [checkingRiderId, setCheckingRiderId] = useState(null)
     const [cancelTodayTrip, setCancelTodayTrip] = useState(false)
-    const [pickedUpStudentsFromHome, setPickedUpStudentsFromHome] = useState([])
+    const [pickedUpRidersFromHome, setPickedUpRidersFromHome] = useState([])
     const [mapReady, setMapReady] = useState(false)
 
     const createAlert = (alerMessage) => {
         Alert.alert(alerMessage)
-      }
+    }
     
     const handleMapReady = () => {
         setMapReady(true)
@@ -130,37 +126,37 @@ const LinePage = ({line}) => {
         }
     };
 
-    // Sort students by distance
-    const sortStudentsByDistance = async () => {
-        if (!driverData[0] || line.students.length === 0) {
+    // Sort riders by distance
+    const sortRidersByDistance = async () => {
+        if (!driverData[0] || line.riders.length === 0) {
             return;
         }
 
         try {
             let startingPoint = driverData[0]?.current_location;
-            let assignedStudents = line.students;
+            let assignedRiders = line.riders;
             let sorted = [];
 
             if (line.current_trip === 'first') {
-                sorted = assignedStudents.filter(student => student.tomorrow_trip_canceled === false)
-                .map((student) => ({
-                    ...student,
-                    distance: calculateDistance(startingPoint, student.home_location),
+                sorted = assignedRiders.filter(rider => rider.tomorrow_trip_canceled === false)
+                .map((rider) => ({
+                    ...rider,
+                    distance: calculateDistance(startingPoint, rider.home_location),
                 }))
                 .sort((a, b) => a.distance - b.distance);
            
                 sorted.push({
                     id: 'school',
-                    school_name: line.lineSchool,
-                    school_coords: line.line_school_location,
+                    school_name: line.line_destination,
+                    school_coords: line.line_destination_location,
                 });
 
             } else if (line.current_trip === 'second') {
-                sorted = assignedStudents.filter(student => student.picked_up === true)
-                                         .filter(student => student.picked_from_school === true)
-                .map((student) => ({
-                    ...student,
-                    distance: calculateDistance(startingPoint, student.home_location),
+                sorted = assignedRiders.filter(rider => rider.picked_up === true)
+                                         .filter(rider => rider.picked_from_school === true)
+                .map((rider) => ({
+                    ...rider,
+                    distance: calculateDistance(startingPoint, rider.home_location),
                 }))
                 .sort((a, b) => a.distance - b.distance);
 
@@ -170,50 +166,50 @@ const LinePage = ({line}) => {
                 });
             }
 
-            setSortedStudents(sorted);
+            setSortedRiders(sorted);
 
         } catch (err) {
             createAlert('حدث خطأ اثناء تحديد موقع الطلاب')
         }
     }
 
-    // Re-Sort the Students
-    const resortStudents = async () => {
-        if (isMarkingStudent) return; // Prevent double-click
-        setIsMarkingStudent(true);
+    // Re-Sort the Riders
+    const resortRiders = async () => {
+        if (isMarkingRider) return; // Prevent double-click
+        setIsMarkingRider(true);
 
-        if (!driverData[0] || line.students.length === 0) {
-            setIsMarkingStudent(false);
+        if (!driverData[0] || line.riders.length === 0) {
+            setIsMarkingRider(false);
             return;
         }
     
         try {
             const startingPoint = driverData[0]?.current_location;
-            const assignedStudents = line.students;
+            const assignedRiders = line.riders;
             let reSorted = [];
     
             if (line.current_trip === 'first') {
-                // Filter students who have not been picked up and their trip isn't canceled
-                reSorted = assignedStudents.filter(student => student.picked_up === false && student.tomorrow_trip_canceled === false)
-                    .map(student => ({
-                        ...student,
-                        distance: calculateDistance(startingPoint, student.home_location),
+                // Filter riders who have not been picked up and their trip isn't canceled
+                reSorted = assignedRiders.filter(rider => rider.picked_up === false && rider.tomorrow_trip_canceled === false)
+                    .map(rider => ({
+                        ...rider,
+                        distance: calculateDistance(startingPoint, rider.home_location),
                     }))
                     .sort((a, b) => a.distance - b.distance);
     
                 // Add the school as the final destination
                 reSorted.push({
                     id: 'school',
-                    school_name: line.lineSchool,
-                    school_coords: line.line_school_location,
+                    school_name: line.line_destination,
+                    school_coords: line.line_destination_location,
                 });
     
             } else if (line.current_trip === 'second') {
-                // Filter students who were picked up from school but not yet dropped off
-                reSorted = assignedStudents.filter(student => student.picked_up === true && student.picked_from_school === true && student.dropped_off === false)
-                    .map(student => ({
-                        ...student,
-                        distance: calculateDistance(startingPoint, student.home_location),
+                // Filter riders who were picked up from school but not yet dropped off
+                reSorted = assignedRiders.filter(rider => rider.picked_up === true && rider.picked_from_school === true && rider.dropped_off === false)
+                    .map(rider => ({
+                        ...rider,
+                        distance: calculateDistance(startingPoint, rider.home_location),
                     }))
                     .sort((a, b) => a.distance - b.distance);
     
@@ -224,23 +220,22 @@ const LinePage = ({line}) => {
                 });
             }
     
-            // Update the sorted students and reset the index
-            setSortedStudents(reSorted);
-            setCurrentStudentIndex(0);
+            // Update the sorted riders and reset the index
+            setSortedRiders(reSorted);
+            setCurrentRiderIndex(0);
 
-            // Check if the current student is the school or driver home
+            // Check if the current rider is the school or driver home
             const currentStep = reSorted[0]
             if (currentStep?.id === 'school' || currentStep?.id === 'driver_home') {
                 setDisplayFinalStation(true);
             } else {
                 setDisplayFinalStation(false);
             }
-    
         } catch (err) {
-            console.error('Error while re-sorting students:', err);
+            console.log('Error while re-sorting riders:', err);
             createAlert('حدث خطأ اثناء تحديث ترتيب الطلاب');
         } finally{
-            setIsMarkingStudent(false);
+            setIsMarkingRider(false);
         }
     };
   
@@ -270,20 +265,20 @@ const LinePage = ({line}) => {
             });
       
         } catch (error) {
-            console.error("Error sending notification:", error);
+            console.log("Error sending notification:", error);
         }
     }
 
     // Set destination based on driver trip status
     useEffect(() => {
-        if (line.students.length > 0) {
+        if (line.riders.length > 0) {
             if(displayFinalStation){
-                setDestination(line.line_school_location)
+                setDestination(line.line_destination_location)
             } else {
-                setDestination(sortedStudents[currentStudentIndex]?.home_location);
+                setDestination(sortedRiders[currentRiderIndex]?.home_location);
             }    
         }
-    }, [currentStudentIndex,displayFinalStation,mapReady]);
+    }, [currentRiderIndex,displayFinalStation,mapReady]);
 
     // fit coordinate function
     const fitCoordinatesForCurrentTrip = () => {
@@ -309,8 +304,8 @@ const LinePage = ({line}) => {
 
     // Start the first trip
     const handleFirstTripStart = async () => {
-        if (isMarkingStudent) return;
-        setIsMarkingStudent(true);
+        if (isMarkingRider) return;
+        setIsMarkingRider(true);
 
         try {
             const lines = driverData[0]?.line || [];
@@ -321,7 +316,7 @@ const LinePage = ({line}) => {
             // Skip activation check if only one line exists
             if (lines.length > 1 && activeLine && activeLine.line_index !== line.line_index) {
                 alert(`الرجاء إنهاء رحلة ${activeLine.lineName} قبل بدء هذا الخط`);
-                setIsMarkingStudent(false);
+                setIsMarkingRider(false);
                 return;
             }
 
@@ -343,17 +338,17 @@ const LinePage = ({line}) => {
             // Update the driver's line data in the batch
             batch.update(driverDoc, { line: updatedLines });
 
-            // Update all students' statuses in the batch
-            for (const student of line.students) {
-                const studentDoc = doc(DB, 'students', student.id);
-                batch.update(studentDoc, {
-                    student_trip_status: 'going to home',
+            // Update all riders' statuses in the batch
+            for (const rider of line.riders) {
+                const riderDoc = doc(DB, 'riders', rider.id);
+                batch.update(riderDoc, {
+                    trip_status: 'to home',
                 });
   
-                // Send a notification to the student
-                if (student.notification_token) {
+                // Send a notification to the riders
+                if (rider.notification_token) {
                     await sendNotification(
-                        student.notification_token,
+                        rider.notification_token,
                         "السائق بدأ الرحلة",
                         'السائق في الطريق اليك'
                     );
@@ -363,32 +358,32 @@ const LinePage = ({line}) => {
             // Commit the batch
             await batch.commit();
 
-            sortStudentsByDistance()
+            sortRidersByDistance()
             setDriverOriginLocation(driverData[0]?.current_location)
         } catch (error) {
             alert('حدث خطأ اثناء بدء الرحلة')
-            console.error('Error starting the first trip:', error);
+            console.log('Error starting the first trip:', error);
         } finally {
-            setIsMarkingStudent(false)
+            setIsMarkingRider(false)
         }
     }
 
     // Finish the first trip
     const handleFirstTripFinish = async () => {
-        if (isMarkingStudent) return; // Prevent double-click
-        setIsMarkingStudent(true);
+        if (isMarkingRider) return; // Prevent double-click
+        setIsMarkingRider(true);
 
         try {
             const batch = writeBatch(DB);
             const driverDoc = doc(DB,'drivers', driverData[0].id);
             const lines = driverData[0]?.line || [];
-            const pickedUpStudents = line.students.filter(student => student.picked_up);
+            const pickedUpRiders = line.riders.filter(rider => rider.picked_up);
 
             // Mark the current line as finished
             const updatedLine = {
                 ...line,
                 first_trip_finished: true,
-                arrived_to_school: new Date(),
+                arrived_to_destination: new Date(),
                 current_trip: 'second',
                 line_active: lines.length === 1, // Keep line active if only one exists
             };
@@ -411,45 +406,48 @@ const LinePage = ({line}) => {
 
             batch.update(driverDoc, { line: updatedLines });
 
-            // Update all picked-up students' statuses
-            for (const student of pickedUpStudents) {
-                const studentDoc = doc(DB, 'students', student.id);
-                batch.update(studentDoc, {
-                    student_trip_status: 'at school',
+            // Update all picked-up riders' statuses
+            for (const rider of pickedUpRiders) {
+                const riderDoc = doc(DB, 'riders', rider.id);
+                batch.update(riderDoc, {
+                    trip_status: 'at destination',
                 });
-  
-                // Send a notification to the student
-                if (student.notification_token) {
-                    await sendNotification(
-                        student.notification_token,
-                        "الطالب وصل المدرسة",
-                        `${student.name} وصل المدرسة الان`
-                    );
-                }
+
+                // Skip notification if no token exists
+                if (!rider.notification_token) continue;
+
+                // Dynamically set message based on rider type
+                const title = rider.rider_type === "student" ? "الطالب وصل المدرسة" : "الموظف وصل العمل";
+                const body = rider.rider_type === "student" 
+                    ? `${rider.name} وصل المدرسة الآن` 
+                    : `${rider.name} وصل مقر العمل الآن`;
+
+                // Send the notification
+                await sendNotification(rider.notification_token, title, body);
             }
 
             // Commit the batch
             await batch.commit();
 
             // Reset state variables
-            setCurrentStudentIndex(0)
+            setCurrentRiderIndex(0)
             setDisplayFinalStation(false)
-            setSortedStudents([])
+            setSortedRiders([])
             setCancelTodayTrip(false)
-            setPickedUpStudentsFromHome([])
+            setPickedUpRidersFromHome([])
             setMapReady(false)
-            setIsMarkingStudent(false)
+            setIsMarkingRider(false)
             
         } catch (error) {
             alert('حدث خطأ اثناء انهاء الرحلة')
-            console.error('Error finishing first trip:', error.message)
+            console.log('Error finishing first trip:', error.message)
         } finally {
-            setIsMarkingStudent(false)
+            setIsMarkingRider(false)
         }
     }
 
-    // Check students list before starting the second trip
-    const handleCheckPickedUpStudents = () => {
+    // Check riders list before starting the second trip
+    const handleCheckPickedUpRiders = () => {
         const lines = driverData[0]?.line || [];
 
         // Find the currently active line
@@ -459,14 +457,14 @@ const LinePage = ({line}) => {
             alert(`الرجاء إنهاء رحلة ${activeLine.lineName} قبل بدء هذا الخط`);
             return;
         } else {
-            setCheckingPickedUpStudents(true)
+            setCheckingPickedUpRiders(true)
         } 
     }
 
     // Start the second trip
     const handlesecondTripStart = async () => {
-        if (isMarkingStudent) return; // Prevent double-click
-        setIsMarkingStudent(true);
+        if (isMarkingRider) return; // Prevent double-click
+        setIsMarkingRider(true);
 
         try {
             const lines = driverData[0]?.line || [];
@@ -477,7 +475,7 @@ const LinePage = ({line}) => {
             // Check if the selected line is active
             if (lines.length > 1 && activeLine?.line_index !== line.line_index) {            
                 alert(`الرجاء إنهاء رحلة ${activeLine.lineName} قبل بدء هذا الخط`);
-                setIsMarkingStudent(false);
+                setIsMarkingRider(false);
                 return;
             }
 
@@ -498,21 +496,21 @@ const LinePage = ({line}) => {
             // Update the driver's line data in the batch
             batch.update(driverDoc, { line: updatedLines });
 
-            const pickedUpStudents = line.students.filter(student => student.picked_from_school === true);
+            const pickedUpRiders = line.riders.filter(rider => rider.picked_from_school === true);
 
-            // Update students picked up from school statuses
-            for (const student of pickedUpStudents) {
-                const studentDoc = doc(DB, 'students', student.id);
-                batch.update(studentDoc, {
-                    student_trip_status: 'going to home',
+            // Update riders picked up from school statuses
+            for (const rider of pickedUpRiders) {
+                const riderDoc = doc(DB, 'riders', rider.id);
+                batch.update(riderDoc, {
+                    trip_status: 'to home',
                 });
   
-                // Send a notification to the picked-up students
-                if (student.notification_token) {
+                // Send a notification to the picked-up riders
+                if (rider.notification_token) {
                     await sendNotification(
-                        student.notification_token,
+                        rider.notification_token,
                         "رحلة العودة بدأت",
-                        `${student.name} في الطريق إلى المنزل الآن`
+                        `${rider.name} في الطريق إلى المنزل الآن`
                     );
                 }
             }
@@ -520,27 +518,27 @@ const LinePage = ({line}) => {
             // Commit the batch
             await batch.commit();
 
-            sortStudentsByDistance()
+            sortRidersByDistance()
             setDriverOriginLocation(driverData[0]?.current_location)
 
         } catch (error) {
             alert('حدث خطأ اثناء بدء الرحلة')
-            console.error("Error starting the second trip:", error);
+            console.log("Error starting the second trip:", error);
         } finally {
-            setIsMarkingStudent(false);
+            setIsMarkingRider(false);
         }
     }
 
     // Click the button to finish the second trip
     const handlesecondTripFinish = async () => {
-        if (isMarkingStudent) return;
-        setIsMarkingStudent(true);
+        if (isMarkingRider) return;
+        setIsMarkingRider(true);
 
         try {
             const batch = writeBatch(DB)
             const driverDoc = doc(DB,'drivers', driverData[0]?.id)
             const lines = driverData[0]?.line || []
-            const droppedOffStudents = line.students.filter(student => student.dropped_off)
+            const droppedOffRiders = line.riders.filter(rider => rider.dropped_off)
 
             // Get the last line index
             const lastLineIndex = Math.max(...lines.map(li => li.line_index || 0))
@@ -559,8 +557,8 @@ const LinePage = ({line}) => {
                         second_trip_finished: false,
                         current_trip: 'first',
                         line_active: false,
-                        students: li.students.map((student) => ({
-                            ...student,
+                        riders: li.riders.map((rider) => ({
+                            ...rider,
                             picked_up: false,
                             picked_from_school: false,
                             dropped_off: false,
@@ -579,20 +577,20 @@ const LinePage = ({line}) => {
                 start_the_journey:!isLastLine,
             });
 
-            // Update all dropped-off students' statuses
-            for (const student of droppedOffStudents) {
-                const studentDocRef = doc(DB, 'students', student.id);
-                batch.update(studentDocRef, {
-                    student_trip_status: 'at home',
+            // Update all dropped-off riders' statuses
+            for (const rider of droppedOffRiders) {
+                const riderDocRef = doc(DB, 'riders', rider.id);
+                batch.update(riderDocRef, {
+                    trip_status: 'at home',
                     picked_up: false,
                 });
 
                 // Send a notification to the parent
-                if (student.notification_token) {
+                if (rider.notification_token) {
                     await sendNotification(
-                        student.notification_token,
-                        "الطالب وصل المنزل",
-                        `${student.name} وصل المنزل الان`
+                        rider.notification_token,
+                        " في المنزل",
+                        `${rider.name} وصل المنزل الان`
                     );
                 }
             }
@@ -601,56 +599,57 @@ const LinePage = ({line}) => {
             await batch.commit();
 
             // Reset state variables
-            setCurrentStudentIndex(0);
+            setCurrentRiderIndex(0);
             setDisplayFinalStation(false)
-            setSortedStudents([]);
-            setCheckingPickedUpStudents(false)
-            setCheckingStudentId(null)
+            setSortedRiders([]);
+            setCheckingPickedUpRiders(false)
+            setCheckingRiderId(null)
             setCancelTodayTrip(false)
-            setPickedUpStudentsFromHome([])
+            setPickedUpRidersFromHome([])
             setMapReady(false)
     
         } catch (error) {
             alert('حدث خطأ اثناء انهاء الرحلة')
-            console.error("Error finishing the second trip:", error);
+            console.log("Error finishing the second trip:", error);
         } finally {
-            setIsMarkingStudent(false);
+            setIsMarkingRider(false);
         }
     }
 
-    // move to the next student location
-    const markStudent = async (status) => {
-        if (isMarkingStudent) return; // Prevent double-click
-        setIsMarkingStudent(true); // Set loading state to true
+    // move to the next rider location
+    const markRider = async (status) => {
+        if (isMarkingRider) return; // Prevent double-click
+        setIsMarkingRider(true); // Set loading state to true
 
         try {
             const batch = writeBatch(DB); // Initialize Firestore batch
             const driverDocRef = doc(DB, 'drivers', driverData[0]?.id);
-            const currentStudent = sortedStudents[currentStudentIndex];
+            const currentRider = sortedRiders[currentRiderIndex];
             const currentTrip = line.current_trip || driverData[0]?.line.find((li) => li.lineName === line.lineName)?.current_trip;
             
             if (!currentTrip) {
-                throw new Error("Unable to determine current trip status.");
+                createAlert('حدث خطا الرجاء المحاولة مرة اخرى')
+                return;                
             }
 
-            if(currentStudent) {
-                const studentDoc = doc(DB, 'students', currentStudent.id);               
+            if(currentRider) {
+                const riderDoc = doc(DB, 'riders', currentRider.id);               
 
-                if (currentStudent.id !== 'school' && currentStudent.id !== 'driver_home') {
-                    const updateField = currentTrip === 'first' ? { picked_up: status, student_trip_status: status ? 'going to school' :'at home'} : { student_trip_status:'at home' };
-                    batch.update(studentDoc, updateField)
+                if (currentRider.id !== 'school' && currentRider.id !== 'driver_home') {
+                    const updateField = currentTrip === 'first' ? { picked_up: status, trip_status: status ? 'to destination' :'at home'} : { trip_status:'at home' };
+                    batch.update(riderDoc, updateField)
 
-                    // Update the specific student's status in the selected line
+                    // Update the specific rider's status in the selected line
                     const updatedLine = {
                         ...line,
-                        students: line.students.map((student) => {
-                            if (student.id === currentStudent.id) {
+                        riders: line.riders.map((rider) => {
+                            if (rider.id === currentRider.id) {
                                 return {                          
-                                ...student,
+                                ...rider,
                                 ...(currentTrip === 'first' ? { picked_up: status } : { dropped_off: status })
                                 };                               
                             }
-                            return student;
+                            return rider;
                         }),
                     };
 
@@ -666,29 +665,29 @@ const LinePage = ({line}) => {
                     setDriverOriginLocation(driverData[0]?.current_location)
                 }
 
-                // Local tracking of picked-up students
-                let updatedPickedUpStudents = [...pickedUpStudentsFromHome]
+                // Local tracking of picked-up riders
+                let updatedPickedUpRiders = [...pickedUpRidersFromHome]
                 if (status === true) {
-                    updatedPickedUpStudents.push(currentStudent); // Add the current student to the picked-up list
-                    setPickedUpStudentsFromHome(updatedPickedUpStudents); // Update state with the new list
+                    updatedPickedUpRiders.push(currentRider); // Add the current rider to the picked-up list
+                    setPickedUpRidersFromHome(updatedPickedUpRiders); // Update state with the new list
 
-                    if(currentStudent.notification_token) {
+                    if(currentRider.notification_token) {
                         const message = currentTrip === 'first'
-                            ? { title: "رحلة المدرسة بدأت", body: `${currentStudent.name} في الطريق إلى المدرسة الآن` }
-                            : { title: "الطالب وصل المنزل", body: `${currentStudent.name} وصل المنزل الان` };
-                        await sendNotification(currentStudent.notification_token, message.title, message.body);
+                            ? { title: "رحلة الذهاب بدأت", body: currentRider.rider_type === 'student' ? `${currentRider.name} في الطريق إلى المدرسة الآن` : `${currentRider.name} في الطريق إلى مقر العمل الآن`}
+                            : { title: " في المنزل", body: `${currentRider.name} وصل المنزل الان` };
+                        await sendNotification(currentRider.notification_token, message.title, message.body);
                     }
                 }
 
-                // Move to the next student in the sorted list
-                if (currentStudentIndex < sortedStudents?.length - 1) {
-                    setCurrentStudentIndex((prevIndex) => prevIndex + 1);
-                    const nextStudent = sortedStudents[currentStudentIndex + 1];
+                // Move to the next rider in the sorted list
+                if (currentRiderIndex < sortedRiders?.length - 1) {
+                    setCurrentRiderIndex((prevIndex) => prevIndex + 1);
+                    const nextRider = sortedRiders[currentRiderIndex + 1];
 
-                    if (nextStudent.id === 'school' || nextStudent.id === 'driver_home') {
+                    if (nextRider.id === 'school' || nextRider.id === 'driver_home') {
                         setDisplayFinalStation(true);
 
-                        if(updatedPickedUpStudents?.length === 0) {
+                        if(updatedPickedUpRiders?.length === 0) {
                             setCancelTodayTrip(true)
                         }
                     }
@@ -698,31 +697,31 @@ const LinePage = ({line}) => {
             alert('حدث خطأ اثناء تحديث حالة الطالب')
             console.log(error)
         } finally{
-            setIsMarkingStudent(false);
+            setIsMarkingRider(false);
         }
     }
 
-    // mark students from school
-    const HandleMarkStudentFromSchool = async (studentId, status) => {
-        if (isMarkingStudent) return
-        setIsMarkingStudent(true)
+    // mark riders from school
+    const HandleMarkRiderFromSchool = async (riderId, status) => {
+        if (isMarkingRider) return
+        setIsMarkingRider(true)
 
         try {
             const batch = writeBatch(DB);
             const driverDocRef = doc(DB, 'drivers', driverData[0]?.id);
 
-            // Update the specific student's status in the selected line
+            // Update the specific rider's status in the selected line
             const updatedLine = {
                 ...line,
-                students: line.students.map((student) => {
-                    if (student.id === studentId) {
+                riders: line.riders.map((rider) => {
+                    if (rider.id === riderId) {
                         return {
-                            ...student,
+                            ...rider,
                             picked_from_school: status,
                             checked_in_front_of_school: true,
                         };
                     }
-                    return student;
+                    return rider;
                 }),
             };
 
@@ -734,30 +733,30 @@ const LinePage = ({line}) => {
 
             await batch.commit();
 
-            // Remove the student from the list in the UI
-            line.students.filter((student) => student.picked_from_school === true)
+            // Remove the rider from the list in the UI
+            line.riders.filter((rider) => rider.picked_from_school === true)
         } catch (error) {
             createAlert('حدث خطأ اثناء تحديث حالة الطالب')
-            console.error('Error marking student:', error)
+            console.log('Error marking rider:', error)
         } finally {
-            setIsMarkingStudent(false)
+            setIsMarkingRider(false)
         }
     };
 
-    //mark absent students
-    const handleMarkAbsentStudent = (studentId) => {
-        setCheckingStudentId(studentId);
+    //mark absent riders
+    const handleMarkAbsentRider = (riderId) => {
+        setCheckingRiderId(riderId);
     }
 
-    // Call Student parent in case he is absent
+    // Call rider parent in case he is absent
     const handleCallParent = (phoneNumber) => {
         Linking.openURL(`tel:${phoneNumber}`);
     }
 
-    // Cancel the trip in case no student is picked up
+    // Cancel the trip in case no rider is picked up
     const handleCancelTrip = async () => {
-        if (isMarkingStudent) return
-        setIsMarkingStudent(true)
+        if (isMarkingRider) return
+        setIsMarkingRider(true)
 
         try {
             const batch = writeBatch(DB);
@@ -771,8 +770,8 @@ const LinePage = ({line}) => {
                 second_trip_started: false,
                 second_trip_finished: false,
                 current_trip: 'first',
-                students: line.students.map((student) => ({
-                    ...student,
+                riders: line.riders.map((rider) => ({
+                    ...rider,
                     picked_up: false,
                     dropped_off: false,
                     picked_from_school: false,
@@ -791,23 +790,23 @@ const LinePage = ({line}) => {
             await batch.commit();
 
             // Reset local state variables if necessary
-            setCurrentStudentIndex(0);
+            setCurrentRiderIndex(0);
             setDisplayFinalStation(false);
-            setSortedStudents([]);
+            setSortedRiders([]);
             setCancelTodayTrip(false);
-            setPickedUpStudentsFromHome([]);
+            setPickedUpRidersFromHome([]);
             setMapReady(false);
 
         } catch (error) {
             console.error('Error canceling the trip:', error);
             alert('حدث خطأ أثناء إلغاء الرحلة');
         } finally {
-            setIsMarkingStudent(false);
+            setIsMarkingRider(false);
         }
     }
     
-    // Line have no students
-    if(line.students.length === 0) {
+    // Line have no riders
+    if(line.riders.length === 0) {
         return(
             <SafeAreaView style={styles.container}>
                 <View style={styles.start_line_container}>
@@ -832,10 +831,10 @@ const LinePage = ({line}) => {
                     <TouchableOpacity 
                         style={styles.done_trip_button} 
                         onPress={() => handleFirstTripStart()}
-                        disabled={isMarkingStudent}
+                        disabled={isMarkingRider}
                     >
                         <Text style={styles.done_trip_button_text}>
-                            {isMarkingStudent ? '...' : 'ابدأ رحلة الذهاب'}
+                            {isMarkingRider ? '...' : 'ابدأ رحلة الذهاب'}
                         </Text>
                     </TouchableOpacity>
                 </View>               
@@ -843,7 +842,7 @@ const LinePage = ({line}) => {
         )
     }
 
-    const currentStudent = sortedStudents[currentStudentIndex]
+    const currentRider = sortedRiders[currentRiderIndex]
 
     // Driver started the first trip journey
     if(
@@ -856,26 +855,26 @@ const LinePage = ({line}) => {
             <SafeAreaView style={styles.student_map_container}>
                 <>
                     {!displayFinalStation ? (
-                        currentStudent ? (
+                        currentRider ? (
                         <>
                             <View style={styles.map_student_name_container}>
-                                <Text style={styles.map_student_name}>{currentStudent?.name}</Text>
+                                <Text style={styles.map_student_name}>{currentRider?.name}</Text>
                             </View>
                             <View style={styles.map_picked_button_container}>
                                 <View style={styles.map_picked_button_container2}>
                                     <TouchableOpacity
                                         style={styles.pick_button_accepted} 
-                                        onPress={() => markStudent(true)} 
-                                        disabled={isMarkingStudent}
+                                        onPress={() => markRider(true)} 
+                                        disabled={isMarkingRider}
                                     >
-                                        <Text style={styles.pick_button_text}>{isMarkingStudent ? '...' :'صعد'}</Text>
+                                        <Text style={styles.pick_button_text}>{isMarkingRider ? '...' :'صعد'}</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity 
                                         style={styles.pick_button_denied} 
-                                        onPress={() => markStudent(false)} 
-                                        disabled={isMarkingStudent}
+                                        onPress={() => markRider(false)} 
+                                        disabled={isMarkingRider}
                                     >
-                                        <Text style={styles.pick_button_text}>{isMarkingStudent ? '...' :'لم يصعد'}</Text>
+                                        <Text style={styles.pick_button_text}>{isMarkingRider ? '...' :'لم يصعد'}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -884,11 +883,11 @@ const LinePage = ({line}) => {
                             <View style={styles.map_student_name_container}>
                                 <TouchableOpacity 
                                     style={styles.done_trip_button} 
-                                    onPress={() => resortStudents()}
-                                    disabled={isMarkingStudent}
+                                    onPress={() => resortRiders()}
+                                    disabled={isMarkingRider}
                                 >
                                     <Text style={styles.done_trip_button_text}>
-                                        {isMarkingStudent ? '...' : 'مواصلة خط الرحلة'}
+                                        {isMarkingRider ? '...' : 'مواصلة خط الرحلة'}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -900,25 +899,25 @@ const LinePage = ({line}) => {
                                     <TouchableOpacity 
                                         style={styles.done_trip_button} 
                                         onPress={() => handleCancelTrip()}
-                                        disabled={isMarkingStudent}
+                                        disabled={isMarkingRider}
                                     >
                                         <Text style={styles.done_trip_button_text}>
-                                            {isMarkingStudent ? '...' : 'إلغاء الرحلة'}
+                                            {isMarkingRider ? '...' : 'إلغاء الرحلة'}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
                             ) : (
                                 <>
                                     <View style={styles.map_student_name_container}>
-                                        <Text style={styles.map_student_name}>{line.lineSchool}</Text>
+                                        <Text style={styles.map_student_name}>{line.line_destination}</Text>
                                     </View>
                                     <View style={styles.map_picked_button_container}>
                                         <TouchableOpacity 
                                             style={styles.done_trip_button} 
                                             onPress={() => handleFirstTripFinish()}
-                                            disabled={isMarkingStudent}>
+                                            disabled={isMarkingRider}>
                                             <Text style={styles.done_trip_button_text}>
-                                                {isMarkingStudent ? '...' : 'إنهاء رحلة الذهاب'}
+                                                {isMarkingRider ? '...' : 'إنهاء رحلة الذهاب'}
                                             </Text>
                                         </TouchableOpacity>
                                     </View>
@@ -946,8 +945,8 @@ const LinePage = ({line}) => {
                      
                         <MapViewDirections
                             origin={driverOriginLocation}
-                            destination={displayFinalStation ? currentStudent?.school_coords : currentStudent?.home_location}
-                            optimizeWaypoints={true} // Optimize route for efficiency
+                            destination={displayFinalStation ? currentRider?.school_coords : currentRider?.home_location}
+                            optimizeWaypoints={true}
                             apikey={GOOGLE_MAPS_APIKEY}
                             strokeWidth={4}
                             strokeColor="blue"
@@ -955,19 +954,19 @@ const LinePage = ({line}) => {
                         />
 
 
-                        {currentStudent?.home_location && !displayFinalStation && (
+                        {currentRider?.home_location && !displayFinalStation && (
                         <Marker
-                            coordinate={currentStudent?.home_location}
-                            title={currentStudent?.name}
+                            coordinate={currentRider?.home_location}
+                            title={currentRider?.name}
                             pinColor="red"
                         />
                         )}
 
 
-                        {currentStudent?.school_coords && displayFinalStation && (
+                        {currentRider?.school_coords && displayFinalStation && (
                         <Marker
-                            coordinate={currentStudent?.school_coords}
-                            title={currentStudent?.school_name}
+                            coordinate={currentRider?.school_coords}
+                            title={currentRider?.school_name}
                             pinColor="red"
                         />
                         )}
@@ -987,74 +986,74 @@ const LinePage = ({line}) => {
     ) {
         return(
             <SafeAreaView style={styles.container}>
-                {line.students.filter(student => student.picked_up)
-                              .filter(student => student.checked_in_front_of_school === false)?.length > 0 ? (
+                {line.riders.filter(rider => rider.picked_up)
+                              .filter(rider => rider.checked_in_front_of_school === false)?.length > 0 ? (
                         <TouchableOpacity 
                             style={styles.done_trip_button}
-                            onPress={() => handleCheckPickedUpStudents()}
+                            onPress={() => handleCheckPickedUpRiders()}
                         >
                             <Text style={styles.pick_button_text}>إبدأ رحلة العودة</Text>
                         </TouchableOpacity>
                 ) : (
                     <>
-                        {line.students.filter(student => student.picked_up)
-                                      .filter(student => student.picked_from_school === true)?.length > 0 ? (
+                        {line.riders.filter(rider => rider.picked_up)
+                                      .filter(rider => rider.picked_from_school === true)?.length > 0 ? (
                             <TouchableOpacity 
                                 style={styles.done_trip_button} 
                                 onPress={() => handlesecondTripStart()}
-                                disabled={isMarkingStudent}
+                                disabled={isMarkingRider}
                             >
                                 <Text style={styles.pick_button_text}>
-                                    {isMarkingStudent ? '...' : 'إبدأ الان'}
+                                    {isMarkingRider ? '...' : 'إبدأ الان'}
                                 </Text>
                             </TouchableOpacity>
                         ) : (
                             <TouchableOpacity 
                                 style={styles.done_trip_button} 
                                 onPress={() => handlesecondTripFinish()}
-                                disabled={isMarkingStudent}
+                                disabled={isMarkingRider}
                             >
                                 <Text style={styles.pick_button_text}>
-                                    {isMarkingStudent ? '...' : 'إنهاء الرحلة'}
+                                    {isMarkingRider ? '...' : 'إنهاء الرحلة'}
                                 </Text>
                             </TouchableOpacity>  
                         )}
                     </>       
                 )}
       
-                {checkingPickedUpStudents && (
+                {checkingPickedUpRiders && (
                     <View style={styles.scrollViewContainer}>
                         <ScrollView>
-                            {line.students.filter(student => student.picked_up)
-                                .filter(student => student.checked_in_front_of_school === false)
-                                .map((student,index) => (
+                            {line.riders.filter(rider => rider.picked_up)
+                                .filter(rider => rider.checked_in_front_of_school === false)
+                                .map((rider,index) => (
                                     <View key={index} style={styles.check_students_boxes}>
                                         <View>
                                             <TouchableOpacity 
                                                 style={styles.check_students_name} 
-                                                onPress={() => handleMarkAbsentStudent(student.id)}
+                                                onPress={() => handleMarkAbsentRider(rider.id)}
                                             >
-                                                <Text style={styles.check_students_name_text}>{student.name}</Text>
+                                                <Text style={styles.check_students_name_text}>{rider.name}</Text>
                                             </TouchableOpacity>
 
-                                            {checkingStudentId === student.id && (
+                                            {checkingRiderId === rider.id && (
                                                 <View style={styles.check_students_buttons}>
                                                     <TouchableOpacity 
                                                         style={styles.check_students_button} 
-                                                        onPress={() => HandleMarkStudentFromSchool(student.id,true)}
+                                                        onPress={() => HandleMarkRiderFromSchool(rider.id,true)}
                                                     >
                                                         <AntDesign name="checkcircleo" size={24} color="white" />
                                                     </TouchableOpacity>
                                                     <TouchableOpacity 
                                                         style={styles.call_student_parent} 
-                                                        onPress={() => handleCallParent(student.phone_number)}
+                                                        onPress={() => handleCallParent(rider.phone_number)}
                                                     >
                                                         <Text style={styles.call_student_parent_text}>اتصل بولي الطالب</Text>
                                                         <Feather name="phone" size={24} color="white" />
                                                     </TouchableOpacity>
                                                     <TouchableOpacity 
                                                         style={styles.check_students_button} 
-                                                        onPress={() => HandleMarkStudentFromSchool(student.id,false)}
+                                                        onPress={() => HandleMarkRiderFromSchool(rider.id,false)}
                                                     >
                                                         <AntDesign name="closecircleo" size={24} color="white" />
                                                     </TouchableOpacity>
@@ -1081,18 +1080,18 @@ const LinePage = ({line}) => {
             <SafeAreaView style={styles.student_map_container}>
                 <>
                     {!displayFinalStation ? (
-                        currentStudent ? (
+                        currentRider ? (
                             <>
                                 <View style={styles.map_student_name_container}>
-                                    <Text style={styles.map_student_name}>{currentStudent?.name}</Text>
+                                    <Text style={styles.map_student_name}>{currentRider?.name}</Text>
                                 </View>
                                 <View style={styles.map_picked_button_container}>
                                     <TouchableOpacity 
                                         style={styles.pick_button_accepted} 
-                                        onPress={() => markStudent(true)} 
-                                        disabled={isMarkingStudent}
+                                        onPress={() => markRider(true)} 
+                                        disabled={isMarkingRider}
                                     >
-                                        <Text style={styles.pick_button_text}>{isMarkingStudent ? '...' : 'نزل'}</Text>
+                                        <Text style={styles.pick_button_text}>{isMarkingRider ? '...' : 'نزل'}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </>
@@ -1100,11 +1099,11 @@ const LinePage = ({line}) => {
                             <View style={styles.map_student_name_container}>
                                 <TouchableOpacity 
                                     style={styles.done_trip_button} 
-                                    onPress={() => resortStudents()}
-                                    disabled={isMarkingStudent}
+                                    onPress={() => resortRiders()}
+                                    disabled={isMarkingRider}
                                 >
                                     <Text style={styles.done_trip_button_text}>
-                                        {isMarkingStudent ? '...' : 'مواصلة خط الرحلة'}
+                                        {isMarkingRider ? '...' : 'مواصلة خط الرحلة'}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -1115,10 +1114,10 @@ const LinePage = ({line}) => {
                                 <TouchableOpacity 
                                     style={styles.done_trip_button} 
                                     onPress={() => handlesecondTripFinish()}
-                                    disabled={isMarkingStudent}
+                                    disabled={isMarkingRider}
                                 >
                                     <Text style={styles.pick_button_text}>
-                                        {isMarkingStudent ? '...' : 'إنهاء رحلة العودة'}
+                                        {isMarkingRider ? '...' : 'إنهاء رحلة العودة'}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -1144,7 +1143,7 @@ const LinePage = ({line}) => {
 
                         <MapViewDirections
                             origin={driverOriginLocation}
-                            destination={displayFinalStation ? currentStudent?.driver_home_coords : currentStudent?.home_location}
+                            destination={displayFinalStation ? currentRider?.driver_home_coords : currentRider?.home_location}
                             optimizeWaypoints={true}
                             apikey={GOOGLE_MAPS_APIKEY}
                             strokeWidth={4}
@@ -1152,10 +1151,10 @@ const LinePage = ({line}) => {
                             onError={(error) => console.log(error)}
                         />
         
-                        {currentStudent?.home_location && !displayFinalStation && (
+                        {currentRider?.home_location && !displayFinalStation && (
                             <Marker
-                                coordinate={currentStudent?.home_location}
-                                title={currentStudent?.name}
+                                coordinate={currentRider?.home_location}
+                                title={currentRider?.name}
                                 pinColor="red"
                             />
                         )}

@@ -1,14 +1,13 @@
 import { Stack } from "expo-router"
-import { StudentProvider } from "../../stateManagment/StudentState"
-
+import { RiderProvider } from "../../stateManagment/RiderContext"
 
 export default function StudentLayout() {
 
   return(
-    <StudentProvider>
+    <RiderProvider>
       <Stack>
         <Stack.Screen name="(tabs)" options={{headerShown:false}}/>
       </Stack>
-    </StudentProvider>
+    </RiderProvider>
   )
 }

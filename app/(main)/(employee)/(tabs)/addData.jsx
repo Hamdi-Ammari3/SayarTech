@@ -1,4 +1,4 @@
-import {Alert,StyleSheet,Text,View,TouchableOpacity,TextInput,ActivityIndicator,FlatList,Platform,Modal} from 'react-native'
+import { Alert, StyleSheet, Text, View,ActivityIndicator,Image,TextInput,TouchableOpacity,FlatList,Platform,Modal } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import React,{useEffect, useState} from 'react'
 import { useRouter } from 'expo-router'
@@ -8,60 +8,63 @@ import {DB} from '../../../../firebaseConfig'
 import { addDoc , collection,onSnapshot } from 'firebase/firestore'
 import * as Location from 'expo-location'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import { useUser } from '@clerk/clerk-expo'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
-import { useUser } from '@clerk/clerk-expo'
 import { Dropdown } from 'react-native-element-dropdown'
 import { useRiderData } from '../../../stateManagment/RiderContext'
+import logo from '../../../../assets/images/logo.jpeg'
+
+// user can update his data
 
 const addData = () => {
   const { user } = useUser()
   const router = useRouter()
-  const {userData,fetchingUserDataLoading,schools,fetchingSchoolsLoading,states,fetchingState} = useRiderData()
+  const {userData,fetchingUserDataLoading,rider,states,fetchingState} = useRiderData()
 
-  const totalSteps = 3;
+  const totalSteps = 4
   const [currentPage, setCurrentPage] = useState(1)
 
-  const [studentFullName,setStudentFullName] = useState('')
   const [showBirthdayPicker,setShowBirthdayPicker] = useState(false)
-  const [studentBirthDate,setStudentBirthDate] = useState(new Date())
-  const [studentSex,setStudentSex] = useState('')
-  const [studentSchool,setStudentSchool] = useState('')
+  const [employeeBirthDate,setEmployeeBirthDate] = useState(new Date())
+  const [employeeSex,setEmployeeSex] = useState('')
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [currentPicker, setCurrentPicker] = useState({ day: null, field: null });
+  const [currentPicker, setCurrentPicker] = useState({ day: null, field: null })
   const [pickerTime, setPickerTime] = useState(new Date());
   const [firstDayTimes, setFirstDayTimes] = useState(null);
   const [location, setLocation] = useState(null)
   const [homeAdress,setHomeAdress] = useState('')
-  const [studentState,setStudentState] = useState('')
+  const [employeestate,setEmployeeState] = useState('')
   const [cities,setCities] = useState([])
-  const [studentCity,setStudentCity] = useState('')
-  const [studentStreet,setStudentStreet] = useState('')
+  const [employeeCity,setEmployeeCity] = useState('')
+  const [employeeStreet,setEmployeeStreet] = useState('')
   const [carType,setCarType] = useState('')
-  const [schoolLocation, setSchoolLocation] = useState(null)
+  const [companyName,setCompanyName] = useState('')
+  const [companyAddress,setCompanyAddress] = useState('')
+  const [companyNearestPoint,setCompanyNearestPoint] = useState('')
   const [dateSelected, setDateSelected] = useState(false)
-  const [addingNewStudentLoading,setAddingNewStudentLoading] = useState(false)
+  const [addingNewEmployeeLoading,setAddingNewEmployeeLoading] = useState(false)
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
   }
-
-  //Get the student birth date
-  const showBirthDayDatePicker = () => {
-    setShowBirthdayPicker(true);
-  };
   
+  //Get the employee birth date
+  const showBirthDayDatePicker = () => {
+    setShowBirthdayPicker(true)
+  }
+
   // Handle the BirthDate Change
   const handleBirthDayDateChange = (event, selectedDate) => {
     if(Platform.OS === 'ios') {
       if (selectedDate) {
-        setStudentBirthDate(selectedDate);
+        setEmployeeBirthDate(selectedDate);
         setDateSelected(true);
       }
     } else {
       if (event.type === "set" && selectedDate) {
-        const currentDate = selectedDate || studentBirthDate;
-        setStudentBirthDate(currentDate);
+        const currentDate = selectedDate || employeeBirthDate;
+        setEmployeeBirthDate(currentDate);
         setDateSelected(true);
       }
       setShowBirthdayPicker(false);
@@ -71,17 +74,17 @@ const addData = () => {
   // Close the picker manually for iOS
   const closePicker = () => {
     setShowBirthdayPicker(false);
-  };
+  }
 
-  // Student Sex
+  // Employee Sex
   const sex = [
     { name: 'ذكر'},
     {name:'انثى'}
   ]
 
   // Handle student sex change
-  const handleStudentSex = (sexType) => {
-    setStudentSex(sexType)
+  const handleEmployeeSex = (sexType) => {
+    setEmployeeSex(sexType)
   }
 
   //Cars type array
@@ -99,28 +102,8 @@ const addData = () => {
     setCarType(vehicle)
   }
 
-  // Handle school name change
-  const handleSchoolChange = (schoolName) => {
-    setStudentSchool(schoolName)
-  }
-
-  // Set school location based on school name
-  useEffect(() => {
-    if (studentSchool) {
-      const selectedSchool = schools.find((school) => school.name === studentSchool)
-      if (selectedSchool) {
-        setSchoolLocation({
-          latitude: selectedSchool.latitude,
-          longitude: selectedSchool.longitude,
-        })
-      } else {
-        setSchoolLocation(null)
-      }
-    }
-  }, [studentSchool])
-
-  // School time table
-  const [schoolTimetable, setSchoolTimetable] = useState([
+  // employee time table
+  const [companyTimetable, setCompanyTimetable] = useState([
     { id:0,day: "الأحد", active: false, startTime: null, endTime: null },
     { id:1,day: "الاثنين", active: false, startTime: null, endTime: null },
     { id:2,day: "الثلاثاء", active: false, startTime: null, endTime: null },
@@ -129,10 +112,10 @@ const addData = () => {
     { id:5,day: "الجمعة", active: false, startTime: null, endTime: null },
     { id:6,day: "السبت", active: false, startTime: null, endTime: null },
   ]);
-  
+
   // Open the time-table picker
   const handleTimeSelect = (day, field) => {
-    const selectedDay = schoolTimetable.find((item) => item.day === day);
+    const selectedDay = companyTimetable.find((item) => item.day === day);
 
     // Use the existing time or fallback to the current time
     const initialTime = selectedDay[field] ? new Date(selectedDay[field]) : new Date();
@@ -144,7 +127,7 @@ const addData = () => {
     setCurrentPicker({ day, field });
     setPickerVisible(true);
   };
-  
+
   // Handle picker time change
   const handlePickerChange = (event, selectedTime) => {
     if (Platform.OS === "ios") {
@@ -159,7 +142,7 @@ const addData = () => {
         neutralTime.setFullYear(2000, 0, 1);
         setPickerTime(neutralTime);
 
-        setSchoolTimetable((prev) =>
+        setCompanyTimetable((prev) =>
           prev.map((item) =>
             item.day === currentPicker.day
               ? { ...item, [currentPicker.field]: neutralTime }
@@ -171,21 +154,21 @@ const addData = () => {
 
   // Confirm time-table selection (for iOS)
   const confirmPickerSelection = () => {
-  if (pickerTime) {
-    setSchoolTimetable((prev) =>
-      prev.map((item) =>
-        item.day === currentPicker.day
-          ? { ...item, [currentPicker.field]: pickerTime }
-          : item
-      )
-    );
-    setPickerVisible(false);
-  }
+    if (pickerTime) {
+      setCompanyTimetable((prev) =>
+        prev.map((item) =>
+          item.day === currentPicker.day
+            ? { ...item, [currentPicker.field]: pickerTime }
+            : item
+        )
+      );
+      setPickerVisible(false);
+    }
   };
-  
+
   // Select active days
   const toggleDayActive = (dayId) => {
-    const updatedTimetable = schoolTimetable.map((item) => {
+    const updatedTimetable = companyTimetable.map((item) => {
       if (item.id === dayId) {
         // Reset startTime and endTime when day is deselected
         return item.active
@@ -194,12 +177,12 @@ const addData = () => {
       }
       return item;
     });
-    setSchoolTimetable(updatedTimetable);
+    setCompanyTimetable(updatedTimetable);
   };
-  
+
   // Track the first day times select for copy to all btn
   useEffect(() => {
-    const firstDayWithTimes = schoolTimetable.find(
+    const firstDayWithTimes = companyTimetable.find(
       (item) => item.startTime && item.endTime
     );
     if (firstDayWithTimes) {
@@ -210,18 +193,18 @@ const addData = () => {
     } else {
       setFirstDayTimes(null); // Clear the state if no valid day is found
     }
-  }, [schoolTimetable]);
-  
+  }, [companyTimetable]);
+
   //Handle the state change
   const handleStateChange = (state) => {
-    setStudentState(state);
+    setEmployeeState(state);
   };
 
   // Fetch Cities based on selected Province (State)
   const fetchCities = (selectedState) => {
-    const schoolInfoCollectionRef = collection(DB, 'states')
+    const stateInfoCollectionRef = collection(DB, 'states')
       const unsubscribe = onSnapshot(
-        schoolInfoCollectionRef,
+        stateInfoCollectionRef,
         async(querySnapshot) => {
           const stateData = querySnapshot.docs
             .map((doc) => ({
@@ -232,19 +215,18 @@ const addData = () => {
         }
       )
     return () => unsubscribe();
-  };
+  }
 
   // Handle the city change
   const handleCityChange = (city) => {
-    setStudentCity(city);
+    setEmployeeCity(city);
   }
 
-  // Get student home location
   const getLocation = async () => {
     // Step 1: Provide a prominent disclosure
     Alert.alert(
       "مطلوب إذن الموقع",
-      "يستخدم تطبيق Sayartech بيانات موقعك للمساعدة في حفظ عنوان منزل طفلك. يضمن ذلك توفير خدمات التوصيل والاستلام بدقة لطفلك. لن يتم جمع بيانات موقعك في الخلفية ولن يتم مشاركتها مع أطراف خارجية.",
+      "يستخدم تطبيق Sayartech بيانات موقعك للمساعدة في حفظ عنوان منزلك. يضمن ذلك توفير خدمات التوصيل والاستلام بدقة. لن يتم جمع بيانات موقعك في الخلفية ولن يتم مشاركتها مع أطراف خارجية.",
       [
         {
           text: "Cancel",
@@ -259,18 +241,18 @@ const addData = () => {
               createAlert('عذراً، لا يمكننا الوصول إلى موقعك بدون إذن');
               return;
             }
-  
+
             // Step 3: Get and save the location
             let location = await Location.getCurrentPositionAsync({});
             setLocation(location);
-  
+
           },
         },
       ]
     );
   };
-  
-  // Add default student monthly subs bill
+
+  // Add default employee monthly bill
   const defaultBill = [
     {
       id:0,
@@ -338,31 +320,26 @@ const addData = () => {
   const handleNext = () => {
     if (currentPage < totalSteps) setCurrentPage(currentPage + 1);
   };
-
+  
   // Return to previous page
   const handlePrevious = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
-  //Adding new student
-  const addNewStudentHandler = async () => {
-    
+  //Adding employee data
+  const addEmployeeDataHandler = async () => {
+
     if (!user) {
       createAlert('المستخدم غير معرف')
-      return;
+      return
     }
-
-    if(!studentFullName) {
-      createAlert('يرجى ادخال اسم الطالب')
-      return;
-    }
-
+    
     if (!dateSelected) {
       createAlert("يرجى إدخال تاريخ الميلاد");
       return;
     }
     
-    if (!studentSex) {
+    if (!employeeSex) {
       createAlert("يرجى تحديد الجنس");
       return;
     }
@@ -371,19 +348,54 @@ const addData = () => {
       createAlert("يرجى اختيار نوع السيارة");
       return;
     }
-  
-    if (!studentSchool) {
-      createAlert("يرجى اختيار المدرسة");
+
+    if (!employeestate) {
+      createAlert("يرجى اختيار المحافظة");
+      return;
+    }
+    
+    if (!employeeCity) {
+      createAlert("يرجى اختيار القضاء");
+      return;
+    }
+    
+    if (!employeeStreet) {
+      createAlert("يرجى إدخال اسم الحي");
+      return;
+    }
+    
+    if (!homeAdress) {
+      createAlert("يرجى تحديد اقرب نقطة دالة على عنوانكم");
       return;
     }
 
+    if (!location) {
+      createAlert('يرجى تحديد الموقع')
+      return
+    }
+
+    if (!companyName) {
+      createAlert("يرجى تحديد اسم مكان العمل");
+      return
+    }
+
+    if(!companyAddress) {
+      createAlert('يرجى تحديد عنوان مكان العمل')
+      return
+    }
+
+    if(!companyNearestPoint) {
+      createAlert('يرجى تحديد اقرب نقطة دالة على مكان عملكم')
+      return
+    }
+
     if(!firstDayTimes) {
-      createAlert("يرجى ادخال الجدول الزمني للمدرسة")
+      createAlert("يرجى تحديد اوقات الدوام")
       return
     }
 
     // Check school timetable for missing times
-    const incompleteTimetable = schoolTimetable.find(
+    const incompleteTimetable = companyTimetable.find(
       (entry) => entry.active && (!entry.startTime || !entry.endTime)
     );
     if (incompleteTimetable) {
@@ -393,53 +405,29 @@ const addData = () => {
       return;
     }
 
-    if (!studentState) {
-      createAlert("يرجى اختيار المحافظة");
-      return;
-    }
-    
-    if (!studentCity) {
-      createAlert("يرجى اختيار القضاء");
-      return;
-    }
-      
-    if (!studentStreet) {
-      createAlert("يرجى إدخال اسم الحي");
-      return;
-    }
-    
-    if (!homeAdress) {
-      createAlert("يرجى تحديد اقرب نقطة دالة على عنوانكم");
-      return;
-    }
-    
-    if (!location) {
-      createAlert('يرجى تحديد الموقع')
-      return
-    }
-
-    setAddingNewStudentLoading(true)
+    setAddingNewEmployeeLoading(true)
 
     try {
-      const studentsCollectionRef = collection(DB,'riders')
-      const studentData = {
-        full_name: studentFullName,
-        parent_full_name:userData.user_full_name,
+      const riderCollectionRef = collection(DB,'riders')
+      const riderData = {
+        full_name: userData.user_full_name,
         family_name:userData.user_family_name,
-        rider_type:'student',
+        rider_type:'employee',
         user_id:userData.user_id,
         phone_number:userData.phone_number,
         user_notification_token:userData.user_notification_token,
-        birth_date:studentBirthDate,
-        sex:studentSex,
-        state:studentState,
-        city:studentCity,
-        street:studentStreet,
+        birth_date:employeeBirthDate,
+        sex:employeeSex,
+        state:employeestate,
+        city:employeeCity,
+        street:employeeStreet,
         home_address:homeAdress,
         home_location:location,
-        destination:studentSchool,
-        destination_location:schoolLocation,
-        timetable: schoolTimetable,
+        destination:companyName,
+        destination_location:{latitude:0,longitude:0},
+        company_address:companyAddress,
+        company_nearest_point:companyNearestPoint,
+        timetable: companyTimetable,
         car_type:carType,
         monthly_sub:0,
         trip_status:'at home',
@@ -448,25 +436,24 @@ const addData = () => {
         tomorrow_trip_canceled:false,
         bill:defaultBill
       }
-
-      const docRef = await addDoc(studentsCollectionRef,studentData)
+      const docRef = await addDoc(riderCollectionRef,riderData)
 
       createAlert('تم تسجيل المعلومات بنجاح')
       
       // Clear the form fields
-      setStudentFullName('')
       setDateSelected(false)
-      setStudentBirthDate(new Date())
-      setStudentSex('')
+      setEmployeeBirthDate(new Date())
+      setEmployeeSex('')
       setLocation(null)
-      setStudentSchool('')
-      setSchoolLocation(null)
+      setCompanyName('')
+      setCompanyAddress('')
+      setCompanyNearestPoint('')
       setCarType('')
-      setStudentState('')
-      setStudentCity('')
-      setStudentStreet('')
+      setEmployeeState('')
+      setEmployeeCity('')
+      setEmployeeStreet('')
       setHomeAdress('')
-      setSchoolTimetable([
+      setCompanyTimetable([
         { id:0,day: "الأحد", active: false, startTime: null, endTime: null },
         { id:1,day: "الاثنين", active: false, startTime: null, endTime: null },
         { id:2,day: "الثلاثاء", active: false, startTime: null, endTime: null },
@@ -478,9 +465,9 @@ const addData = () => {
       setCurrentPage(1)
 
     } catch (error) {
-      createAlert('. يرجى المحاولة مرة أخرى')
+       createAlert('. يرجى المحاولة مرة أخرى')
     } finally{
-      setAddingNewStudentLoading(false)
+      setAddingNewEmployeeLoading(false)
       router.replace('/home')      
     }
   }
@@ -493,9 +480,9 @@ const addData = () => {
     const minutes = date.getMinutes()?.toString().padStart(2, "0");
     return `${hours}:${minutes}`;
   };
-  
-  // School time-table component
-  const SchoolTimetableComponent = ({ timetable, onUpdate, onTimeSelect }) => {    
+
+// Company time-table component
+  const CompanyTimetableComponent = ({ timetable, onUpdate, onTimeSelect }) => {    
     return (
       <FlatList
         data={timetable}
@@ -549,7 +536,7 @@ const addData = () => {
       />
     );
   };
-  
+
   // Page indicator component
   const renderPageIndicator = () => {
     return (
@@ -568,7 +555,7 @@ const addData = () => {
   };
 
   // Check if there is active days to render the copy to all btn
-  const hasActiveDays = schoolTimetable.some((item) => item.active);
+  const hasActiveDays = companyTimetable.some((item) => item.active)
 
   // Render full pages
   const renderPage = () => {
@@ -576,16 +563,9 @@ const addData = () => {
       case 1:
         return (
           <View>
-            <TextInput
-              style={styles.customeInput}
-              placeholderTextColor={colors.BLACK}
-              placeholder="الاسم الكامل"
-              value={studentFullName}
-              onChangeText={(text) => setStudentFullName(text)}
-            />
             <TouchableOpacity style={styles.fullButton} onPress={showBirthDayDatePicker}>
               <Text style={styles.fullBtnText}>
-                {dateSelected ? studentBirthDate.toLocaleDateString() : 'تاريخ الميلاد'}
+                {dateSelected ? employeeBirthDate.toLocaleDateString() : 'تاريخ الميلاد'}
               </Text>
             </TouchableOpacity>
             {showBirthdayPicker && (
@@ -594,7 +574,7 @@ const addData = () => {
                   <View style={styles.modalContainer}>
                     <View style={styles.pickerContainer}>
                       <DateTimePicker
-                        value={studentBirthDate}
+                        value={employeeBirthDate}
                         mode="date"
                         display="spinner"
                         onChange={handleBirthDayDateChange}
@@ -608,7 +588,7 @@ const addData = () => {
                 </Modal>
               ) : (
                 <DateTimePicker
-                  value={studentBirthDate}
+                  value={employeeBirthDate}
                   mode="date"
                   display="spinner"
                   onChange={handleBirthDayDateChange}
@@ -625,8 +605,8 @@ const addData = () => {
               labelField="name"
               valueField="name"
               placeholder="الجنس"
-              value={studentSex}
-              onChange={item => handleStudentSex(item.name)}
+              value={employeeSex}
+              onChange={item => handleEmployeeSex(item.name)}
             />
             <Dropdown
               style={styles.dropdown}
@@ -641,25 +621,103 @@ const addData = () => {
               onChange={item => handleCarChange(item.name)}
             />
           </View>
-        );
+        )
       case 2:
         return (
           <View>
-            <Dropdown
-              style={styles.dropdown}
-              placeholderStyle={styles.dropdownStyle}
-              selectedTextStyle={styles.dropdownStyle}
-              itemTextStyle={styles.dropdownTextStyle}
-              data={schools}
-              labelField="name"
-              valueField="name"
-              placeholder= 'المدرسة'
-              value={studentSchool}
-              onChange={item => handleSchoolChange(item.name)}
+            <View style={styles.HalfDropDownContainer}>
+              <Dropdown
+                style={styles.dropdownHalf}
+                placeholderStyle={styles.dropdownStyle}
+                selectedTextStyle={styles.dropdownStyle}
+                itemTextStyle={styles.dropdownTextStyle}
+                data={states}
+                labelField="name"
+                valueField="name"
+                placeholder= 'المحافظة'
+                value={employeestate}
+                onChange={item => {
+                  handleStateChange(item.name)
+                  fetchCities(item.name)
+                }}
+              />
+              <Dropdown
+                style={styles.dropdownHalf}
+                placeholderStyle={styles.dropdownStyle}
+                selectedTextStyle={styles.dropdownStyle}
+                itemTextStyle={styles.dropdownTextStyle}
+                data={cities}
+                labelField="name"
+                valueField="name"
+                placeholder= 'القضاء'
+                value={employeeCity}
+                onChange={item => {
+                  handleCityChange(item.name)
+                }}
+              />
+            </View>
+            <TextInput
+              style={styles.customeInput}
+              placeholderTextColor={colors.BLACK}
+              placeholder="الحي"
+              value={employeeStreet}
+              onChangeText={(text) => setEmployeeStreet(text)}
             />
-            <SchoolTimetableComponent
-              timetable={schoolTimetable}
-              onUpdate={setSchoolTimetable}
+            <TextInput
+              style={styles.customeInput}
+              placeholderTextColor={colors.BLACK}
+              placeholder="اقرب نقطة دالة"
+              value={homeAdress}
+              onChangeText={(text) => setHomeAdress(text)}
+            />
+            <Text style={styles.address_warning_text}>مثلا قرب جامع الرحمة</Text>
+            <TouchableOpacity style={styles.fullButton} onPress={getLocation} disabled={location !== null}>
+              <>
+                {location !== null ? (
+                  <FontAwesome6 name="circle-check" size={24} style={styles.icon} />
+                ) : (
+                  <Ionicons name="location-outline" size={24} style={styles.icon} />
+                )}
+              </>
+              <Text style={styles.fullBtnText}>{location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}</Text>
+            </TouchableOpacity>
+          </View>
+        )
+      case 3:
+        return (
+          <View>
+            <TextInput
+              style={styles.customeInput}
+              placeholderTextColor={colors.BLACK}
+              placeholder="اسم مكان العمل"
+              value={companyName}
+              onChangeText={(text) => setCompanyName(text)}
+            />
+            <TextInput
+              style={styles.customeInput}
+              placeholderTextColor={colors.BLACK}
+              placeholder="عنوان مكان العمل"
+              value={companyAddress}
+              onChangeText={(text) => setCompanyAddress(text)}
+            />
+            <TextInput
+              style={styles.customeInput}
+              placeholderTextColor={colors.BLACK}
+              placeholder="اقرب نقطة دالة"
+              value={companyNearestPoint}
+              onChangeText={(text) => setCompanyNearestPoint(text)}
+            />
+          </View>
+        )
+      case 4:
+        return (
+          <View style={styles.worktimeContainer}>
+            <View style={styles.worktimeLabelBox}>
+              <Text style={styles.worktimeLabelText}>اوقات الدوام</Text>
+            </View>           
+            <CompanyTimetableComponent
+              timetable={companyTimetable}
+              onUpdate={setCompanyTimetable}
               onTimeSelect={handleTimeSelect}
             />
             {pickerVisible && (
@@ -690,14 +748,14 @@ const addData = () => {
                   onChange={handlePickerChange}
                   is24Hour={false}
                 />
-              )             
+              )        
             )}
             {firstDayTimes && hasActiveDays  && (
               <View style={styles.copyButtonContainer}>
               <TouchableOpacity
                 style={styles.copyButton}
                 onPress={() => {
-                  const newTimetable = schoolTimetable.map((item) => {
+                  const newTimetable = companyTimetable.map((item) => {
                     if (item.day !== "الجمعة" && item.day !== "السبت") {
                       return {
                         ...item,
@@ -708,83 +766,22 @@ const addData = () => {
                     }
                     return item;
                   });
-                  setSchoolTimetable(newTimetable);
+                  setCompanyTimetable(newTimetable);
                 }}
               >
                 <Text style={styles.copyButtonText}>نسخ لجميع الأيام</Text>
               </TouchableOpacity>
               </View>
             )}
-
           </View>
-        );
-      case 3:
-        return (
-          <View>
-            <View style={styles.HalfDropDownContainer}>
-              <Dropdown
-                style={styles.dropdownHalf}
-                placeholderStyle={styles.dropdownStyle}
-                selectedTextStyle={styles.dropdownStyle}
-                itemTextStyle={styles.dropdownTextStyle}
-                data={states}
-                labelField="name"
-                valueField="name"
-                placeholder= 'المحافظة'
-                value={studentState}
-                onChange={item => {
-                  handleStateChange(item.name)
-                  fetchCities(item.name)
-                }}
-              />
-              <Dropdown
-                style={styles.dropdownHalf}
-                placeholderStyle={styles.dropdownStyle}
-                selectedTextStyle={styles.dropdownStyle}
-                itemTextStyle={styles.dropdownTextStyle}
-                data={cities}
-                labelField="name"
-                valueField="name"
-                placeholder= 'القضاء'
-                value={studentCity}
-                onChange={item => {
-                  handleCityChange(item.name)
-                }}
-              />
-            </View>
-            <TextInput
-              style={styles.customeInput}
-              placeholderTextColor={colors.BLACK}
-              placeholder="الحي"
-              value={studentStreet}
-              onChangeText={(text) => setStudentStreet(text)}
-            />
-            <TextInput
-              style={styles.customeInput}
-              placeholderTextColor={colors.BLACK}
-              placeholder="اقرب نقطة دالة"
-              value={homeAdress}
-              onChangeText={(text) => setHomeAdress(text)}
-            />
-            <Text style={styles.address_warning_text}>مثلا قرب جامع الرحمة</Text>
-            <TouchableOpacity style={styles.fullButton} onPress={getLocation} disabled={location !== null}>
-              <>
-                {location !== null ? (
-                  <FontAwesome6 name="circle-check" size={24} style={styles.icon} />
-                ) : (
-                  <Ionicons name="location-outline" size={24} style={styles.icon} />
-                )}
-              </>
-              <Text style={styles.fullBtnText}>{location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}</Text>
-            </TouchableOpacity>
-          </View>
-        );
+        )      
       default:
         return null;
     }
   };
 
-  if (addingNewStudentLoading || fetchingSchoolsLoading || fetchingUserDataLoading || fetchingState) {
+  // Loading till adding employee data
+  if (addingNewEmployeeLoading || fetchingUserDataLoading || fetchingState) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -794,14 +791,29 @@ const addData = () => {
     )
   }
 
-  return(
-    <SafeAreaView style={styles.container}>
+  // Check whether the user add data or no
+  if(rider.length > 0 && addingNewEmployeeLoading === false) {
+    return (
+      <SafeAreaView style={styles.data_already_added_container}>
+        <View style={styles.data_already_added_box}>
+          <View style={styles.logo}>
+            <Image source={logo} style={styles.logo_image}/>
+          </View>
+          <View style={styles.student_data_already_added}>
+            <Text style={styles.student_data_already_added_text}>لقد تمت اضافة بياناتك</Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    )
+  }
 
+  return (
+    <SafeAreaView style={styles.container}>
+      
       <View>
-        <Text style={styles.title}>اضافة طالب</Text>
+        <Text style={styles.title}>اضف بياناتك</Text>
         {renderPageIndicator()}
       </View>
-      
 
       <View style={styles.form}>
         {renderPage()}
@@ -818,11 +830,12 @@ const addData = () => {
             <Text style={styles.btnText}>التالي</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.halfButton} onPress={addNewStudentHandler}>
+          <TouchableOpacity style={styles.halfButton} onPress={addEmployeeDataHandler}>
             <Text style={styles.btnText}>أضف</Text>
           </TouchableOpacity>
         )}
       </View>
+
     </SafeAreaView>
   )
 }
@@ -836,6 +849,42 @@ const styles = StyleSheet.create({
     justifyContent:'space-between',
     paddingVertical:20,
     backgroundColor:colors.WHITE
+  },
+  data_already_added_container:{
+    flex:1,
+    backgroundColor: colors.WHITE,
+  },
+  data_already_added_box:{
+    height:400,
+    paddingTop:30,
+    alignItems:'center',
+    justifyContent:'space-between',
+  },
+  logo:{
+    width:'100%',
+    height:150,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  logo_image:{
+    height:120,
+    width:120,
+    resizeMode:'contain',
+  },
+  student_data_already_added:{
+    backgroundColor:colors.GRAY,
+    width:250,
+    height:50,
+    borderRadius:15,
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  student_data_already_added_text:{
+    lineHeight:50,
+    verticalAlign:'middle',
+    textAlign:'center',
+    fontFamily: 'Cairo_400Regular',
+    fontSize:15,
   },
   title:{
     marginBottom:20,
@@ -904,6 +953,19 @@ const styles = StyleSheet.create({
   },
   dropdownTextStyle:{
     textAlign:'center',
+  },
+  worktimeContainer:{
+    width:280,
+  },
+  worktimeLabelBox:{
+    width:280,
+    marginBottom:10,
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  worktimeLabelText:{
+    fontFamily: 'Cairo_400Regular',
+    fontSize:15,
   },
   flatList_style:{
     marginTop:3,

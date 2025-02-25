@@ -60,8 +60,8 @@ const ChildCard = ({ item }) => {
   return (
     <View style={styles.container}>
       <View style={styles.student_info_box}>
-        <Text style={styles.info_text}>{item.student_school}</Text>
-        <Text style={styles.info_text}>{item.student_full_name}</Text>
+        <Text style={styles.info_text}>{item.destination}</Text>
+        <Text style={styles.info_text}>{item.full_name}</Text>
       </View>
       {item.driver_id && (
       <View style={styles.driver_car_box}>

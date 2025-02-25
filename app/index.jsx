@@ -79,6 +79,10 @@ const index = () => {
       return <Redirect href={'/(main)/(student)/(tabs)/home'}/>
     }
 
+    if(isSignedIn && userType === 'employee') {
+      return <Redirect href={'/(main)/(employee)/(tabs)/home'}/>
+    }
+
     if(isSignedIn && userType === 'driver') {
       return <Redirect href={'/(main)/(driver)/(tabs)/home'}/>
     }

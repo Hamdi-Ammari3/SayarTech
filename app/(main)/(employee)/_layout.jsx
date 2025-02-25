@@ -1,7 +1,7 @@
 import { Stack } from "expo-router"
 import { RiderProvider } from "../../stateManagment/RiderContext"
 
-export default function ParentLayout() {
+export default function EmployeeLayout() {
 
   return(
     <RiderProvider>

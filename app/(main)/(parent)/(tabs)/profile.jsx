@@ -9,16 +9,16 @@ import { deleteDoc, collection, query, where, getDocs } from 'firebase/firestore
 import { DB } from '../../../../firebaseConfig'
 import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useStudentData } from '../../../stateManagment/StudentState'
+import { useRiderData } from '../../../stateManagment/RiderContext'
 
 const profile = () => {
   const [signOutLoading,setSignOutLoading] = useState(false)
-  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
   const { signOut } = useAuth()
   const {user} = useUser()
   const router = useRouter()
 
-  const {userData,fetchingUserDataLoading,students,fetchingStudentsLoading} = useStudentData()
+  const {userData,fetchingUserDataLoading,rider,fetchingRiderLoading} = useRiderData()
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
@@ -96,7 +96,7 @@ const profile = () => {
 
 
 //Loading 
-  if (fetchingStudentsLoading || fetchingUserDataLoading || deleteAccountLoading || signOutLoading) {
+  if (fetchingRiderLoading || fetchingUserDataLoading || deleteAccountLoading || signOutLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -138,7 +138,7 @@ const profile = () => {
       </View>
 
       <FlatList
-      data={students}
+      data={rider}
       renderItem={({item}) => <StudentCard item={item}/>}
       keyExtractor={item => item.id}
       contentContainerStyle={styles.flatList_style}

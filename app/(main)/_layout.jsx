@@ -8,6 +8,7 @@ export default function MainLayout() {
       <Stack.Screen name="(driver)" options={{headerShown:false}}/>
       <Stack.Screen name="(parent)" options={{headerShown:false}}/>
       <Stack.Screen name="(student)" options={{headerShown:false}}/>
+      <Stack.Screen name="(employee)" options={{headerShown:false}}/>
     </Stack>
   )
 }

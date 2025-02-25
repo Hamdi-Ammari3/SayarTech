@@ -5,9 +5,12 @@ import Svg, {Circle} from 'react-native-svg'
 import haversine from 'haversine'
 import MapView, { Marker ,AnimatedRegion } from 'react-native-maps'
 import MapViewDirections from 'react-native-maps-directions'
-import { doc,updateDoc,onSnapshot,getDoc } from 'firebase/firestore'
+import { getDoc,doc,writeBatch,onSnapshot } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
 import colors from '../constants/Colors'
+import AntDesign from '@expo/vector-icons/AntDesign'
+
+const toArabicNumbers = (num) => num.toString().replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d])
 
 const StudentHomePage = ({student}) => {
 
@@ -18,13 +21,150 @@ const StudentHomePage = ({student}) => {
   const mapRef = useRef(null)
   const markerRef = useRef(null)
 
-  const [isCanceling, setIsCanceling] = useState(false);
-  const [cancelText, setCancelText] = useState('');
+  const [isCanceling, setIsCanceling] = useState(false)
+  const [cancelText, setCancelText] = useState('')
+  const [nextTripText, setNextTripText] = useState("");
+  const [returnTripText, setReturnTripText] = useState("");
   const [driverOriginLocation,setDriverOriginLocation] = useState(null)
   const [destination, setDestination] = useState(null);
   const [driverCurrentLocation, setDriverCurrentLocation] = useState(null);
   const [driverCurrentLocationLoading, setDriverCurrentLocationLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false)
+
+  // Next trip date
+  useEffect(() => {
+    if (!student?.driver_id || student?.trip_status !== "at home") return;
+
+    const riderTimetable = student?.timetable || [];
+    if (!riderTimetable.length) {
+      setNextTripText("لا توجد رحلة قادمة");
+      return;
+    }
+
+    const now = new Date();
+    const todayIndex = now.getDay(); // 0=Sunday, ..., 6=Saturday
+    const sortedTimetable = [...riderTimetable].sort((a, b) => a.id - b.id);
+    let nextTripDay = null;
+    let tripLabel = "لا توجد رحلة قادمة";
+
+    const formatTimeWithPeriod = (date) => {
+      let hours = date.getHours();
+      let minutes = date.getMinutes();
+      const period = hours >= 12 ? "مساءً" : "صباحًا";
+
+      // Convert to 12-hour format
+      hours = hours % 12 || 12; // Convert 0 (midnight) and 12 (noon) correctly
+
+      return `${toArabicNumbers(hours.toString().padStart(2, "0"))}:${toArabicNumbers(minutes.toString().padStart(2, "0"))} ${period}`;
+    };
+
+    // Step 1: Check today's start time first
+    const todaySchedule = sortedTimetable.find(day => day.id === todayIndex && day.active);
+    if (todaySchedule && todaySchedule.startTime) {
+      let startTimeDate = todaySchedule.startTime.toDate();
+
+      const nowHours = now.getHours();
+      const nowMinutes = now.getMinutes();
+
+      let startHours = startTimeDate.getHours();
+      let startMinutes = startTimeDate.getMinutes();
+
+      if (startHours > nowHours || (startHours === nowHours && startMinutes > nowMinutes)) {
+        nextTripDay = "اليوم";
+        tripLabel = `${nextTripDay} الساعة ${formatTimeWithPeriod(startTimeDate)}`;
+      }
+    }
+
+    // Step 2: If today's trip already passed, find the next available active day (looping over the week)
+    if (!nextTripDay) {
+      for (let i = 1; i <= 7; i++) { // Max 7 days search ensures looping back to Sunday
+        let nextIndex = (todayIndex + i) % 7; // Loop back after Saturday
+        const nextDay = sortedTimetable.find(day => day.id === nextIndex && day.active);
+
+        if (nextDay && nextDay.startTime) {
+          let startTimeDate = nextDay.startTime.toDate();
+          nextTripDay = i === 1 ? "غدا" : nextDay.day; // "غدا" for tomorrow, else use DB day name
+          tripLabel = `${nextTripDay} الساعة ${formatTimeWithPeriod(startTimeDate)}`;
+          break;
+        }
+      }
+    }
+
+    // Step 3: If no trip found, display "No upcoming trips"
+    if (!nextTripDay) {
+      tripLabel = "لا توجد رحلة قادمة";
+    }
+
+    setNextTripText(tripLabel);
+  }, [student?.trip_status, student?.timetable]);
+
+  // Next return trip date
+  useEffect(() => {
+    if (!student?.driver_id || student?.trip_status !== "at destination") return;
+
+    const riderTimetable = student?.timetable || [];
+    if (!riderTimetable.length) {
+      setReturnTripText("لا توجد رحلة عودة");
+      return;
+    }
+
+    const now = new Date();
+    const todayIndex = now.getDay(); // 0=Sunday, ..., 6=Saturday
+    const sortedTimetable = [...riderTimetable].sort((a, b) => a.id - b.id);
+    let returnTripDay = null;
+    let tripLabel = "لا توجد رحلة عودة";
+
+    const formatTimeWithPeriod = (date) => {
+      let hours = date.getHours();
+      let minutes = date.getMinutes();
+      const period = hours >= 12 ? "مساءً" : "صباحًا";
+
+      // Convert to 12-hour format
+      hours = hours % 12 || 12; // Convert 0 (midnight) and 12 (noon) correctly
+
+      return `${toArabicNumbers(hours.toString().padStart(2, "0"))}:${toArabicNumbers(minutes.toString().padStart(2, "0"))} ${period}`;
+    };
+
+    // **Step 1: Check today's return time first**
+    const todaySchedule = sortedTimetable.find(day => day.id === todayIndex && day.active);
+    if (todaySchedule && todaySchedule.endTime) {
+      let endTimeDate = todaySchedule.endTime.toDate();
+
+      const nowHours = now.getHours();
+      const nowMinutes = now.getMinutes();
+
+      let endHours = endTimeDate.getHours();
+      let endMinutes = endTimeDate.getMinutes();
+
+      if (endHours > nowHours || (endHours === nowHours && endMinutes > nowMinutes)) {
+        returnTripDay = "اليوم";
+        tripLabel = `${returnTripDay} الساعة ${formatTimeWithPeriod(endTimeDate)}`;
+      }
+    }
+
+    // **Step 2: If today's return time has passed, find the next active return time (looping over the week)**
+    if (!returnTripDay) {
+      for (let i = 1; i <= 7; i++) { // Max 7-day search ensures looping back to Sunday
+        let nextIndex = (todayIndex + i) % 7; // Loop back after Saturday
+        const nextDay = sortedTimetable.find(day => day.id === nextIndex && day.active);
+
+        if (nextDay && nextDay.endTime) {
+          let endTimeDate = nextDay.endTime.toDate();
+          returnTripDay = i === 1 ? "غدا" : nextDay.day; // "غدا" for tomorrow, else use DB day name
+          tripLabel = `${returnTripDay} الساعة ${formatTimeWithPeriod(endTimeDate)}`;
+          break;
+        }
+      }
+    }
+
+    // **Step 3: If no return trip found, display "No return trip"**
+    if (!returnTripDay) {
+      tripLabel = "لا توجد رحلة عودة";
+    }
+
+    setReturnTripText(tripLabel);
+  }, [student?.trip_status, student?.timetable]);
+
 
   const animatedDriverLocation = useRef(new AnimatedRegion({
     latitude: 0,
@@ -140,14 +280,14 @@ const StudentHomePage = ({student}) => {
 
   // Set destination based on student trip status
   useEffect(() => {
-    if (student.student_trip_status === 'going to school') {
-      setDestination(student.student_school_location);
+    if (student.trip_status === 'to destination') {
+      setDestination(student.destination_location)
       setDriverOriginLocation(driverCurrentLocation)
-    } else if (student.student_trip_status === 'going to home') {
-      setDestination(student.student_home_location.coords);
+    } else if (student.trip_status === 'to home') {
+      setDestination(student.home_location.coords);
       setDriverOriginLocation(driverCurrentLocation)
     }
-  }, [student.student_trip_status]);
+  }, [student.trip_status])
 
   // fit coordinate function
   const fitCoordinatesForCurrentTrip = () => {
@@ -168,8 +308,61 @@ const StudentHomePage = ({student}) => {
     if (mapReady && driverOriginLocation && destination) {
       fitCoordinatesForCurrentTrip();
     }
-  }, [mapReady,destination]);
+  }, [mapReady,destination])
   
+  // Function to handle canceling the trip
+  const handleCancelTrip = async () => {
+    if (cancelText.trim() !== 'نعم') {
+      createAlert('لتاكيد الالغاء يرجى كتابة نعم');
+      return;
+    }
+  
+    try {
+      const batch = writeBatch(DB);
+      const riderDocRef = doc(DB, 'riders', student.id);
+  
+      // Step 1: Update Rider Document
+      batch.update(riderDocRef, { tomorrow_trip_canceled: true });
+  
+      // Step 2: Fetch Driver Document
+      const driverDocRef = doc(DB, 'drivers', student.driver_id);
+      const driverSnap = await getDoc(driverDocRef);
+  
+      if (!driverSnap.exists()) {
+        createAlert('لم يتم العثور على السائق');
+        return;
+      }
+  
+      const driverData = driverSnap.data();
+      const updatedLines = driverData.line.map((line) => {
+        if (line.line_destination === student.destination) {
+          return {
+            ...line,
+            riders: line.riders.map((rider) =>
+              rider.id === student.id
+                ? { ...rider, tomorrow_trip_canceled: true } // Step 4: Update student trip cancellation
+                : rider
+            ),
+          };
+        }
+        return line;
+      });
+  
+      batch.update(driverDocRef, { line: updatedLines });
+      await batch.commit();
+      setIsCanceling(false);
+      setCancelText('');
+    } catch (error) {
+      console.error("Error canceling trip:", error);
+      createAlert('حدث خطأ أثناء إلغاء الرحلة. حاول مرة أخرى.');
+    }
+  }
+
+  // Deny canceling the trip
+  const handleDenyCancelTrip = () => {
+    setIsCanceling(false);
+    setCancelText('');
+  }
 
   // Function to show only one-time route calculation
   const renderDirections = () => {
@@ -219,55 +412,11 @@ const StudentHomePage = ({student}) => {
       <Marker
         key={`Destination ${student?.id}`}
         coordinate={destination}
-        title={student?.student_trip_status === 'going to school' ? 'المدرسة' : 'المنزل'}
+        title={student?.trip_status === 'to destination' ? 'المدرسة' : 'المنزل'}
         pinColor="red"
       />
     </MapView>
   );
-
-  // Function to handle canceling the trip
-  const handleCancelTrip = async () => {
-    if (cancelText.trim() === 'نعم') {
-      try {
-        const driverRef = doc(DB, 'drivers', student.driver_id)
-        // Fetch the current driver's document to get the assigned_students list
-        const driverSnapshot = await getDoc(driverRef);
-
-        if (driverSnapshot.exists()) {
-          const driverData = driverSnapshot.data();
-          const assignedStudents = driverData.assigned_students || [];
-  
-          // Update only the relevant student's data in the assigned_students list
-          const updatedAssignedStudents = assignedStudents.map((studentItem) => {
-            if (studentItem.id === student.id) {
-              return { ...studentItem, tomorrow_trip_canceled: true }; // Update the field
-            }
-            return studentItem; // Keep other students unchanged
-          });
-  
-          // Update the driver's document with the modified assigned_students list
-          await updateDoc(driverRef, {
-            assigned_students: updatedAssignedStudents,
-          });
-
-          createAlert('تم إلغاء رحلة الغد بنجاح');
-          setIsCanceling(false);
-          setCancelText('');
-        } else {
-          createAlert('تعذر العثور على بيانات السائق.');
-        }
-      } catch (error) {
-        createAlert('حدث خطأ أثناء إلغاء الرحلة. حاول مرة أخرى.');
-      }
-    } else {
-      createAlert('لتاكيد الالغاء يرجى كتابة نعم');
-    }
-  };
-
-  const handleDenyCancelTrip = () => {
-    setIsCanceling(false);
-    setCancelText('');
-  }
 
   // Wait untill data load
   if (driverCurrentLocationLoading) {
@@ -286,7 +435,7 @@ const StudentHomePage = ({student}) => {
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
           <View style={styles.student_route_status_box}>
-            <Text style={styles.student_route_status_text}>في انتظار ربط الحساب بسائق</Text>
+            <Text style={styles.student_route_status_text}>جاري ربط الحساب بسائق</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -294,17 +443,19 @@ const StudentHomePage = ({student}) => {
   }
 
   // If the student is at home
-  if(student.driver_id && student.student_trip_status === 'at home') {
+  if(student.driver_id && student.trip_status === 'at home') {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
             <View style={styles.student_box}>
-              <Text style={styles.student_text}>الطالب في المنزل 😴</Text>
-            </View>
+              <AntDesign name="calendar" size={24} color="black" />
+              <Text style={styles.student_text}>رحلتك القادمة الى المدرسة</Text>
+              <Text style={styles.counter_text}>{nextTripText}</Text>
+            </View> 
             {!student.tomorrow_trip_canceled && (
-              <View>
+              <View style={styles.cancel_trip_btn_container}>
                 <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
-                  <Text style={styles.cancel_trip_btn_text}>الغاء رحلة الغد</Text>
+                  <Text style={styles.cancel_trip_btn_text}>الغاء الرحلة القادمة</Text>
                 </TouchableOpacity>
                 {isCanceling && (
                   <View style={styles.cancel_trip_confirmation}>
@@ -333,12 +484,14 @@ const StudentHomePage = ({student}) => {
   }
 
   // If the student is at school
-  if(student.driver_id && student.student_trip_status === 'at school') {
+  if(student.driver_id && student.trip_status === 'at destination') {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
           <View style={styles.student_box}>
-            <Text style={styles.student_text}>الطالب في المدرسة 📖</Text>
+            <AntDesign name="calendar" size={24} color="black" />
+            <Text style={styles.student_text}>رحلتك القادمة الى المنزل</Text>
+            <Text style={styles.counter_text}>{returnTripText}</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -346,7 +499,7 @@ const StudentHomePage = ({student}) => {
   }
 
   // If the student is going to school
-  if(student.driver_id && student.student_trip_status === 'going to school'){
+  if(student.driver_id && student.trip_status === 'to destination'){
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_route_status_container}>
@@ -362,7 +515,7 @@ const StudentHomePage = ({student}) => {
   }
 
   // If the student is going to school or going to home
-  if(student.driver_id && student.student_trip_status === 'going to home') {
+  if(student.driver_id && student.trip_status === 'to home') {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_route_status_container}>
@@ -392,22 +545,36 @@ const styles = StyleSheet.create({
   },
   student_box:{
     backgroundColor:colors.GRAY,
-    width:250,
-    height:50,
+    width:300,
+    height:140,
     borderRadius:15,
     alignItems:'center',
-    justifyContent:'center'
+    justifyContent:'space-evenly'
   },
   student_text:{
-    lineHeight:50,
+    width:300,
+    lineHeight:25,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
   },
+  counter_text:{
+    width:300,
+    lineHeight:25,
+    verticalAlign:'middle',
+    textAlign:'center',
+    fontFamily: 'Cairo_700Bold',
+    fontSize:15,
+  },
+  cancel_trip_btn_container:{
+    width:300,
+    justifyContent:'center',
+    alignItems:'center',
+  },
   cancel_trip_btn:{
     backgroundColor:colors.BLUE,
-    width:250,
+    width:200,
     height:50,
     borderRadius:15,
     marginTop:10

@@ -10,7 +10,7 @@ import dayjs from "dayjs"
 import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useDriverData } from '../../../stateManagment/DriverContext'
-import AssignedStudents from '../../../../components/AssignedStudents'
+import AssignedRiders from '../../../../components/AssignedRiders'
 import AntDesign from '@expo/vector-icons/AntDesign'
 
 const profile = () => {
@@ -153,8 +153,8 @@ const profile = () => {
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.line_item} onPress={() => handleLinePress(item)}>
             <Text style={styles.line_name}>{item?.lineName}</Text>
-            <Text style={styles.line_name}>{item?.lineSchool}</Text>
-            <Text style={styles.line_name}>{item?.students?.length}  طلاب</Text>
+            <Text style={styles.line_name}>{item?.line_destination}</Text>
+            <Text style={styles.line_name}>{item?.riders?.length}  طلاب</Text>
             <View style={styles.line_startTime_container}>   
               {item.lineTimeTable.map(li => (
                 <View key={li.dayIndex} style={styles.line_startTime_day}>
@@ -192,8 +192,8 @@ const profile = () => {
                 <Text style={styles.modal_title}>{selectedLine.lineName}</Text>
               </View>
               <FlatList
-                data={selectedLine.students}
-                renderItem={({ item }) => <AssignedStudents item={item} />}
+                data={selectedLine.riders}
+                renderItem={({ item }) => <AssignedRiders item={item} />}
                 keyExtractor={(item) => item.id}
               />
             </View>

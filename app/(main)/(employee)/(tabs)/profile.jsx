@@ -54,8 +54,8 @@ const profile = () => {
        ],
       { cancelable: true } // Allow dismissal by tapping outside
      );
-   };
-  
+  };
+
   const handleDeleteAccount = async () => {
     try {
       setDeleteAccountLoading(true);
@@ -86,7 +86,7 @@ const profile = () => {
      }
    };
 
-   const openPrivacyPolicy = () => {
+  const openPrivacyPolicy = () => {
     Linking.openURL('https://sayartech.com/privacy-policy');
   };
   
