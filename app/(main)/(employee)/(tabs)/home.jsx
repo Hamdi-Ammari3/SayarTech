@@ -9,10 +9,13 @@ import MapView, { Marker, AnimatedRegion } from 'react-native-maps'
 import MapViewDirections from 'react-native-maps-directions'
 import { getDoc,doc,writeBatch,onSnapshot } from 'firebase/firestore'
 import {DB} from '../../../../firebaseConfig'
+import LottieView from "lottie-react-native"
 import { useRiderData } from '../../../stateManagment/RiderContext'
 import colors from '../../../../constants/Colors'
 import logo from '../../../../assets/images/logo.jpeg'
-import AntDesign from '@expo/vector-icons/AntDesign'
+import addDataAnimation from '../../../../assets/animations/adding_data.json'
+import driverWaiting from '../../../../assets/animations/waiting_driver.json'
+import tripReady from '../../../../assets/animations/next_trip.json'
 
 const toArabicNumbers = (num) => num.toString().replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d])
 
@@ -172,8 +175,6 @@ const home = () => {
 
     setReturnTripText(tripLabel);
   }, [rider[0]?.trip_status, rider[0]?.timetable]);
-
-  
 
   const animatedDriverLocation = useRef(new AnimatedRegion({
     latitude: 0,
@@ -447,12 +448,20 @@ const home = () => {
   if(!rider.length) {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.student_container}>
+        <View style={styles.add_your_data_container}>
           <View style={styles.logo}>
             <Image source={logo} style={styles.logo_image}/>
           </View>
-          <View style={styles.no_registered_students}>
-          <Text style={styles.no_student_text}>الرجاء اضافة بياناتك الخاصة</Text>
+          <View style={styles.animation_container}>
+            <LottieView
+              source={addDataAnimation}
+              autoPlay
+              loop
+              style={{ width: 200, height: 200}}
+            />
+          </View>
+          <View style={styles.add_your_data_text_container}>
+            <Text style={styles.add_your_data_text}>الرجاء اضافة بياناتك</Text>
             <Link href="/addData" style={styles.link_container}>
               <Text style={styles.link_text}>اضف الآن</Text>
             </Link>
@@ -466,12 +475,20 @@ const home = () => {
   if(!rider[0]?.driver_id) {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.student_container}>
+        <View style={styles.add_your_data_container}>
           <View style={styles.logo}>
             <Image source={logo} style={styles.logo_image}/>
           </View>
-          <View style={styles.student_route_status_box}>
-            <Text style={styles.student_route_status_text}>في انتظار ربط حسابك بسائق</Text>
+          <View style={styles.animation_container}>
+            <LottieView
+              source={driverWaiting}
+              autoPlay
+              loop
+              style={{ width: 250, height: 250}}
+            />
+          </View>
+          <View style={styles.not_connected_to_driver}>
+            <Text style={styles.not_connected_to_driver_text}>جاري ربط حسابك بسائق</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -482,42 +499,50 @@ const home = () => {
   if(rider[0]?.driver_id && rider[0]?.trip_status === 'at home') {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.student_container_at_home}>
-          <View style={styles.logo}>
-            <Image source={logo} style={styles.logo_image}/>
-          </View>
-          <View> 
-              <View style={styles.student_box}>
-                <AntDesign name="calendar" size={24} color="black" />
-                <Text style={styles.student_text}>رحلتك القادمة الى العمل</Text>
-                <Text style={styles.counter_text}>{nextTripText}</Text>
-              </View>           
-            {!rider[0].tomorrow_trip_canceled && (
-              <View style={styles.cancel_trip_box}>
-                <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
-                  <Text style={styles.cancel_trip_btn_text}>الغاء رحلة الغد</Text>
-                </TouchableOpacity>
-                {isCanceling && (
-                  <View style={styles.cancel_trip_confirmation}>
-                    <TextInput
-                      style={styles.cancel_trip_input}
-                      value={cancelText}
-                      onChangeText={setCancelText}
-                      placeholder="للتاكيد اكتب كلمة نعم هنا"
-                    />
-                    <View style={styles.confirm_deny_canceling_btn}>
-                      <TouchableOpacity style={styles.confirm_cancel_btn} onPress={() => handleCancelTrip(rider[0].id)}>
-                        <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
-                        <Text style={styles.deny_cancel_btn_text}>رفض</Text>
-                      </TouchableOpacity>
-                    </View>
+        <View style={styles.student_container}>
+          <View style={styles.next_trip_box}>
+            <View style={styles.next_trip_box_logo}>
+              <Image source={logo} style={styles.logo_image}/>
+            </View>
+            <View style={styles.trip_ready_animation_container}>
+              <LottieView
+                source={tripReady}
+                autoPlay
+                loop
+                style={{ width: 250, height: 250}}
+              />
+            </View>
+            <View style={styles.next_trip_text_box}>
+              <Text style={styles.next_trip_text}>رحلتك القادمة الى العمل</Text>
+              <Text style={styles.next_trip_counter_text}>{nextTripText}</Text>
+            </View>            
+          </View> 
+          
+          {!rider[0].tomorrow_trip_canceled && (
+            <View style={styles.cancel_trip_btn_container}>
+              <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
+                <Text style={styles.cancel_trip_btn_text}>الغاء الرحلة القادمة</Text>
+              </TouchableOpacity>
+              {isCanceling && (
+                <View style={styles.cancel_trip_confirmation}>
+                  <TextInput
+                    style={styles.cancel_trip_input}
+                    value={cancelText}
+                    onChangeText={setCancelText}
+                    placeholder="للتاكيد اكتب كلمة نعم هنا"
+                  />
+                  <View style={styles.confirm_deny_canceling_btn}>
+                    <TouchableOpacity style={styles.confirm_cancel_btn} onPress={() => handleCancelTrip(rider[0].id)}>
+                      <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
+                      <Text style={styles.deny_cancel_btn_text}>رفض</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
-              </View>
-            )}
-          </View>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </SafeAreaView>
     )
@@ -528,14 +553,23 @@ const home = () => {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
-          <View style={styles.logo}>
-            <Image source={logo} style={styles.logo_image}/>
-          </View>
-          <View style={styles.student_box}>
-            <AntDesign name="calendar" size={24} color="black" />
-            <Text style={styles.student_text}>رحلتك القادمة الى المنزل</Text>
-            <Text style={styles.counter_text}>{returnTripText}</Text>
-          </View>
+          <View style={styles.next_trip_box}>
+            <View style={styles.next_trip_box_logo}>
+              <Image source={logo} style={styles.logo_image}/>
+            </View>
+            <View style={styles.trip_ready_animation_container}>
+              <LottieView
+                source={tripReady}
+                autoPlay
+                loop
+                style={{ width: 250, height: 250}}
+              />
+            </View>
+            <View style={styles.next_trip_text_box}>
+              <Text style={styles.next_trip_text}>رحلتك القادمة الى المنزل</Text>
+              <Text style={styles.next_trip_counter_text}>{returnTripText}</Text>
+            </View>
+          </View> 
         </View>
       </SafeAreaView>
     )
@@ -581,34 +615,36 @@ const styles = StyleSheet.create({
     flex:1,
     backgroundColor: colors.WHITE,
   },
-  student_container:{
-    height:420,
-    paddingTop:30,
+  add_your_data_container:{
+    width:'100%',
     alignItems:'center',
-    justifyContent:'space-between',
-  },
-  student_container_at_home:{
-    height:470,
-    paddingTop:30,
-    alignItems:'center',
-    justifyContent:'space-between',
+    justifyContent:'center',
   },
   logo:{
     width:'100%',
+    height:200,
+    alignItems:'center',
+    justifyContent:'center',
+  },
+  logo_image:{
     height:150,
+    width:150,
+    resizeMode:'contain',
+  },
+  animation_container:{
+    width:200,
+    height:200,
+    justifyContent:'center',
+    alignItems:'center',
+    marginTop:25,
+  },
+  add_your_data_text_container:{
+    width:'100%',
+    height:200,
     justifyContent:'center',
     alignItems:'center',
   },
-  logo_image:{
-    height:120,
-    width:120,
-    resizeMode:'contain',
-  },
-  no_registered_students: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  no_student_text: {
+  add_your_data_text:{
     fontFamily: 'Cairo_400Regular',
   },
   link_container: {
@@ -625,43 +661,79 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo_700Bold',
     fontSize: 14,
   },
-  student_box:{
-    backgroundColor:colors.GRAY,
+  not_connected_to_driver:{
+    width:'100%',
+    height:100,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  not_connected_to_driver_text:{
+    fontFamily: 'Cairo_700Bold',
+    color:colors.BLACK,
+    lineHeight:100
+  },
+  student_container:{
+    width:'100%',
+    height:'100%',
+    alignItems:'center',
+    justifyContent:'flex-start',
+  },
+  next_trip_box:{
     width:300,
-    height:140,
+    height:480,
+    marginTop:55,
     borderRadius:15,
     alignItems:'center',
-    justifyContent:'space-evenly'
+    justifyContent:'flex-start',
   },
-  student_text:{
+  next_trip_box_logo:{
+    width:'100%',
+    height:150,
+    alignItems:'center',
+    justifyContent:'center',
+  },
+  trip_ready_animation_container:{
+    width:250,
+    height:250,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  next_trip_text_box:{
+    height:70,
+    justifyContent:'space-between',
+    alignItems:'center',
+  },
+  next_trip_text:{
     width:300,
-    lineHeight:25,
+    lineHeight:30,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
   },
-  counter_text:{
+  next_trip_counter_text:{
     width:300,
-    lineHeight:25,
+    lineHeight:30,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_700Bold',
     fontSize:15,
   },
-  cancel_trip_box:{
+  cancel_trip_btn_container:{
     width:300,
+    height:130,
+    marginTop:10,
+    justifyContent:'center',
     alignItems:'center',
   },
   cancel_trip_btn:{
     backgroundColor:colors.BLUE,
     width:200,
-    height:50,
+    height:40,
     borderRadius:15,
-    marginTop:10
   },
   cancel_trip_btn_text:{
-    lineHeight:50,
+    lineHeight:40,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
@@ -669,12 +741,12 @@ const styles = StyleSheet.create({
     color:colors.WHITE,
   },
   cancel_trip_input:{
-    width:250,
-    padding:10,
+    width:200,
+    padding:7,
     borderRadius:15,
     borderColor:'#ddd',
     borderWidth:1,
-    marginTop:10,
+    marginTop:7,
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:13,
@@ -687,26 +759,28 @@ const styles = StyleSheet.create({
   },
   confirm_cancel_btn:{
     backgroundColor:colors.BLUE,
-    width:100,
-    padding:10,
+    width:80,
+    height:35,
     borderRadius:15,
-    marginTop:10
+    marginTop:7
   },
   deny_cancel_btn:{
+    width:80,
+    height:35,
     borderWidth:1,
     borderColor:colors.BLUE,
-    width:100,
-    padding:10,
     borderRadius:15,
-    marginTop:10
+    marginTop:7
   },
   confirm_cancel_btn_text:{
+    lineHeight:35,
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
     color:colors.WHITE
   },
   deny_cancel_btn_text:{
+    lineHeight:35,
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,

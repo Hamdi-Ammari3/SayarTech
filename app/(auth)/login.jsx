@@ -277,7 +277,7 @@ export default function Page() {
     try {
       const username = `user_${phone}`;
 
-      if(username === 'user_2015550101' || username === 'user_2015550102') {
+      if(username === 'user_2015550101' || username === 'user_2015550102' || username === 'user_2015550104' || username === 'user_2015550105') {
         const signInAttempt = await signIn.create({
           identifier: username,
           password: HARDCODED_PASSWORD,

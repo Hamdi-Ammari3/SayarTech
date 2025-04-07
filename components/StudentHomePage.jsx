@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react'
-import { Alert,StyleSheet, Text, View,TextInput,ActivityIndicator,TouchableOpacity } from 'react-native'
+import { Alert,StyleSheet,Text,View,TextInput,ActivityIndicator,TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, {Circle} from 'react-native-svg'
 import haversine from 'haversine'
@@ -7,8 +7,10 @@ import MapView, { Marker ,AnimatedRegion } from 'react-native-maps'
 import MapViewDirections from 'react-native-maps-directions'
 import { getDoc,doc,writeBatch,onSnapshot } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
+import LottieView from "lottie-react-native"
 import colors from '../constants/Colors'
-import AntDesign from '@expo/vector-icons/AntDesign'
+import driverWaiting from '../assets/animations/waiting_driver.json'
+import tripReady from '../assets/animations/next_trip.json'
 
 const toArabicNumbers = (num) => num.toString().replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d])
 
@@ -434,8 +436,16 @@ const StudentHomePage = ({student}) => {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
-          <View style={styles.student_route_status_box}>
-            <Text style={styles.student_route_status_text}>جاري ربط الحساب بسائق</Text>
+          <View style={styles.no_driver_animation_container}>
+            <LottieView
+              source={driverWaiting}
+              autoPlay
+              loop
+              style={{ width: 250, height: 250}}
+            />
+          </View>
+          <View style={styles.not_connected_to_driver}>
+            <Text style={styles.not_connected_to_driver_text}>جاري ربط الحساب بسائق</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -447,38 +457,47 @@ const StudentHomePage = ({student}) => {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
-            <View style={styles.student_box}>
-              <AntDesign name="calendar" size={24} color="black" />
-              <Text style={styles.student_text}>رحلتك القادمة الى المدرسة</Text>
-              <Text style={styles.counter_text}>{nextTripText}</Text>
-            </View> 
-            {!student.tomorrow_trip_canceled && (
-              <View style={styles.cancel_trip_btn_container}>
-                <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
-                  <Text style={styles.cancel_trip_btn_text}>الغاء الرحلة القادمة</Text>
-                </TouchableOpacity>
-                {isCanceling && (
-                  <View style={styles.cancel_trip_confirmation}>
-                    <TextInput
-                      style={styles.cancel_trip_input}
-                      placeholderTextColor={colors.BLACK}
-                      value={cancelText}
-                      onChangeText={setCancelText}
-                      placeholder="للتاكيد اكتب كلمة نعم هنا"
-                    />
-                    <View style={styles.confirm_deny_canceling_btn}>
-                      <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
-                        <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
-                        <Text style={styles.deny_cancel_btn_text}>لا</Text>
-                      </TouchableOpacity>
-                    </View>
+          <View style={styles.next_trip_box}>
+            <View style={styles.trip_ready_animation_container}>
+              <LottieView
+                source={tripReady}
+                autoPlay
+                loop
+                style={{ width: 250, height: 250}}
+              />
+            </View>
+            <View style={styles.next_trip_text_box}>
+              <Text style={styles.next_trip_text}>رحلتك القادمة الى المدرسة</Text>
+              <Text style={styles.next_trip_counter_text}>{nextTripText}</Text>
+            </View>            
+          </View> 
+          {!student.tomorrow_trip_canceled && (
+            <View style={styles.cancel_trip_btn_container}>
+              <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
+                <Text style={styles.cancel_trip_btn_text}>الغاء الرحلة القادمة</Text>
+              </TouchableOpacity>
+              {isCanceling && (
+                <View style={styles.cancel_trip_confirmation}>
+                  <TextInput
+                    style={styles.cancel_trip_input}
+                    placeholderTextColor={colors.BLACK}
+                    value={cancelText}
+                    onChangeText={setCancelText}
+                    placeholder="للتاكيد اكتب كلمة نعم هنا"
+                  />
+                  <View style={styles.confirm_deny_canceling_btn}>
+                    <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
+                      <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
+                      <Text style={styles.deny_cancel_btn_text}>لا</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
-              </View>
-            )}
-          </View>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
       </SafeAreaView>
     )
   }
@@ -488,11 +507,20 @@ const StudentHomePage = ({student}) => {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
-          <View style={styles.student_box}>
-            <AntDesign name="calendar" size={24} color="black" />
-            <Text style={styles.student_text}>رحلتك القادمة الى المنزل</Text>
-            <Text style={styles.counter_text}>{returnTripText}</Text>
-          </View>
+          <View style={styles.next_trip_box}>
+            <View style={styles.trip_ready_animation_container}>
+              <LottieView
+                source={tripReady}
+                autoPlay
+                loop
+                style={{ width: 250, height: 250}}
+              />
+            </View>
+            <View style={styles.next_trip_text_box}>
+              <Text style={styles.next_trip_text}>رحلتك القادمة الى المنزل</Text>
+              <Text style={styles.next_trip_counter_text}>{returnTripText}</Text>
+            </View>
+          </View> 
         </View>
       </SafeAreaView>
     )
@@ -536,32 +564,60 @@ export default StudentHomePage
 const styles = StyleSheet.create({
   container:{
     flex:1,
-  },  
+  },
   student_container:{
     width:'100%',
     height:'100%',
     alignItems:'center',
-    justifyContent:'center'
+    justifyContent:'center',
   },
-  student_box:{
-    backgroundColor:colors.GRAY,
+  no_driver_animation_container:{
+    width:200,
+    height:200,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  not_connected_to_driver:{
+    width:'100%',
+    height:100,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  not_connected_to_driver_text:{
+    fontFamily: 'Cairo_700Bold',
+    color:colors.BLACK,
+    lineHeight:100
+  },
+  next_trip_box:{
     width:300,
-    height:140,
+    height:350,
+    marginTop:55,
     borderRadius:15,
     alignItems:'center',
-    justifyContent:'space-evenly'
+    justifyContent:'center',
   },
-  student_text:{
+  trip_ready_animation_container:{
+    width:250,
+    height:250,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  next_trip_text_box:{
+    height:70,
+    justifyContent:'space-between',
+    alignItems:'center',
+  },
+  next_trip_text:{
     width:300,
-    lineHeight:25,
+    lineHeight:30,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
   },
-  counter_text:{
+  next_trip_counter_text:{
     width:300,
-    lineHeight:25,
+    lineHeight:30,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_700Bold',
@@ -569,18 +625,18 @@ const styles = StyleSheet.create({
   },
   cancel_trip_btn_container:{
     width:300,
+    height:130,
     justifyContent:'center',
     alignItems:'center',
   },
   cancel_trip_btn:{
     backgroundColor:colors.BLUE,
     width:200,
-    height:50,
+    height:40,
     borderRadius:15,
-    marginTop:10
   },
   cancel_trip_btn_text:{
-    lineHeight:50,
+    lineHeight:40,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
@@ -588,12 +644,12 @@ const styles = StyleSheet.create({
     color:colors.WHITE,
   },
   cancel_trip_input:{
-    width:250,
-    padding:10,
+    width:200,
+    padding:7,
     borderRadius:15,
     borderColor:'#ddd',
     borderWidth:1,
-    marginTop:10,
+    marginTop:7,
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:13,
@@ -606,26 +662,28 @@ const styles = StyleSheet.create({
   },
   confirm_cancel_btn:{
     backgroundColor:colors.BLUE,
-    width:100,
-    padding:10,
+    width:80,
+    height:35,
     borderRadius:15,
-    marginTop:10
+    marginTop:7
   },
   deny_cancel_btn:{
+    width:80,
+    height:35,
     borderWidth:1,
     borderColor:colors.BLUE,
-    width:100,
-    padding:10,
     borderRadius:15,
-    marginTop:10
+    marginTop:7
   },
   confirm_cancel_btn_text:{
+    lineHeight:35,
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
     color:colors.WHITE
   },
   deny_cancel_btn_text:{
+    lineHeight:35,
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,

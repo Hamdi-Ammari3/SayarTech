@@ -2,8 +2,10 @@ import { StyleSheet, Text, View, ActivityIndicator,Image,TouchableOpacity,Modal 
 import React,{useState} from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
+import LottieView from "lottie-react-native"
 import colors from '../constants/Colors'
 import AntDesign from '@expo/vector-icons/AntDesign'
+import driverWaiting from '../assets/animations/waiting_driver.json'
 
 const ChildCard = ({ item }) => {
   const [showDriverInfo,setShowDriverInfo] = useState(false)
@@ -56,18 +58,17 @@ const ChildCard = ({ item }) => {
       .format(amount)
   };
   
-    
   return (
     <View style={styles.container}>
       <View style={styles.student_info_box}>
         <Text style={styles.info_text}>{item.destination}</Text>
         <Text style={styles.info_text}>{item.full_name}</Text>
       </View>
-      {item.driver_id && (
+      {item.driver_id ? (
       <View style={styles.driver_car_box}>
         <View style={styles.driver_car_box_inner}>
           <TouchableOpacity style={styles.driver_car_box_inner_btn} onPress={openDriverInfoModal}>
-            <Text style={styles.info_text}>السائق</Text>
+            <Text style={styles.driver_car_box_inner_btn_text}>بيانات السائق</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.driver_car_box_inner}>
@@ -125,6 +126,18 @@ const ChildCard = ({ item }) => {
           </View>
         </Modal>
       </View>
+      ) : (
+        <View style={styles.animation_container}>
+          <LottieView
+            source={driverWaiting}
+            autoPlay
+            loop
+            style={{ width: 150, height: 150}}
+          />
+          <View style={styles.not_connected_to_driver}>
+            <Text style={styles.not_connected_to_driver_text}>جاري ربط الحساب بسائق</Text>
+          </View>
+        </View>
       )}
     </View>
   )
@@ -135,6 +148,7 @@ export default ChildCard
 const styles = StyleSheet.create({
   container:{
     margin:10,
+    height:250,
     paddingVertical:10,
     alignItems:'center',
     backgroundColor:colors.GRAY,
@@ -160,7 +174,7 @@ const styles = StyleSheet.create({
   },
   driver_car_box:{
     width:'100%',
-    marginTop:10,
+    height:200,
     flexDirection:'column-reverse',
     alignItems:'center',
     justifyContent:'center',
@@ -168,15 +182,20 @@ const styles = StyleSheet.create({
   driver_car_box_inner:{
     flexDirection:'row-reverse',
     alignItems:'center',
-    marginVertical:5,
+    marginVertical:15,
   },
   driver_car_box_inner_btn:{
-    width:80,
-    height:35,
+    width:150,
+    height:40,
     alignItems:'center',
-    borderColor:'#DAD9D8',
-    borderWidth:1,
-    borderRadius:5,
+    backgroundColor:colors.BLUE,
+    borderRadius:15,
+  },
+  driver_car_box_inner_btn_text:{
+    lineHeight:40,
+    fontFamily:'Cairo_400Regular',
+    fontSize:14,
+    color:colors.WHITE
   },
   driver_info_modal_container:{
     flex: 1,
@@ -210,6 +229,23 @@ const styles = StyleSheet.create({
     width:130,
     borderRadius:5,
     resizeMode:'contain',
+  },
+  animation_container:{
+    width:200,
+    height:200,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  not_connected_to_driver:{
+    width:'100%',
+    height:30,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  not_connected_to_driver_text:{
+    fontFamily: 'Cairo_400Regular',
+    color:colors.BLACK,
+    lineHeight:30
   },
   spinner_error_container:{
     height:"80%",

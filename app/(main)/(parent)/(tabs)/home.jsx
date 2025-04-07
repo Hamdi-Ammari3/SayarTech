@@ -4,9 +4,11 @@ import { useUser } from '@clerk/clerk-expo'
 import { useState,useEffect } from 'react'
 import { Link } from 'expo-router'
 import * as Notifications from 'expo-notifications'
+import LottieView from "lottie-react-native"
 import { useRiderData } from '../../../stateManagment/RiderContext'
 import colors from '../../../../constants/Colors'
 import logo from '../../../../assets/images/logo.jpeg'
+import addDataAnimation from '../../../../assets/animations/adding_data.json'
 import StudentHomePage from '../../../../components/StudentHomePage'
 
 const home = () => {
@@ -36,17 +38,25 @@ const home = () => {
   if(!rider.length) {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.no_registered_students_container}>
+        <View style={styles.add_your_data_container}>
           <View style={styles.logo}>
             <Image source={logo} style={styles.logo_image}/>
           </View>
-          <View style={styles.no_registered_students}>
-            <Text style={styles.no_student_text}>ليس لديك طلاب مسجلين بالتطبيق</Text>
+          <View style={styles.animation_container}>
+            <LottieView
+              source={addDataAnimation}
+              autoPlay
+              loop
+              style={{ width: 200, height: 200}}
+            />
+          </View>
+          <View style={styles.add_your_data_text_container}>
+            <Text style={styles.add_your_data_text}>الرجاء اضافة بياناتك</Text>
             <Link href="/addData" style={styles.link_container}>
               <Text style={styles.link_text}>اضف الآن</Text>
             </Link>
           </View>
-        </View>
+        </View>  
       </SafeAreaView>
     )
   }
@@ -76,7 +86,7 @@ const home = () => {
                 {student.full_name}
               </Text>
             </TouchableOpacity>
-          ))}
+          ))}          
         </ScrollView>
       </View>
       <View style={styles.student_info_container}>
@@ -94,28 +104,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.WHITE,
   },
-  no_registered_students_container:{
-    height:400,
-    paddingTop:30,
+  add_your_data_container:{
+    width:'100%',
     alignItems:'center',
-    justifyContent:'space-between',
+    justifyContent:'center',
   },
   logo:{
     width:'100%',
+    height:200,
+    alignItems:'center',
+    justifyContent:'center',
+  },
+  logo_image:{
     height:150,
+    width:150,
+    resizeMode:'contain',
+  },
+  animation_container:{
+    width:200,
+    height:200,
+    justifyContent:'center',
+    alignItems:'center',
+    marginTop:25,
+  },
+  add_your_data_text_container:{
+    width:'100%',
+    height:200,
     justifyContent:'center',
     alignItems:'center',
   },
-  logo_image:{
-    height:120,
-    width:120,
-    resizeMode:'contain',
-  },
-  no_registered_students: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  no_student_text: {
+  add_your_data_text:{
     fontFamily: 'Cairo_400Regular',
   },
   link_container: {
@@ -152,7 +170,7 @@ const styles = StyleSheet.create({
     borderColor:'#ddd',
     borderWidth:1,
     minWidth:150,
-    padding:10,
+    height:40,
     borderRadius:15,
     alignItems:'center',
     justifyContent:'center',
@@ -162,6 +180,7 @@ const styles = StyleSheet.create({
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:13,
+    lineHeight:40,
   },
   active_student_name_button:{
     backgroundColor:colors.PRIMARY,

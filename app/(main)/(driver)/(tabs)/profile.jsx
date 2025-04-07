@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Alert,StyleSheet, Text, View,FlatList,ActivityIndicator,TouchableOpacity,Linking,Modal } from 'react-native'
+import { useState,useRef } from 'react'
+import { Alert,StyleSheet,Text,View,FlatList,ActivityIndicator,TouchableOpacity,Linking,Modal,Animated } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'
@@ -7,19 +7,25 @@ import { useAuth,useUser } from '@clerk/clerk-expo'
 import { deleteDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { DB } from '../../../../firebaseConfig'
 import dayjs from "dayjs"
+import LottieView from "lottie-react-native"
 import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import { useDriverData } from '../../../stateManagment/DriverContext'
 import AssignedRiders from '../../../../components/AssignedRiders'
 import AntDesign from '@expo/vector-icons/AntDesign'
+import Ionicons from '@expo/vector-icons/Ionicons'
+import driverWaiting from '../../../../assets/animations/waiting_driver.json'
 
 const profile = () => {
   const {userData,fetchingUserDataLoading,driverData,fetchingDriverDataLoading} = useDriverData()
 
+  const [menuVisible, setMenuVisible] = useState(false)
   const [signOutLoading,setSignOutLoading] = useState(false)
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
   const [showLineDataModal,setShowLineDataModal] = useState(false)
   const [selectedLine, setSelectedLine] = useState(null)
+
+  const slideAnim = useRef(new Animated.Value(-250)).current; // Animation for side menu
 
   const { signOut } = useAuth()
   const {user} = useUser()
@@ -29,6 +35,25 @@ const profile = () => {
     Alert.alert(alerMessage)
   }
 
+  // Function to toggle the menu
+  const toggleMenu = () => {
+    if (menuVisible) {
+      Animated.timing(slideAnim, {
+        toValue: -250, // Hide the menu
+        duration: 300,
+        useNativeDriver: false,
+      }).start(() => setMenuVisible(false));
+    } else {
+      setMenuVisible(true);
+      Animated.timing(slideAnim, {
+        toValue: 0, // Show the menu
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  }
+
+  // Sign-out handler
   const handleSignOut = async () => {
     try {
       setSignOutLoading(true)
@@ -61,6 +86,7 @@ const profile = () => {
      );
    };
   
+  // Delete account handler
   const handleDeleteAccount = async () => {
     try {
       setDeleteAccountLoading(true);
@@ -91,7 +117,7 @@ const profile = () => {
      }
    };
 
-   const openPrivacyPolicy = () => {
+  const openPrivacyPolicy = () => {
     Linking.openURL('https://sayartech.com/privacy-policy');
   };
   
@@ -120,58 +146,122 @@ const profile = () => {
     )
   }
 
-   return (
+  return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.user_info}>
-          <Text style={styles.user_info_text}>{userData.user_full_name}</Text>
-          <Text style={styles.user_info_text}>{userData.phone_number}</Text>
-        </View>
-
-        <View style={styles.button_container}>
-          <TouchableOpacity style={styles.logout_button} onPress={handleSignOut}>
-            <Text style={styles.logout_button_text}>خروج</Text>
-            <SimpleLineIcons name="logout" size={20} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.delete_button} onPress={confirmDeleteAccount}>
-            <Text style={styles.delete_text}>مسح الحساب</Text>
-            <MaterialIcons name="delete-outline" size={24} color="#898989" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.privacy_button_container}>
-          <TouchableOpacity style={styles.privacy_button} onPress={openPrivacyPolicy}>
-            <Text style={styles.privacy_button_text}>Privacy Policy</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.privacy_button} onPress={openTermsOfUse}>
-            <Text style={styles.privacy_button_text}>Terms of Use</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Header Section  */}
+      <View style={styles.user_info}>
+        <Text style={styles.user_info_text}>{userData.user_full_name}</Text>
+        <TouchableOpacity onPress={toggleMenu} style={styles.menu_button}>
+          <Ionicons name="menu-outline" size={28} color="white" />
+        </TouchableOpacity>
       </View>
+
+      {/* Side Menu Drawer */}
+      {menuVisible && (
+        <TouchableOpacity 
+          style={styles.overlay} 
+          activeOpacity={1} 
+          onPress={toggleMenu}
+        />
+      )}
+      <Animated.View style={[styles.side_menu, { left: slideAnim }]}>
+        <View style={styles.side_menu_container}>
+        <Text style={styles.user_phone_number}>{userData.phone_number}</Text>
+        <TouchableOpacity style={styles.logout_button} onPress={handleSignOut}>
+          <SimpleLineIcons name="logout" size={20} color="white" />
+          <Text style={styles.logout_button_text}>خروج</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.delete_button} onPress={confirmDeleteAccount}>
+          <MaterialIcons name="delete-outline" size={24} color="white" />
+          <Text style={styles.delete_text}>مسح الحساب</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.privacy_button} onPress={openPrivacyPolicy}>
+          <Text style={styles.privacy_button_text}>Privacy Policy</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.privacy_button} onPress={openTermsOfUse}>
+          <Text style={styles.privacy_button_text}>Terms of Use</Text>
+        </TouchableOpacity>
+        </View>
+      </Animated.View>
+
       <FlatList
-        data={driverData[0]?.line}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.line_item} onPress={() => handleLinePress(item)}>
-            <Text style={styles.line_name}>{item?.lineName}</Text>
-            <Text style={styles.line_name}>{item?.line_destination}</Text>
-            <Text style={styles.line_name}>{item?.riders?.length}  طلاب</Text>
-            <View style={styles.line_startTime_container}>   
-              {item.lineTimeTable.map(li => (
-                <View key={li.dayIndex} style={styles.line_startTime_day}>
-                  <Text style={styles.line_startTime_name}>{li?.arabic_day}</Text>
-                  <Text style={styles.line_startTime_name}>
-                    {li.active ? dayjs(li?.startTime?.toDate()).format("HH:mm") : "--"}                  
-                  </Text>
-                </View>              
-              ))}
-            </View>
-          </TouchableOpacity>
-        )}
-        keyExtractor={item => item.lineName}
+        data={driverData[0]?.line.filter(line => {
+          const iraqiTodayDate = new Date().toLocaleDateString("fr-CA", { timeZone: "Asia/Baghdad" });
+      
+          // If the driver is a substitute driver, only show the line during the active period
+          if (line.original_driver && line.active_periode) {
+            const { start, end } = line.active_periode;
+            const startDate = new Date(start.seconds * 1000).toISOString().split("T")[0];
+            const endDate = new Date(end.seconds * 1000).toISOString().split("T")[0];
+      
+            return iraqiTodayDate >= startDate && iraqiTodayDate <= endDate;
+          }
+      
+          return true; // Show other lines normally
+        })}
+        renderItem={({ item }) => {
+          const isSubstituteDriver = item.original_driver && item.active_periode;
+          const isOriginalDriver = item.subs_driver && item.desactive_periode;
+    
+          const activeStart = isSubstituteDriver ? new Date(item.active_periode.start.seconds * 1000).toLocaleDateString("ar-EG") : null;
+          const activeEnd = isSubstituteDriver ? new Date(item.active_periode.end.seconds * 1000).toLocaleDateString("ar-EG") : null;
+    
+          const desactiveStart = isOriginalDriver ? new Date(item.desactive_periode.start.seconds * 1000).toLocaleDateString("ar-EG") : null;
+          const desactiveEnd = isOriginalDriver ? new Date(item.desactive_periode.end.seconds * 1000).toLocaleDateString("ar-EG") : null;
+
+          return(
+            <TouchableOpacity style={styles.line_item} onPress={() => handleLinePress(item)}>
+              <Text style={styles.line_name}>{item?.lineName} {isSubstituteDriver ? " - مؤقت" : ""}</Text>
+
+              {/* Show active period if the driver is handling a temporary line */}
+              {isSubstituteDriver && (
+                <Text style={styles.line_name}>من {activeStart} الى {activeEnd}</Text>
+              )}
+
+              {/* Show message if the original driver is inactive and another driver is handling the line */}
+              {isOriginalDriver && (
+                <>
+                  <Text style={styles.line_name}>سيتم تسليم هذا الخط لسائق آخر خلال الفترة</Text>
+                  <Text style={styles.line_name}>من {desactiveStart} الى {desactiveEnd}</Text>
+                </>
+                
+              )}
+
+              <Text style={styles.line_name}>{item?.line_destination}</Text>
+              <Text style={styles.line_name}>{item?.riders?.length}  طلاب</Text>
+              <View style={styles.line_startTime_container}>   
+                {item.lineTimeTable.map(li => (
+                  <View key={li.dayIndex} style={styles.line_startTime_day}>
+                    <Text style={styles.line_startTime_name}>{li?.arabic_day}</Text>
+                    <Text style={styles.line_startTime_name}>
+                      {li.active ? dayjs(li?.startTime?.toDate()).format("HH:mm") : "--"}                  
+                    </Text>
+                  </View>              
+                ))}
+              </View>
+            </TouchableOpacity>
+          )
+          
+        }}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.flatList_style}
         ListEmptyComponent={() => (
-          <View style={styles.no_registered_students}>
-            <Text style={styles.no_student_text}>ليس لديك خطوط في حسابك</Text>
+          <View style={styles.add_your_data_container}>
+            <View style={styles.animation_container}>
+              <LottieView
+                source={driverWaiting}
+                autoPlay
+                loop
+                style={{ width: 150, height: 150}}
+              />
+            </View>
+            <View style={styles.no_assigned_students_box}>
+              <Text style={styles.no_student_text}>
+                {
+                  driverData.length ? 'جاري ربط حسابك بركاب' : 'الرجاء اضافة بياناتك حتى نتمكن من ربط حسابك بركاب'
+                }
+              </Text>
+            </View>
           </View>
         )}
       />
@@ -211,39 +301,67 @@ const styles = StyleSheet.create({
     alignItems:'center',
     backgroundColor: colors.WHITE,
   },  
-  header:{
-    justifyContent:'center',
-    alignItems:'center',
-    marginVertical:15,
-    borderRadius:15,
-  },
   user_info:{
-    width:340,
+    width:350,
     height:50,
+    borderRadius:15,
+    marginVertical:15,
     flexDirection:'row-reverse',
     alignItems:'center',
     justifyContent:'space-around',
     backgroundColor:colors.PRIMARY,
-    borderRadius:15,
-    marginBottom:0
   },
   user_info_text:{
     lineHeight:50,
+    fontFamily:'Cairo_400Regular',
+    fontSize:14,
+    color:colors.WHITE,
+  },
+  side_menu: {
+    position: "absolute",
+    top: 40,
+    left: -250,
+    width: 250,
+    height: "92%",
+    backgroundColor: colors.GRAY,
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    zIndex: 10,
+    borderRadius:15,
+  },
+  menu_item: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  menu_text: {
+    color: "white",
+    fontSize: 16,
+    marginLeft: 10,
+  },
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    zIndex: 5,
+  },
+  side_menu_container:{
+    width:200,
+    alignItems:'center',
+  },
+  user_phone_number:{
     fontFamily:'Cairo_700Bold',
     fontSize:14,
-    color:colors.WHITE
-  },
-  button_container:{
-    width:340,
-    height:40,
-    flexDirection:'row-reverse',
-    justifyContent:'space-around',
-    alignItems:'center',
-    marginVertical:7,
+    color:colors.BLACK,
+    marginBottom:30,
   },
   logout_button:{
     width:130,
     height:40,
+    marginBottom:15,
     backgroundColor:colors.BLUE,
     borderRadius:15,
     flexDirection:'row',
@@ -254,52 +372,49 @@ const styles = StyleSheet.create({
     lineHeight:40,
     fontFamily: 'Cairo_400Regular',
     fontSize:14,
-    marginRight:10,
+    marginLeft:10,
     verticalAlign:'middle',
     color:colors.WHITE,
   },
   delete_button:{
     width:130,
     height:40,
-    borderColor:'#DAD9D8',
-    borderWidth:1,
+    marginBottom:15,
+    backgroundColor:'#d11a2a',
     borderRadius:15,
     flexDirection:'row',
     alignItems:'center',
     justifyContent:'center'
   },
   delete_text:{
-    color:'#898989',
+    color:colors.WHITE,
     lineHeight:40,
     fontFamily: 'Cairo_400Regular',
     fontSize:14,
-    marginRight:10,
+    marginLeft:7,
     verticalAlign:'middle',
   },
-  privacy_button_container:{
-    width:340,
-    height:35,
-    flexDirection:'row',
-    alignItems:'center',
-    justifyContent:'space-around',
-  },
   privacy_button:{
-    width:120,
-    height:35,
-    backgroundColor:'#F6F8FA',
-    borderRadius:7,
+    width:130,
+    height:40,
+    marginBottom:15,
+    borderColor:colors.BLACK,
+    borderWidth:1,
+    borderRadius:15,
     flexDirection:'row',
     alignItems:'center',
     justifyContent:'center'
   },
   privacy_button_text:{
+    color:colors.BLACK,
+    lineHeight:40,
     fontFamily: 'Cairo_400Regular',
     fontSize:14,
-    lineHeight:35,
+    verticalAlign:'middle',
   },
   line_item:{
     width:350,
-    height:160,
+    minHeight:200,
     backgroundColor:colors.BLUE,
     borderRadius:15,
     marginBottom:10,
@@ -327,23 +442,31 @@ const styles = StyleSheet.create({
     color:colors.WHITE,
   },
   flatList_style:{
-    marginTop:50,
+    marginTop:20,
     paddingBottom:40,
   },
-  no_registered_students: {
-    height:50,
-    width:300,
-    marginTop:95,
-    backgroundColor:colors.BLUE,
+  add_your_data_container:{
+    width:350,
+    height:250,
+    backgroundColor:colors.GRAY,
     borderRadius:15,
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignItems:'center',
+  },
+  animation_container:{
+    width:200,
+    height:200,
+    justifyContent:'center',
+    alignItems:'center',
+  },
+  no_assigned_students_box:{
+    width:'100%',
+    justifyContent:'center',
+    alignItems:'center',
   },
   no_student_text: {
-    lineHeight:50,
-    verticalAlign:'middle',
     fontFamily: 'Cairo_400Regular',
-    color:colors.WHITE
+    color:colors.BLACK,
+    textAlign:'center',
   },
   spinner_error_container:{
     flex:1,

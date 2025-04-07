@@ -11,6 +11,7 @@ import { useUser } from '@clerk/clerk-expo'
 import { Dropdown } from 'react-native-element-dropdown'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import * as ImagePicker from 'expo-image-picker'
+import logo from '../../../../assets/images/logo.jpeg'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import { useDriverData } from '../../../stateManagment/DriverContext'
@@ -204,82 +205,6 @@ const addData = () => {
     setShowPicker(false);
   };
 
-  // Add default student monthly subs bill
-  const monthlyPaycheck = [
-    {
-      id:0,
-      month:'january',
-      amount:0,
-      paid:false
-    },
-    {
-      id:1,
-      month:'february',
-      amount:0,
-      paid:false
-    },
-    {
-      id:2,
-      month:'march',
-      amount:0,
-      paid:false
-    },
-    {
-      id:3,
-      month:'april',
-      amount:0,
-      paid:false
-    },
-    {
-      id:4,
-      month:'may',
-      amount:0,
-      paid:false
-    },
-    {
-      id:5,
-      month:'june',
-      amount:0,
-      paid:false
-    },
-    {
-      id:6,
-      month:'july',
-      amount:0,
-      paid:false
-    },
-    {
-      id:7,
-      month:'august',
-      amount:0,
-      paid:false
-    },
-    {
-      id:8,
-      month:'september',
-      amount:0,
-      paid:false
-    },
-    {
-      id:9,
-      month:'october',
-      amount:0,
-      paid:false
-    },
-    {
-      id:10,
-      month:'november',
-      amount:0,
-      paid:false
-    },
-    {
-      id:11,
-      month:'december',
-      amount:0,
-      paid:false
-    }
-  ]
-
   // Go to next page
   const handleNext = () => {
     if (currentPage < totalSteps) setCurrentPage(currentPage + 1);
@@ -366,7 +291,6 @@ const addData = () => {
         student_rating:[],
         sayartech_team_rating:[],
         points:[],
-        paycheck:monthlyPaycheck
       }
 
       const docRef = await addDoc(driversCollectionRef,driverData)
@@ -416,7 +340,6 @@ const addData = () => {
       case 1:
         return(
           <View style={{alignItems:'center',justifyContent:'center'}}>
-
             <TouchableOpacity style={styles.fullButton} onPress={capturePersonalImage}>
               <Text style={styles.fullBtnText}>{personalImageLoading ? 'جاري تحميل الصورة' : personalImage ? 'تم اختيار الصورة' : 'صورتك الشخصية'}</Text>
             </TouchableOpacity>
@@ -425,7 +348,6 @@ const addData = () => {
                 <Image source={{ uri: personalImage }} style={styles.image_container_image} />
               </View>
             }
-
             <TouchableOpacity style={styles.fullButton} onPress={showDatePicker}>
               <Text style={styles.fullBtnText}>{dateSelected ? driverBirthDate.toLocaleDateString() : 'تاريخ الميلاد'}</Text>
             </TouchableOpacity>
@@ -457,7 +379,6 @@ const addData = () => {
                 />
               )
             )}
-
             <TouchableOpacity style={styles.fullButton} onPress={getLocation} disabled={location !== null}>
               <>
                 {location !== null ? (
@@ -468,11 +389,9 @@ const addData = () => {
               </>
               <Text style={styles.fullBtnText}>{location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}</Text>
             </TouchableOpacity>
-
             <View style={styles.location_msg_view}>
               <Text style={styles.location_warning_text}>التطبيق يسجل موقعك الحالي كعنوان للمنزل لذا يرجى التواجد في المنزل عند التسجيل و تفعيل خدمة تحديد الموقع الخاصة بالهاتف</Text>
             </View>
-
           </View>
         )
       case 2:
@@ -533,20 +452,42 @@ const addData = () => {
     )
   }
 
-// Check whether the user add data or no
+// User already added his data
   if(driverData[0] && addingDriverDataLoading === false) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.already_added_container}>
-          <View>
-            <Image source={{uri:driverData[0]?.driver_car_image}} style={{width:150,height:150,resizeMode:'contain'}}/>
+          <View style={styles.logo}>
+            <Image source={logo} style={styles.logo_image}/>
           </View>
-          <View style={styles.car_info_box}>
-            <Text style={styles.car_info_text}>{driverData[0]?.driver_car_type}</Text> 
-            <Text style={{ color: '#858585' }}> | </Text>
-            <Text style={styles.car_info_text}>{driverData[0]?.driver_car_model}</Text>
-            <Text style={{ color: '#858585' }}> | </Text>
-             <Text style={styles.car_info_text}>{driverData[0]?.driver_car_plate}</Text>
+          <View style={styles.driver_image_box}>
+            <View style={styles.imageWrapper}>
+              <Image 
+                source={{uri:driverData[0]?.driver_car_image}} 
+                style={styles.circularImage}
+              />
+            </View>
+            <View style={styles.imageWrapper}>
+              <Image 
+                source={{uri:driverData[0]?.driver_personal_image}} 
+                style={styles.circularImage}
+              />
+            </View>
+          </View>
+          <View style={styles.driver_info_box}>
+            <Text style={styles.driver_info_text}>{driverData[0]?.driver_full_name} {driverData[0]?.driver_family_name}</Text> 
+          </View>
+          <View style={styles.driver_info_box}>
+            <Text style={styles.driver_info_text}>{driverData[0]?.driver_phone_number}</Text> 
+          </View>
+          <View style={styles.driver_info_box}>
+            <Text style={styles.driver_info_text}>{driverData[0]?.driver_car_type}</Text> 
+          </View>
+          <View style={styles.driver_info_box}>
+            <Text style={styles.driver_info_text}>{driverData[0]?.driver_car_model}</Text>
+          </View>
+          <View style={styles.driver_info_box}>
+            <Text style={styles.driver_info_text}>{driverData[0]?.driver_car_plate}</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -554,35 +495,32 @@ const addData = () => {
   }
 
   return(
-      <SafeAreaView style={styles.container}>
-
-        <View>
-          <Text style={styles.title}>اضافة بيانات</Text>
-          {renderPageIndicator()}
-        </View>
-
-        <View style={styles.form}>
-          {renderPage()}
-        </View>
-
-        <View style={styles.BtnHalfContainer}>
-          {currentPage > 1 && (
-            <TouchableOpacity style={styles.halfButton} onPress={handlePrevious}>
-              <Text style={styles.btnText}>السابق</Text>
-            </TouchableOpacity>
-          )}
-          {currentPage < totalSteps ? (
-            <TouchableOpacity style={styles.halfButton} onPress={handleNext}>
-              <Text style={styles.btnText}>التالي</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.halfButton} onPress={addNewDriverHandler}>
-              <Text style={styles.btnText}>أضف</Text>
-            </TouchableOpacity>
-          )}
-        </View>    
-      </SafeAreaView>
-    )
+    <SafeAreaView style={styles.container}>
+      <View>
+        <Text style={styles.title}>اضافة بيانات</Text>
+        {renderPageIndicator()}
+      </View>
+      <View style={styles.form}>
+        {renderPage()}
+      </View>
+      <View style={styles.BtnHalfContainer}>
+        {currentPage > 1 && (
+          <TouchableOpacity style={styles.halfButton} onPress={handlePrevious}>
+            <Text style={styles.btnText}>السابق</Text>
+          </TouchableOpacity>
+        )}
+        {currentPage < totalSteps ? (
+          <TouchableOpacity style={styles.halfButton} onPress={handleNext}>
+            <Text style={styles.btnText}>التالي</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.halfButton} onPress={addNewDriverHandler}>
+            <Text style={styles.btnText}>أضف</Text>
+          </TouchableOpacity>
+        )}
+      </View>    
+    </SafeAreaView>
+  )
 }
 
 export default addData
@@ -743,28 +681,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   already_added_container:{
-    flex:1,
+    width:'100%',
     justifyContent:'center',
     alignItems:'center',
-    backgroundColor:colors.WHITE,
-    paddingVertical:30,
-    borderRadius:15,
   },
-  car_info_box:{
+  logo:{
+    width:'100%',
+    height:200,
+    alignItems:'center',
+    justifyContent:'center',
+  },
+  logo_image:{
+    height:150,
+    width:150,
+    resizeMode:'contain',
+  },
+  driver_image_box:{
+    width:'100%',
+    height:100,
+    marginTop:20,
+    flexDirection:'row',
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 30, 
+  },
+  imageWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 55,
+    overflow: "hidden",
+    backgroundColor: "#ddd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  circularImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  driver_info_box:{
     width:300,
     height:50,
     backgroundColor:colors.GRAY,
-    flexDirection:'row-reverse',
-    justifyContent:'space-around',
+    justifyContent:'center',
     alignItems:'center',
     borderRadius:15,
     marginTop:10
   },
-  car_info_text:{
+  driver_info_text:{
     lineHeight:50,
     verticalAlign:'middle',
     fontFamily:'Cairo_400Regular',
     fontSize:14,
-    color:'#858585'
+    color:colors.BLACK
   }
 })

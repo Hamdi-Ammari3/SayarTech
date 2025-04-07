@@ -251,6 +251,7 @@ export default function SignUpScreen() {
 
     } catch (err) {
       createAlert("حدث خطأ أثناء التسجيل، حاول مرة أخرى");
+      console.log(err)
     } finally{
       setIsSigningUp(false) // End Loading
     }
@@ -333,7 +334,7 @@ export default function SignUpScreen() {
       createAlert('حدث خطأ أثناء التسجيل');
       console.log(error)
     } finally {
-      setIsVerifying(false);
+      setIsVerifying(false)
     }
   };
   

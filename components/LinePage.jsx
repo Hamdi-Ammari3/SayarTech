@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react'
-import { StyleSheet, Text, View,ScrollView,TouchableOpacity,Dimensions } from 'react-native'
+import { StyleSheet,Text,Image,View,ScrollView,TouchableOpacity,Dimensions,Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Location from 'expo-location'
 import MapView, { Marker } from 'react-native-maps'
@@ -11,18 +11,20 @@ import { useDriverData } from '../app/stateManagment/DriverContext'
 import colors from '../constants/Colors'
 import AntDesign from '@expo/vector-icons/AntDesign'
 import Feather from '@expo/vector-icons/Feather'
+import startEngineImage from '../assets/images/push-button.png'
+import logo from '../assets/images/logo.jpeg'
 
-const LinePage = ({line}) => {
+const LinePage = ({line,todayLines}) => {
     
     // disactivate the current line and activate the next if the line trip canceled
-
-    // disable the finish first trip button till the driver get close to the school location
 
     // add points to driver based on time he get to the school
 
     // add points of the month in the driver profile
 
     // change driver location tracking from foreground to background
+
+    // **** if line if finished (second trip) must be excluded from activation and indexing *****
     
     const {driverData} = useDriverData()
     const GOOGLE_MAPS_APIKEY = ''
@@ -39,6 +41,8 @@ const LinePage = ({line}) => {
     const [cancelTodayTrip, setCancelTodayTrip] = useState(false)
     const [pickedUpRidersFromHome, setPickedUpRidersFromHome] = useState([])
     const [mapReady, setMapReady] = useState(false)
+    const [distanceToRider,setDistanceToRider] = useState(null)
+    const [distanceToDestination,setDistanceToDestination] = useState(null)
 
     const createAlert = (alerMessage) => {
         Alert.alert(alerMessage)
@@ -71,19 +75,39 @@ const LinePage = ({line}) => {
                 //Save to Firebase
                 await saveLocationToFirebase(latitude, longitude);
 
+                // Calculate distance to the rider
+                if (sortedRiders[currentRiderIndex]) {
+                    const riderLocation = sortedRiders[currentRiderIndex]?.home_location;
+                    if (riderLocation) {
+                        const distance = haversine(currentLocation, riderLocation, { unit: "meter" });
+                        setDistanceToRider(distance);  // Store as a number
+                    }
+                }
+
+                // Distance to Final Destination (School/Work)
+                const finalDestination = sortedRiders.find(rider => rider.id === 'school');
+                
+                if (finalDestination) {
+                    const destinationLocation = finalDestination?.school_coords;
+                    if (destinationLocation) {
+                        const distance = haversine(currentLocation, destinationLocation, { unit: "meter" });
+                        setDistanceToDestination(distance);
+                    }
+                }
+                
+                
                 // Check if the driver has moved 1000 meters or more
                 checkAndUpdateOriginLocation(currentLocation);
             });
         }
         startTracking();
-    }, [driverData]);
+    }, [driverData,sortedRiders,currentRiderIndex]);
 
     //Save new location to firebase
     const saveLocationToFirebase = async (latitude, longitude) => {
         if (!driverData[0]) {
             return
         }
-
         try {
             const driverDoc = doc(DB, 'drivers', driverData[0]?.id);
             await updateDoc(driverDoc, {
@@ -138,8 +162,7 @@ const LinePage = ({line}) => {
             let sorted = [];
 
             if (line.current_trip === 'first') {
-                sorted = assignedRiders.filter(rider => rider.tomorrow_trip_canceled === false)
-                .map((rider) => ({
+                sorted = assignedRiders.map((rider) => ({
                     ...rider,
                     distance: calculateDistance(startingPoint, rider.home_location),
                 }))
@@ -190,7 +213,7 @@ const LinePage = ({line}) => {
     
             if (line.current_trip === 'first') {
                 // Filter riders who have not been picked up and their trip isn't canceled
-                reSorted = assignedRiders.filter(rider => rider.picked_up === false && rider.tomorrow_trip_canceled === false)
+                reSorted = assignedRiders.filter(rider => rider.picked_up === false)
                     .map(rider => ({
                         ...rider,
                         distance: calculateDistance(startingPoint, rider.home_location),
@@ -302,41 +325,61 @@ const LinePage = ({line}) => {
         }
     }, [mapReady,destination]);
 
+    // Get iraqi time and driver daily tracking object
+    const getIraqTimeAndTracking = (driverData) => {
+        const iraqTimeString = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
+        const [month, day, year] = iraqTimeString.split(/[/, ]/);
+        const yearMonthKey = `${year}-${month.padStart(2, "0")}`; // "YYYY-MM"
+        const dayKey = day.padStart(2, "0"); // "DD"
+        const iraqRealTime = new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Baghdad", hour12: false }).slice(0, 5); // "HH:MM"
+    
+        // Get existing dailyTracking object
+        const existingTracking = driverData[0].dailyTracking || {};
+        if (!existingTracking[yearMonthKey]) existingTracking[yearMonthKey] = {};
+        if (!existingTracking[yearMonthKey][dayKey]) existingTracking[yearMonthKey][dayKey] = {};
+    
+        return { yearMonthKey, dayKey, iraqRealTime, existingTracking };
+    };
+    
     // Start the first trip
     const handleFirstTripStart = async () => {
         if (isMarkingRider) return;
         setIsMarkingRider(true);
 
         try {
-            const lines = driverData[0]?.line || [];
+            const batch = writeBatch(DB)
+            const driverDoc = doc(DB,'drivers', driverData[0].id)
+            const { yearMonthKey, dayKey, iraqRealTime, existingTracking } = getIraqTimeAndTracking(driverData)
 
             // Find the currently active line
-            const activeLine = lines?.find(li => li?.line_active);
+            const activeLine = todayLines?.find(li => li?.line_active);
 
             // Skip activation check if only one line exists
-            if (lines.length > 1 && activeLine && activeLine.line_index !== line.line_index) {
+            if (todayLines.length > 1 && activeLine && activeLine.line_index !== line.line_index) {
                 alert(`الرجاء إنهاء رحلة ${activeLine.lineName} قبل بدء هذا الخط`);
                 setIsMarkingRider(false);
                 return;
             }
 
-            const batch = writeBatch(DB)
-            const driverDoc = doc(DB,'drivers', driverData[0].id)
-
             // Update the line's first_trip_started status
             const updatedLine = {
                 ...line,
                 first_trip_started: true,
-                started_the_line: new Date(),
+                first_trip_start_time: iraqRealTime,
             };
 
             // Update the driver's line data
-            const updatedLines = driverData[0].line.map((li) =>
+            const updatedTodayLines = todayLines.map((li) =>
                 li.id === line.id ? updatedLine : li
-            );
+            )
+
+            // Update dailyTracking
+            existingTracking[yearMonthKey][dayKey].today_lines = updatedTodayLines;
 
             // Update the driver's line data in the batch
-            batch.update(driverDoc, { line: updatedLines });
+            batch.update(driverDoc, { 
+                dailyTracking: existingTracking 
+            });
 
             // Update all riders' statuses in the batch
             for (const rider of line.riders) {
@@ -360,6 +403,7 @@ const LinePage = ({line}) => {
 
             sortRidersByDistance()
             setDriverOriginLocation(driverData[0]?.current_location)
+
         } catch (error) {
             alert('حدث خطأ اثناء بدء الرحلة')
             console.log('Error starting the first trip:', error);
@@ -373,38 +417,49 @@ const LinePage = ({line}) => {
         if (isMarkingRider) return; // Prevent double-click
         setIsMarkingRider(true);
 
+        //if (distanceToDestination > 200) {
+            //createAlert('يجب أن تكون على بعد 200 متر أو أقل من الوجهة النهائية لإنهاء الرحلة');
+            //return;
+        //}
+
         try {
             const batch = writeBatch(DB);
             const driverDoc = doc(DB,'drivers', driverData[0].id);
-            const lines = driverData[0]?.line || [];
             const pickedUpRiders = line.riders.filter(rider => rider.picked_up);
+            const { yearMonthKey, dayKey, iraqRealTime, existingTracking } = getIraqTimeAndTracking(driverData);
 
             // Mark the current line as finished
             const updatedLine = {
                 ...line,
                 first_trip_finished: true,
-                arrived_to_destination: new Date(),
+                first_trip_finish_time: iraqRealTime,
                 current_trip: 'second',
-                line_active: lines.length === 1, // Keep line active if only one exists
-            };
+                line_active: todayLines.length === 1 // Keep active if there is only one line
+            }
 
             // Find the next line in the round process
             let nextLineIndex = null;
-            if (lines.length > 1) {
-                nextLineIndex = (line.line_index % lines.length) + 1; // Move to the next line in order
+            if (todayLines.length > 1) {
+                nextLineIndex = (line.line_index % todayLines.length) + 1; // Move to the next line in order
             }
 
             // Update the lines array with the new states
-            const updatedLines = lines.map(li => {
+            const updatedTodayLines = todayLines.map(li => {
                 if (li.line_index === line.line_index) {
                     return updatedLine; // Update the current line
-                } else if (lines.length > 1 && li.line_index === nextLineIndex) {
+                } else if (todayLines.length > 1 && li.line_index === nextLineIndex) {
                     return { ...li, line_active: true }; // Activate the next line
                 }
+
                 return { ...li, line_active: false }; // Deactivate all other lines
             });
 
-            batch.update(driverDoc, { line: updatedLines });
+            // Update dailyTracking
+            existingTracking[yearMonthKey][dayKey].today_lines = updatedTodayLines;
+
+            batch.update(driverDoc, { 
+                dailyTracking: existingTracking 
+            });
 
             // Update all picked-up riders' statuses
             for (const rider of pickedUpRiders) {
@@ -448,12 +503,10 @@ const LinePage = ({line}) => {
 
     // Check riders list before starting the second trip
     const handleCheckPickedUpRiders = () => {
-        const lines = driverData[0]?.line || [];
-
         // Find the currently active line
-        const activeLine = lines?.find(li => li?.line_active);
+        const activeLine = todayLines?.find(li => li?.line_active);
         
-        if (lines.length > 1 && activeLine && activeLine.line_index !== line.line_index) {
+        if (todayLines.length > 1 && activeLine && activeLine.line_index !== line.line_index) {
             alert(`الرجاء إنهاء رحلة ${activeLine.lineName} قبل بدء هذا الخط`);
             return;
         } else {
@@ -463,38 +516,43 @@ const LinePage = ({line}) => {
 
     // Start the second trip
     const handlesecondTripStart = async () => {
-        if (isMarkingRider) return; // Prevent double-click
+        if (isMarkingRider) return; 
         setIsMarkingRider(true);
 
         try {
-            const lines = driverData[0]?.line || [];
+            const batch = writeBatch(DB)
+            const driverDoc = doc(DB, 'drivers', driverData[0].id)
+            const { yearMonthKey, dayKey, iraqRealTime, existingTracking } = getIraqTimeAndTracking(driverData)
 
             // Find the currently active line
-            const activeLine = lines?.find(li => li?.line_active);
+            const activeLine = todayLines?.find(li => li?.line_active);
 
             // Check if the selected line is active
-            if (lines.length > 1 && activeLine?.line_index !== line.line_index) {            
+            if (todayLines.length > 1 && activeLine && activeLine?.line_index !== line.line_index) {            
                 alert(`الرجاء إنهاء رحلة ${activeLine.lineName} قبل بدء هذا الخط`);
                 setIsMarkingRider(false);
                 return;
             }
 
-            const batch = writeBatch(DB)
-            const driverDoc = doc(DB, 'drivers', driverData[0].id)
-
             // Update the line's first_trip_started status
             const updatedLine = {
                 ...line,
                 second_trip_started: true,
-            };
+                second_trip_start_time: iraqRealTime,
+            }
 
             // Update the driver's line data
-            const updatedLines = driverData[0].line.map((li) =>
+            const updatedTodayLines = todayLines.map((li) =>
                 li.id === line.id ? updatedLine : li
-            );
+            )
+
+            // Update dailyTracking
+            existingTracking[yearMonthKey][dayKey].today_lines = updatedTodayLines;
 
             // Update the driver's line data in the batch
-            batch.update(driverDoc, { line: updatedLines });
+            batch.update(driverDoc, { 
+                dailyTracking: existingTracking 
+            });
 
             const pickedUpRiders = line.riders.filter(rider => rider.picked_from_school === true);
 
@@ -537,44 +595,41 @@ const LinePage = ({line}) => {
         try {
             const batch = writeBatch(DB)
             const driverDoc = doc(DB,'drivers', driverData[0]?.id)
-            const lines = driverData[0]?.line || []
             const droppedOffRiders = line.riders.filter(rider => rider.dropped_off)
+            const { yearMonthKey, dayKey, iraqRealTime, existingTracking } = getIraqTimeAndTracking(driverData);
 
             // Get the last line index
-            const lastLineIndex = Math.max(...lines.map(li => li.line_index || 0))
+            const lastLineIndex = Math.max(...todayLines.map(li => li.line_index || 0))
 
             // Determine if the current line is the last one
             const isLastLine = line.line_index === lastLineIndex
 
-            // Reset or switch to the next line
-            const updatedLines = lines.map((li) => {
+            // Update current line
+            const updatedCurrentLine = {
+                ...line,
+                second_trip_finished: true,
+                secont_trip_finish_time: iraqRealTime,
+                line_active: false,
+            }
+
+            // Update the lines array with the new states
+            const updatedTodayLines = todayLines.map(li => {
                 if (li.line_index === line.line_index) {
-                    return {
-                        ...li,
-                        first_trip_started: false,
-                        first_trip_finished: false,
-                        second_trip_started: false,
-                        second_trip_finished: false,
-                        current_trip: 'first',
-                        line_active: false,
-                        riders: li.riders.map((rider) => ({
-                            ...rider,
-                            picked_up: false,
-                            picked_from_school: false,
-                            dropped_off: false,
-                            tomorrow_trip_canceled: false,
-                            checked_in_front_of_school: false,
-                        })),
-                    }
+                    return updatedCurrentLine; // Update the current line
                 } else if (!isLastLine && li.line_index === line.line_index + 1) {
-                    return { ...li, line_active: true }; // Activate the next line only
+                    return { ...li, line_active: true }; // Activate the next line
                 }
-                return li;
+                return li
             });
 
+            existingTracking[yearMonthKey][dayKey].today_lines = updatedTodayLines;
+
+            if(isLastLine){
+                existingTracking[yearMonthKey][dayKey].complete_today_journey = true;
+            }
+
             batch.update(driverDoc, {
-                line: updatedLines,
-                start_the_journey:!isLastLine,
+                dailyTracking: existingTracking,
             });
 
             // Update all dropped-off riders' statuses
@@ -618,14 +673,20 @@ const LinePage = ({line}) => {
 
     // move to the next rider location
     const markRider = async (status) => {
-        if (isMarkingRider) return; // Prevent double-click
-        setIsMarkingRider(true); // Set loading state to true
+
+        //if(distanceToRider > 200) {
+            //createAlert('يجب أن تكون على بعد 200 متر أو أقل من منزل الطالب لتتمكن من تأكيد الصعود');
+            //return;
+        //}
+
+        if (isMarkingRider) return;
+        setIsMarkingRider(true);
 
         try {
-            const batch = writeBatch(DB); // Initialize Firestore batch
+            const batch = writeBatch(DB);
             const driverDocRef = doc(DB, 'drivers', driverData[0]?.id);
             const currentRider = sortedRiders[currentRiderIndex];
-            const currentTrip = line.current_trip || driverData[0]?.line.find((li) => li.lineName === line.lineName)?.current_trip;
+            const currentTrip = line.current_trip || todayLines.find((li) => li.lineName === line.lineName)?.current_trip;
             
             if (!currentTrip) {
                 createAlert('حدث خطا الرجاء المحاولة مرة اخرى')
@@ -636,32 +697,49 @@ const LinePage = ({line}) => {
                 const riderDoc = doc(DB, 'riders', currentRider.id);               
 
                 if (currentRider.id !== 'school' && currentRider.id !== 'driver_home') {
-                    const updateField = currentTrip === 'first' ? { picked_up: status, trip_status: status ? 'to destination' :'at home'} : { trip_status:'at home' };
+                    const updateField = 
+                        currentTrip === 'first' 
+                            ? { picked_up: status, trip_status: status ? 'to destination' :'at home'} 
+                            : { trip_status:'at home' };
                     batch.update(riderDoc, updateField)
 
-                    // Update the specific rider's status in the selected line
+                    const { yearMonthKey, dayKey, iraqRealTime, existingTracking } = getIraqTimeAndTracking(driverData);
+
+                    // Update rider status AND timing inside the line (in dailyTracking)
                     const updatedLine = {
                         ...line,
                         riders: line.riders.map((rider) => {
                             if (rider.id === currentRider.id) {
                                 return {                          
                                 ...rider,
-                                ...(currentTrip === 'first' ? { picked_up: status } : { dropped_off: status })
-                                };                               
+                                //...(currentTrip === 'first' && status ? { picked_up: true, picked_up_time: iraqRealTime } : {picked_up: false}),
+                                //...(currentTrip === 'second' && status ? { dropped_off: true, dropped_off_time: iraqRealTime } : {dropped_off: false}),
+                                ...(currentTrip === 'first' ? { picked_up: status,picked_up_time: iraqRealTime } : { dropped_off: status,dropped_off_time: iraqRealTime })
+                                };                      
                             }
                             return rider;
                         }),
                     };
 
-                    // Update the driver's line data in Firestore
-                    const updatedLines = driverData[0].line.map((li) =>
-                        li.id === line.id ? updatedLine : li
-                    );
-                    batch.update(driverDocRef, { line: updatedLines });
+                    const updatedTracking = {
+                        ...existingTracking,
+                        [yearMonthKey]: {
+                            ...existingTracking[yearMonthKey],
+                            [dayKey]: {
+                                ...existingTracking[yearMonthKey][dayKey],
+                                today_lines: existingTracking[yearMonthKey][dayKey].today_lines.map((li) =>
+                                    li.id === line.id ? updatedLine : li
+                                ),
+                            },
+                        },
+                    };
+
+                    batch.update(driverDocRef, {
+                        dailyTracking: updatedTracking,
+                    });
 
                     // Commit the batch
                     await batch.commit();
-                      
                     setDriverOriginLocation(driverData[0]?.current_location)
                 }
 
@@ -709,6 +787,7 @@ const LinePage = ({line}) => {
         try {
             const batch = writeBatch(DB);
             const driverDocRef = doc(DB, 'drivers', driverData[0]?.id);
+            const { yearMonthKey, dayKey, existingTracking } = getIraqTimeAndTracking(driverData);
 
             // Update the specific rider's status in the selected line
             const updatedLine = {
@@ -725,16 +804,28 @@ const LinePage = ({line}) => {
                 }),
             };
 
-            // Update the driver's line data in Firestore
-            const updatedLines = driverData[0].line.map((li) =>
-                li.id === line.id ? updatedLine : li
-            );
-            batch.update(driverDocRef, { line: updatedLines });
+            const updatedTracking = {
+                ...existingTracking,
+                [yearMonthKey]: {
+                    ...existingTracking[yearMonthKey],
+                    [dayKey]: {
+                        ...existingTracking[yearMonthKey][dayKey],
+                        today_lines: existingTracking[yearMonthKey][dayKey].today_lines.map((li) =>
+                            li.id === line.id ? updatedLine : li
+                        ),
+                    },
+                },
+            };
+
+            batch.update(driverDocRef, { 
+                dailyTracking: updatedTracking 
+            });
 
             await batch.commit();
 
             // Remove the rider from the list in the UI
             line.riders.filter((rider) => rider.picked_from_school === true)
+
         } catch (error) {
             createAlert('حدث خطأ اثناء تحديث حالة الطالب')
             console.log('Error marking rider:', error)
@@ -744,7 +835,7 @@ const LinePage = ({line}) => {
     };
 
     //mark absent riders
-    const handleMarkAbsentRider = (riderId) => {
+    const handleSettingCheckedRiderID = (riderId) => {
         setCheckingRiderId(riderId);
     }
 
@@ -760,31 +851,47 @@ const LinePage = ({line}) => {
 
         try {
             const batch = writeBatch(DB);
-            const driverDocRef = doc(DB, 'drivers', driverData[0]?.id);
+            const driverDoc = doc(DB, 'drivers', driverData[0]?.id);
+            const { yearMonthKey, dayKey, existingTracking } = getIraqTimeAndTracking(driverData);
 
-            // Reset the selected line's statuses
-            const resetLine = {
-                ...line,
-                first_trip_started: false,
-                first_trip_finished: false,
-                second_trip_started: false,
-                second_trip_finished: false,
-                current_trip: 'first',
-                riders: line.riders.map((rider) => ({
-                    ...rider,
-                    picked_up: false,
-                    dropped_off: false,
-                    picked_from_school: false,
-                    tomorrow_trip_canceled: false,
-                    checked_in_front_of_school: false,
-                })),
-            };
+            // Remove the canceled line
+            const filteredLines = todayLines.filter(li => li.id !== line.id)
 
-            // Update the driver's `line` data in Firestore
-            const updatedLines = driverData[0].line.map((li) =>
-                li.id === line.id ? resetLine : li
-            );
-            batch.update(driverDocRef, { line: updatedLines });
+            if (filteredLines.length === 0) {
+                // No remaining lines — journey is complete
+                existingTracking[yearMonthKey][dayKey].complete_today_journey = true;
+            } else {
+                // Reindex remaining lines starting from 1
+                const reIndexedLines = filteredLines.map((li, index) => ({
+                    ...li,
+                    line_index: index + 1,
+                    line_active: false // We'll activate the right one in a moment
+                }));
+
+                // Find index of the canceled line in original list
+                const canceledLineIndex = line.line_index;
+
+                // Find next line to activate: the one that came after the canceled line (or first if last was canceled)
+                const nextLineToActivateIndex = reIndexedLines.findIndex(
+                    li => li.line_index === canceledLineIndex
+                ) !== -1
+                    ? reIndexedLines.findIndex(li => li.line_index === canceledLineIndex)
+                    : 0; // If not found (last line), go back to first
+                
+                 // Activate the correct line
+                reIndexedLines[nextLineToActivateIndex] = {
+                    ...reIndexedLines[nextLineToActivateIndex],
+                    line_active: true
+                };
+
+                // Save updated lines into tracking
+                existingTracking[yearMonthKey][dayKey].today_lines = reIndexedLines;
+            }
+
+            // Apply the batch update
+            batch.update(driverDoc, {
+                dailyTracking: existingTracking
+            });
 
             // Commit the batch
             await batch.commit();
@@ -827,17 +934,17 @@ const LinePage = ({line}) => {
     ) {
         return(
             <SafeAreaView style={styles.container}>
-                <View style={styles.start_line_container}>
+                <View style={styles.start_trip_container}>
                     <TouchableOpacity 
-                        style={styles.done_trip_button} 
                         onPress={() => handleFirstTripStart()}
                         disabled={isMarkingRider}
                     >
-                        <Text style={styles.done_trip_button_text}>
-                            {isMarkingRider ? '...' : 'ابدأ رحلة الذهاب'}
-                        </Text>
+                        <Image source={startEngineImage} style={styles.start_engine_image}/>
                     </TouchableOpacity>
-                </View>               
+                    <Text style={styles.start_trip_text}>
+                        {isMarkingRider ? '...' : 'ابدأ رحلة الذهاب'}
+                    </Text>
+                </View>             
             </SafeAreaView>
         )
     }
@@ -856,37 +963,36 @@ const LinePage = ({line}) => {
                 <>
                     {!displayFinalStation ? (
                         currentRider ? (
-                        <>
-                            <View style={styles.map_student_name_container}>
-                                <Text style={styles.map_student_name}>{currentRider?.name}</Text>
-                            </View>
-                            <View style={styles.map_picked_button_container}>
-                                <View style={styles.map_picked_button_container2}>
-                                    <TouchableOpacity
-                                        style={styles.pick_button_accepted} 
-                                        onPress={() => markRider(true)} 
-                                        disabled={isMarkingRider}
-                                    >
-                                        <Text style={styles.pick_button_text}>{isMarkingRider ? '...' :'صعد'}</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity 
-                                        style={styles.pick_button_denied} 
-                                        onPress={() => markRider(false)} 
-                                        disabled={isMarkingRider}
-                                    >
-                                        <Text style={styles.pick_button_text}>{isMarkingRider ? '...' :'لم يصعد'}</Text>
-                                    </TouchableOpacity>
+                            <View style={styles.rider_picked_dropped_status_container}>
+                                <TouchableOpacity
+                                    style={styles.pick_button_accepted} 
+                                    onPress={() => markRider(true)} 
+                                    disabled={isMarkingRider}
+                                >
+                                    <Text style={styles.pick_button_text}>{isMarkingRider ? '...' :'صعد'}</Text>
+                                </TouchableOpacity>
+                                <View style={styles.map_student_name_distance_container}>
+                                    <Text style={styles.map_student_name}>{currentRider?.name}</Text>
+                                    <Text style={styles.map_student_distance}>
+                                        {distanceToRider >= 1000 ? `${(distanceToRider / 1000).toFixed(2)} km` : `${Math.round(distanceToRider)} m`}
+                                    </Text>
                                 </View>
-                            </View>
-                        </>
-                        ) : (
-                            <View style={styles.map_student_name_container}>
                                 <TouchableOpacity 
-                                    style={styles.done_trip_button} 
+                                    style={styles.pick_button_denied} 
+                                    onPress={() => markRider(false)} 
+                                    disabled={isMarkingRider}
+                                >
+                                    <Text style={styles.pick_button_text}>{isMarkingRider ? '...' :'لم يصعد'}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View style={styles.resort_riders_btn_container}>
+                                <TouchableOpacity 
+                                    style={styles.resort_riders_button} 
                                     onPress={() => resortRiders()}
                                     disabled={isMarkingRider}
                                 >
-                                    <Text style={styles.done_trip_button_text}>
+                                    <Text style={styles.resort_riders_button_text}>
                                         {isMarkingRider ? '...' : 'مواصلة خط الرحلة'}
                                     </Text>
                                 </TouchableOpacity>
@@ -897,31 +1003,26 @@ const LinePage = ({line}) => {
                             {cancelTodayTrip ? (
                                 <View style={styles.container}>
                                     <TouchableOpacity 
-                                        style={styles.done_trip_button} 
+                                        style={styles.cancel_trip_button} 
                                         onPress={() => handleCancelTrip()}
                                         disabled={isMarkingRider}
                                     >
-                                        <Text style={styles.done_trip_button_text}>
+                                        <Text style={styles.complete_trip_button_text}>
                                             {isMarkingRider ? '...' : 'إلغاء الرحلة'}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
                             ) : (
-                                <>
-                                    <View style={styles.map_student_name_container}>
-                                        <Text style={styles.map_student_name}>{line.line_destination}</Text>
-                                    </View>
-                                    <View style={styles.map_picked_button_container}>
-                                        <TouchableOpacity 
-                                            style={styles.done_trip_button} 
-                                            onPress={() => handleFirstTripFinish()}
-                                            disabled={isMarkingRider}>
-                                            <Text style={styles.done_trip_button_text}>
-                                                {isMarkingRider ? '...' : 'إنهاء رحلة الذهاب'}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </>
+                                <View style={styles.complete_first_trip_container}>
+                                    <TouchableOpacity 
+                                        style={styles.complete_trip_button} 
+                                        onPress={() => handleFirstTripFinish()}
+                                        disabled={isMarkingRider}>
+                                        <Text style={styles.complete_trip_button_text}>
+                                            {isMarkingRider ? '...' : 'إنهاء رحلة الذهاب'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
                             )}
                         </>  
                     )}
@@ -987,38 +1088,52 @@ const LinePage = ({line}) => {
         return(
             <SafeAreaView style={styles.container}>
                 {line.riders.filter(rider => rider.picked_up)
-                              .filter(rider => rider.checked_in_front_of_school === false)?.length > 0 ? (
+                            .filter(rider => rider.checked_in_front_of_school === false)?.length > 0 ? (
+                    <View style={styles.start_trip_container}>
                         <TouchableOpacity 
-                            style={styles.done_trip_button}
                             onPress={() => handleCheckPickedUpRiders()}
+                            style={styles.complete_trip_button}
                         >
-                            <Text style={styles.pick_button_text}>إبدأ رحلة العودة</Text>
+                            <Text style={styles.complete_trip_button_text}>تحقق من صعود الركاب</Text>
                         </TouchableOpacity>
+                        {checkingPickedUpRiders === false && (
+                            <Text style={styles.warning_text_before_start_second_trip}>يُرجى التحقق من صعود جميع الركاب قبل بدء رحلة العودة. في حال غياب أحد الركاب، يُرجى التواصل معه أو مع ولي أمره قبل المتابعة
+                            </Text>
+                        )}
+                    </View>
+                    
                 ) : (
-                    <>
+                    <View style={styles.container}>
                         {line.riders.filter(rider => rider.picked_up)
                                       .filter(rider => rider.picked_from_school === true)?.length > 0 ? (
-                            <TouchableOpacity 
-                                style={styles.done_trip_button} 
-                                onPress={() => handlesecondTripStart()}
-                                disabled={isMarkingRider}
-                            >
-                                <Text style={styles.pick_button_text}>
-                                    {isMarkingRider ? '...' : 'إبدأ الان'}
-                                </Text>
-                            </TouchableOpacity>
+                            <View style={styles.start_second_trip_container}>
+                                <View style={styles.start_second_trip_container2}>
+                                    <TouchableOpacity 
+                                        onPress={() => handlesecondTripStart()}
+                                        disabled={isMarkingRider}
+                                    >
+                                        <Image source={startEngineImage} style={styles.start_engine_image}/>
+                                    </TouchableOpacity>
+                                    <Text style={styles.start_trip_text}>
+                                        {isMarkingRider ? '...' : 'ابدأ رحلة العودة'}
+                                    </Text>
+                                </View>
+                            </View>
                         ) : (
+                            <View style={styles.start_second_trip_container}>
                             <TouchableOpacity 
-                                style={styles.done_trip_button} 
+                                style={styles.cancel_trip_button} 
                                 onPress={() => handlesecondTripFinish()}
                                 disabled={isMarkingRider}
                             >
-                                <Text style={styles.pick_button_text}>
+                                <Text style={styles.complete_trip_button_text}>
                                     {isMarkingRider ? '...' : 'إنهاء الرحلة'}
                                 </Text>
                             </TouchableOpacity>  
+                            </View>
+                            
                         )}
-                    </>       
+                    </View>       
                 )}
       
                 {checkingPickedUpRiders && (
@@ -1031,7 +1146,7 @@ const LinePage = ({line}) => {
                                         <View>
                                             <TouchableOpacity 
                                                 style={styles.check_students_name} 
-                                                onPress={() => handleMarkAbsentRider(rider.id)}
+                                                onPress={() => handleSettingCheckedRiderID(rider.id)}
                                             >
                                                 <Text style={styles.check_students_name_text}>{rider.name}</Text>
                                             </TouchableOpacity>
@@ -1048,7 +1163,7 @@ const LinePage = ({line}) => {
                                                         style={styles.call_student_parent} 
                                                         onPress={() => handleCallParent(rider.phone_number)}
                                                     >
-                                                        <Text style={styles.call_student_parent_text}>اتصل بولي الطالب</Text>
+                                                        
                                                         <Feather name="phone" size={24} color="white" />
                                                     </TouchableOpacity>
                                                     <TouchableOpacity 
@@ -1081,47 +1196,46 @@ const LinePage = ({line}) => {
                 <>
                     {!displayFinalStation ? (
                         currentRider ? (
-                            <>
-                                <View style={styles.map_student_name_container}>
+                            <View style={styles.rider_picked_dropped_status_container}>
+                                <View style={styles.map_student_name_distance_container}>
                                     <Text style={styles.map_student_name}>{currentRider?.name}</Text>
+                                    <Text style={styles.map_student_distance}>
+                                        {distanceToRider >= 1000 ? `${(distanceToRider / 1000).toFixed(2)} km` : `${Math.round(distanceToRider)} m`}
+                                    </Text>
                                 </View>
-                                <View style={styles.map_picked_button_container}>
-                                    <TouchableOpacity 
-                                        style={styles.pick_button_accepted} 
-                                        onPress={() => markRider(true)} 
-                                        disabled={isMarkingRider}
-                                    >
-                                        <Text style={styles.pick_button_text}>{isMarkingRider ? '...' : 'نزل'}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
-                        ) : (
-                            <View style={styles.map_student_name_container}>
                                 <TouchableOpacity 
-                                    style={styles.done_trip_button} 
+                                    style={styles.pick_button_accepted} 
+                                    onPress={() => markRider(true)} 
+                                    disabled={isMarkingRider}
+                                >
+                                    <Text style={styles.pick_button_text}>{isMarkingRider ? '...' : 'نزل'}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View style={styles.resort_riders_btn_container}>
+                                <TouchableOpacity 
+                                    style={styles.resort_riders_button} 
                                     onPress={() => resortRiders()}
                                     disabled={isMarkingRider}
                                 >
-                                    <Text style={styles.done_trip_button_text}>
+                                    <Text style={styles.resort_riders_button_text}>
                                         {isMarkingRider ? '...' : 'مواصلة خط الرحلة'}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
                         )
                     ) : (
-                        <>
-                            <View style={styles.map_picked_button_container_back_home}>
-                                <TouchableOpacity 
-                                    style={styles.done_trip_button} 
-                                    onPress={() => handlesecondTripFinish()}
-                                    disabled={isMarkingRider}
-                                >
-                                    <Text style={styles.pick_button_text}>
-                                        {isMarkingRider ? '...' : 'إنهاء رحلة العودة'}
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        </>
+                        <View style={styles.complete_second_trip_container}>
+                            <TouchableOpacity 
+                                style={styles.complete_trip_button} 
+                                onPress={() => handlesecondTripFinish()}
+                                disabled={isMarkingRider}
+                            >
+                                <Text style={styles.complete_trip_button_text}>
+                                    {isMarkingRider ? '...' : 'إنهاء رحلة العودة'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     )}
                 </>
                 {!displayFinalStation && (
@@ -1171,6 +1285,44 @@ const LinePage = ({line}) => {
             </SafeAreaView>
         )
     }
+
+    // Driver cancel the second trip
+    if(
+        line.first_trip_started === true &&
+        line.first_trip_finished === true &&
+        line.second_trip_started === false &&
+        line.second_trip_finished === true
+    ) {
+        return(
+            <SafeAreaView style={styles.container}>
+                <View style={styles.trip_finished_today}>
+                    <View style={styles.logo}>
+                        <Image source={logo} style={styles.logo_image}/>
+                    </View>
+                    <Text style={styles.today_trip_completed_text}>الرحلة انتهت</Text>
+                </View>             
+            </SafeAreaView>
+        )
+    }
+
+    // Driver complete the second trip
+    if(
+        line.first_trip_started === true &&
+        line.first_trip_finished === true &&
+        line.second_trip_started === true &&
+        line.second_trip_finished === true
+    ) {
+        return(
+            <SafeAreaView style={styles.container}>
+                <View style={styles.trip_finished_today}>
+                    <View style={styles.logo}>
+                        <Image source={logo} style={styles.logo_image}/>
+                    </View>
+                    <Text style={styles.today_trip_completed_text}>الرحلة انتهت</Text>
+                </View>             
+            </SafeAreaView>
+        )
+    }
 }
 
 export default LinePage
@@ -1196,135 +1348,97 @@ const styles = StyleSheet.create({
         width:'100%',
         height:SCheight,
         backgroundColor: colors.WHITE,
-      },
-      map_student_name_container:{
+    },
+    map: {
+        width: '100%',
+        height: SCheight,
+    },
+    resort_riders_btn_container:{
         width:'100%',
         position:'absolute',
-        top:75,
+        top:72,
         left:0,
         zIndex:5,
         alignItems:'center',
         justifyContent:'center',
-      },
-      map_student_name:{
-        backgroundColor:colors.WHITE,
-        width:250,
-        height:35,
-        verticalAlign:'middle',
+    },
+    resort_riders_button:{
+        width:200,
+        height:50,
         borderRadius:15,
-        textAlign:'center',
+        alignItems:'center',
+        justifyContent:'center',
+        backgroundColor:colors.BLUE
+    },
+    resort_riders_button_text:{
+        lineHeight:50,
+        verticalAlign:'middle',
         fontFamily: 'Cairo_400Regular',
-        fontSize:15,
-      },
-      map_picked_button_container:{
+        color:colors.WHITE
+    },
+    rider_picked_dropped_status_container:{
         width:'100%',
         position:'absolute',
-        top:120,
+        top:73,
         left:0,
         zIndex:5,
-        alignItems:'center',
-        justifyContent:'center',
-      },
-      map_picked_button_container2:{
-        width:300,
-        flexDirection:'row-reverse',
-        alignItems:'center',
-        justifyContent:'space-evenly',
-      },
-      pick_button_accepted:{
-        width:90,
-        height:32,
-        borderRadius:15,
-        alignItems:'center',
-        justifyContent:'center',
-        backgroundColor:'#56CA00'
-      },
-      pick_button_denied:{
-        width:90,
-        height:32,
-        borderRadius:15,
-        alignItems:'center',
-        justifyContent:'center',
-        backgroundColor: '#FF4C51',
-      },
-      pick_button_text:{
-        lineHeight:32,
-        verticalAlign:'middle',
-        fontFamily: 'Cairo_700Bold',
-        color:colors.WHITE
-      },
-      done_trip_button:{
-        width:250,
-        height:40,
-        borderRadius:15,
-        marginBottom:20,
-        alignItems:'center',
-        justifyContent:'center',
-        backgroundColor:colors.PRIMARY
-      },
-      done_trip_button_text:{
-        lineHeight:40,
-        verticalAlign:'middle',
-        fontFamily: 'Cairo_700Bold',
-        color:colors.WHITE
-      },
-      scrollViewContainer:{
-        height:450,
-      },
-      check_students_boxes:{
-        width:300,
-        marginVertical:5,
-        alignItems:'center',
-      }, 
-      check_students_name:{
-        width:250,
-        height:40,
-        borderRadius:15,
-        marginBottom:7,
-        backgroundColor:'#16B1FF',
-        justifyContent:'center',
-        alignItems:'center',
-      },
-      check_students_name_text:{
-        lineHeight:40,
-        verticalAlign:'middle',
-        fontFamily: 'Cairo_400Regular',
-        fontSize:14,
-        color:colors.WHITE
-      },
-      check_students_buttons:{
-        width:250,
-        flexDirection:'row-reverse',
-        alignItems:'center',
-        justifyContent:'space-between',
-        marginBottom:10
-      },
-      check_students_button:{
-        width:40,
-        height:40,
-        borderRadius:50,
-        marginHorizontal:5,
-        alignItems:'center',
-        justifyContent:'center',
-        backgroundColor:colors.SECONDARY
-      },
-      call_student_parent:{
-        width:150,
-        height:40,
-        borderRadius:15,
-        backgroundColor:'#56CA00',
         flexDirection:'row-reverse',
         alignItems:'center',
         justifyContent:'space-around',
-      },
-      call_student_parent_text:{
+    },
+    map_student_name_distance_container:{
+        width:200,
+        height:40,
+        backgroundColor:colors.WHITE,
+        borderColor:colors.BLACK,
+        borderWidth:1,
+        borderRadius:15,
+        flexDirection:'row-reverse',
+        alignItems:'center',
+        justifyContent:'space-around'
+    },
+    map_student_name:{
+        lineHeight:40,      
+        fontFamily: 'Cairo_400Regular',
+        fontSize:15,
+    },
+    map_student_distance:{
+        lineHeight:40,   
+        fontFamily: 'Cairo_700Bold',
+        fontSize:14,
+    },
+    pick_button_accepted:{
+        width:75,
+        height:40,
+        borderRadius:15,
+        alignItems:'center',
+        justifyContent:'center',
+        backgroundColor:colors.BLUE,
+    },
+    pick_button_denied:{
+        width:75,
+        height:40,
+        borderRadius:15,
+        alignItems:'center',
+        justifyContent:'center',
+        backgroundColor:'#d11a2a',
+    },
+    pick_button_text:{
         lineHeight:40,
         verticalAlign:'middle',
-        fontFamily: 'Cairo_400Regular',
-        fontSize:14,
-        color:colors.WHITE,
-      },
-      map_picked_button_container_back_home:{
+        fontFamily: 'Cairo_700Bold',
+        color:colors.WHITE
+    },
+    complete_first_trip_container:{
+        width:'100%',
+        position:'absolute',
+        top:73,
+        left:0,
+        zIndex:5,
+        alignItems:'center',
+        justifyContent:'center',
+    },
+    complete_second_trip_container:{
         width:'100%',
         position:'absolute',
         top:'50%',
@@ -1332,27 +1446,156 @@ const styles = StyleSheet.create({
         zIndex:5,
         alignItems:'center',
         justifyContent:'center',
+    },
+    complete_trip_button:{
+        width:200,
+        height:50,
+        borderRadius:15,
+        alignItems:'center',
+        justifyContent:'center',
+        backgroundColor:colors.BLUE,
+    },
+    cancel_trip_button:{
+        width:200,
+        height:50,
+        borderRadius:15,
+        alignItems:'center',
+        justifyContent:'center',
+        backgroundColor:'#d11a2a',
+    },
+    complete_trip_button_text:{
+        lineHeight:50,
+        verticalAlign:'middle',
+        fontFamily: 'Cairo_400Regular',
+        fontSize:15,
+        color:colors.WHITE
+    },
+    warning_text_before_start_second_trip:{
+        width:320,
+        fontFamily: 'Cairo_700Bold',
+        fontSize:12,
+        textAlign:'center',
+    },
+    second_trip_container:{
+        backgroundColor:'yellow'
+    },
+    start_second_trip_container:{
+        height:'100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    start_second_trip_container2:{
+        marginTop:300,
+        height:200,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    start_trip_container:{
+        height:200,
+        alignItems:'center',
+        justifyContent:'space-around',
+    },
+    start_engine_image:{
+        height:130,
+        width:130,
+        resizeMode:'contain',
       },
-      no_registered_students: {
+    start_trip_text:{
+        width:180,
+        marginTop:10,
+        verticalAlign:'middle',
+        borderRadius:15,
+        textAlign:'center',
+        fontFamily: 'Cairo_400Regular', 
+        fontSize:16,
+    },
+    scrollViewContainer:{
+        height:450,
+    },
+    check_students_boxes:{
+        width:300,
+        marginVertical:5,
+        alignItems:'center',
+    }, 
+    check_students_name:{
+        width:220,
+        height:42,
+        borderColor:colors.BLACK,
+        borderWidth:1,
+        borderRadius:15,
+        justifyContent:'center',
+        alignItems:'center',
+    },
+    check_students_name_text:{
+        lineHeight:42,
+        verticalAlign:'middle',
+        fontFamily: 'Cairo_400Regular',
+        fontSize:15,
+        color:colors.BLACK
+    },
+    check_students_buttons:{
+        width:220,
+        flexDirection:'row-reverse',
+        alignItems:'center',
+        justifyContent:'space-between',
+        marginVertical:7,
+    },
+    check_students_button:{
+        width:60,
+        height:40,
+        borderRadius:10,
+        alignItems:'center',
+        justifyContent:'center',
+        backgroundColor:colors.SECONDARY
+    },
+    call_student_parent:{
+        width:60,
+        height:40,
+        borderRadius:15,
+        backgroundColor:'#56CA00',
+        flexDirection:'row-reverse',
+        alignItems:'center',
+        justifyContent:'space-around',
+    },
+    no_registered_students: {
         height:50,
         width:300,
         backgroundColor:colors.GRAY,
         borderRadius:15,
         justifyContent: 'center',
         alignItems: 'center',
-      },
-      no_student_text: {
+    },
+    no_student_text: {
         lineHeight:50,
         verticalAlign:'middle',
         fontFamily: 'Cairo_400Regular',
-      },
-      mapView_safeArea_container:{
-        flex: 1, // Occupy full space
-        width: '100%', // Ensure the map spans the full width
-        height: '100%',
-      },
-      map: {
-        width: '100%',
-        height: SCheight,
-      },
+    },
+    trip_finished_today:{
+        height:400,
+        alignItems:'center',
+        justifyContent:'center',
+    },
+    logo:{
+        width:'100%',
+        height:200,
+        alignItems:'center',
+        justifyContent:'center',
+    },
+    logo_image:{
+        height:150,
+        width:150,
+        resizeMode:'contain',
+    },
+    today_trip_completed_text:{
+        width:200,
+        height:50,
+        backgroundColor:colors.WHITE,
+        borderColor:colors.BLACK,
+        borderWidth:1,
+        verticalAlign:'middle',
+        borderRadius:15,
+        textAlign:'center',
+        fontFamily: 'Cairo_400Regular',
+        fontSize:16,
+    },
 })

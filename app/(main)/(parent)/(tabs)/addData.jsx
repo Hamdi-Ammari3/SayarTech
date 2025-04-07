@@ -270,70 +270,6 @@ const addData = () => {
     );
   };
   
-  // Add default student monthly subs bill
-  const defaultBill = [
-    {
-      id:0,
-      month:'january',
-      paid:false
-    },
-    {
-      id:1,
-      month:'february',
-      paid:false
-    },
-    {
-      id:2,
-      month:'march',
-      paid:false
-    },
-    {
-      id:3,
-      month:'april',
-      paid:false
-    },
-    {
-      id:4,
-      month:'may',
-      paid:false
-    },
-    {
-      id:5,
-      month:'june',
-      paid:false
-    },
-    {
-      id:6,
-      month:'july',
-      paid:false
-    },
-    {
-      id:7,
-      month:'august',
-      paid:false
-    },
-    {
-      id:8,
-      month:'september',
-      paid:false
-    },
-    {
-      id:9,
-      month:'october',
-      paid:false
-    },
-    {
-      id:10,
-      month:'november',
-      paid:false
-    },
-    {
-      id:11,
-      month:'december',
-      paid:false
-    }
-  ]
-
   // Go to next page
   const handleNext = () => {
     if (currentPage < totalSteps) setCurrentPage(currentPage + 1);
@@ -442,11 +378,12 @@ const addData = () => {
         timetable: schoolTimetable,
         car_type:carType,
         monthly_sub:0,
+        company_commission:0,
+        driver_commission:0,
         trip_status:'at home',
         driver_id:null,
         picked_up:false,
         tomorrow_trip_canceled:false,
-        bill:defaultBill
       }
 
       const docRef = await addDoc(studentsCollectionRef,studentData)
@@ -777,6 +714,9 @@ const addData = () => {
               </>
               <Text style={styles.fullBtnText}>{location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}</Text>
             </TouchableOpacity>
+            <View style={styles.location_msg_view}>
+              <Text style={styles.location_warning_text}>التطبيق يسجل موقعك الحالي كعنوان للمنزل لذا يرجى التواجد في المنزل عند التسجيل و تفعيل خدمة تحديد الموقع الخاصة بالهاتف</Text>
+            </View>
           </View>
         );
       default:
@@ -874,6 +814,16 @@ const styles = StyleSheet.create({
     color:colors.BLACK,
     textAlign:'center',
     fontFamily:'Cairo_400Regular'
+  },
+  location_msg_view:{
+    width:280,
+    paddingHorizontal:10,
+    marginVertical:10,
+  },
+  location_warning_text:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:11,
+    textAlign:'center',
   },
   dropdown:{
     width:280,

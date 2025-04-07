@@ -252,70 +252,6 @@ const addData = () => {
     );
   };
 
-  // Add default employee monthly bill
-  const defaultBill = [
-    {
-      id:0,
-      month:'january',
-      paid:false
-    },
-    {
-      id:1,
-      month:'february',
-      paid:false
-    },
-    {
-      id:2,
-      month:'march',
-      paid:false
-    },
-    {
-      id:3,
-      month:'april',
-      paid:false
-    },
-    {
-      id:4,
-      month:'may',
-      paid:false
-    },
-    {
-      id:5,
-      month:'june',
-      paid:false
-    },
-    {
-      id:6,
-      month:'july',
-      paid:false
-    },
-    {
-      id:7,
-      month:'august',
-      paid:false
-    },
-    {
-      id:8,
-      month:'september',
-      paid:false
-    },
-    {
-      id:9,
-      month:'october',
-      paid:false
-    },
-    {
-      id:10,
-      month:'november',
-      paid:false
-    },
-    {
-      id:11,
-      month:'december',
-      paid:false
-    }
-  ]
-
   // Go to next page
   const handleNext = () => {
     if (currentPage < totalSteps) setCurrentPage(currentPage + 1);
@@ -365,7 +301,7 @@ const addData = () => {
     }
     
     if (!homeAdress) {
-      createAlert("يرجى تحديد اقرب نقطة دالة على عنوانكم");
+      createAlert("يرجى تحديد اقرب نقطة دالة على عنوان المنزل");
       return;
     }
 
@@ -430,11 +366,12 @@ const addData = () => {
         timetable: companyTimetable,
         car_type:carType,
         monthly_sub:0,
+        company_commission:0,
+        driver_commission:0,
         trip_status:'at home',
         driver_id:null,
         picked_up:false,
         tomorrow_trip_canceled:false,
-        bill:defaultBill
       }
       const docRef = await addDoc(riderCollectionRef,riderData)
 
@@ -666,7 +603,7 @@ const addData = () => {
             <TextInput
               style={styles.customeInput}
               placeholderTextColor={colors.BLACK}
-              placeholder="اقرب نقطة دالة"
+              placeholder="اقرب نقطة دالة على عنوان المنزل"
               value={homeAdress}
               onChangeText={(text) => setHomeAdress(text)}
             />
@@ -681,6 +618,9 @@ const addData = () => {
               </>
               <Text style={styles.fullBtnText}>{location !== null ? 'تم تحديد موقعك' : 'عنوان المنزل'}</Text>
             </TouchableOpacity>
+            <View style={styles.location_msg_view}>
+              <Text style={styles.location_warning_text}>التطبيق يسجل موقعك الحالي كعنوان للمنزل لذا يرجى التواجد في المنزل عند التسجيل و تفعيل خدمة تحديد الموقع الخاصة بالهاتف</Text>
+            </View>
           </View>
         )
       case 3:
@@ -799,8 +739,20 @@ const addData = () => {
           <View style={styles.logo}>
             <Image source={logo} style={styles.logo_image}/>
           </View>
-          <View style={styles.student_data_already_added}>
-            <Text style={styles.student_data_already_added_text}>لقد تمت اضافة بياناتك</Text>
+          <View style={styles.employee_info_box}>
+            <Text style={styles.employee_info_text}>{rider[0].full_name} {rider[0].family_name}</Text>
+          </View>
+          <View style={styles.employee_info_box}>
+            <Text style={styles.employee_info_text}>{rider[0].phone_number}</Text>
+          </View>
+          <View style={styles.employee_info_box}>
+            <Text style={styles.employee_info_text}>{rider[0].state} - {rider[0].city}</Text>
+          </View>
+          <View style={styles.employee_info_box}>
+            <Text style={styles.employee_info_text}>{rider[0].street}</Text>
+          </View>
+          <View style={styles.employee_info_box}>
+            <Text style={styles.employee_info_text}>{rider[0].home_address}</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -862,29 +814,30 @@ const styles = StyleSheet.create({
   },
   logo:{
     width:'100%',
-    height:150,
+    height:200,
     justifyContent:'center',
     alignItems:'center',
   },
   logo_image:{
-    height:120,
-    width:120,
+    height:150,
+    width:150,
     resizeMode:'contain',
   },
-  student_data_already_added:{
-    backgroundColor:colors.GRAY,
-    width:250,
+  employee_info_box:{
+    width:300,
     height:50,
-    borderRadius:15,
+    backgroundColor:colors.GRAY,
+    justifyContent:'center',
     alignItems:'center',
-    justifyContent:'center'
+    borderRadius:15,
+    marginTop:10
   },
-  student_data_already_added_text:{
+  employee_info_text:{
     lineHeight:50,
     verticalAlign:'middle',
-    textAlign:'center',
-    fontFamily: 'Cairo_400Regular',
-    fontSize:15,
+    fontFamily:'Cairo_400Regular',
+    fontSize:14,
+    color:colors.BLACK
   },
   title:{
     marginBottom:20,
@@ -952,6 +905,16 @@ const styles = StyleSheet.create({
     fontSize:14
   },
   dropdownTextStyle:{
+    textAlign:'center',
+  },
+  location_msg_view:{
+    width:280,
+    paddingHorizontal:10,
+    marginVertical:10,
+  },
+  location_warning_text:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:11,
     textAlign:'center',
   },
   worktimeContainer:{
