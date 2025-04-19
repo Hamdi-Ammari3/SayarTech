@@ -185,20 +185,7 @@ const profile = () => {
       </Animated.View>
 
       <FlatList
-        data={driverData[0]?.line.filter(line => {
-          const iraqiTodayDate = new Date().toLocaleDateString("fr-CA", { timeZone: "Asia/Baghdad" });
-      
-          // If the driver is a substitute driver, only show the line during the active period
-          if (line.original_driver && line.active_periode) {
-            const { start, end } = line.active_periode;
-            const startDate = new Date(start.seconds * 1000).toISOString().split("T")[0];
-            const endDate = new Date(end.seconds * 1000).toISOString().split("T")[0];
-      
-            return iraqiTodayDate >= startDate && iraqiTodayDate <= endDate;
-          }
-      
-          return true; // Show other lines normally
-        })}
+        data={driverData[0]?.line}
         renderItem={({ item }) => {
           const isSubstituteDriver = item.original_driver && item.active_periode;
           const isOriginalDriver = item.subs_driver && item.desactive_periode;
@@ -503,3 +490,20 @@ const styles = StyleSheet.create({
     marginLeft:10,
   },
 })
+
+/*
+data={driverData[0]?.line.filter(line => {
+          const iraqiTodayDate = new Date().toLocaleDateString("fr-CA", { timeZone: "Asia/Baghdad" });
+      
+          // If the driver is a substitute driver, only show the line during the active period
+          if (line.original_driver && line.active_periode) {
+            const { start, end } = line.active_periode;
+            const startDate = new Date(start.seconds * 1000).toISOString().split("T")[0];
+            const endDate = new Date(end.seconds * 1000).toISOString().split("T")[0];
+      
+            return iraqiTodayDate >= startDate && iraqiTodayDate <= endDate;
+          }
+      
+          return true; // Show other lines normally
+        })}
+*/

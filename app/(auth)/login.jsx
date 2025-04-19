@@ -7,7 +7,7 @@ import { collection,getDocs,where,query } from 'firebase/firestore'
 import { DB } from '../../firebaseConfig'
 import axios from 'axios'
 import colors from '../../constants/Colors'
-import logo from '../../assets/images/logo.jpeg'
+import logo from '../../assets/images/logo.jpg'
 import FontAwesome from '@expo/vector-icons/FontAwesome'
 import AntDesign from '@expo/vector-icons/AntDesign'
 
@@ -34,7 +34,8 @@ export default function Page() {
   const [sms,setSms] = useState(false)
   const [guestModeSigninLoading,setGuestModeSigninLoading] = useState(false)
 
-  const HARDCODED_PASSWORD = "SecurePass123!";
+  //const HARDCODED_PASSWORD = "SecurePass123!";  // Clerk dev env password
+  const HARDCODED_PASSWORD = "SecurePass1234!";
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
@@ -113,6 +114,7 @@ export default function Page() {
       if (error.errors?.[0]?.longMessage?.includes("Couldn't find your account")) {
         return false; // User does not exist
       }
+      console.log("Error checking user existence:", error);
       return "error"; // Some other error occurred
     }
   };
@@ -277,7 +279,13 @@ export default function Page() {
     try {
       const username = `user_${phone}`;
 
-      if(username === 'user_2015550101' || username === 'user_2015550102' || username === 'user_2015550104' || username === 'user_2015550105') {
+      if(username === 'user_2015550101' || 
+        username === 'user_2015550102' || 
+        username === 'user_2015550104' || 
+        username === 'user_2015550105' ||
+        username === 'user_2015550106' ||
+        username === 'user_2015550107') 
+        {
         const signInAttempt = await signIn.create({
           identifier: username,
           password: HARDCODED_PASSWORD,
@@ -295,6 +303,7 @@ export default function Page() {
       }
     } catch (error) {
       createAlert("حدث خطأ أثناء تسجيل الدخول")
+      console.log(error)
       setGuestModeSigninLoading(false)
     } finally {
       setGuestModeSigninLoading(false)
@@ -311,15 +320,15 @@ export default function Page() {
   }
 
   if(isSignedIn && userType === 'parent') {
-    return <Redirect href={'/(main)/(parent)/(tabs)/home'}/>
+    return <Redirect href={'/(main)/(rider)/(tabs)/home'}/>
   }
 
   if(isSignedIn && userType === 'student') {
-    return <Redirect href={'/(main)/(student)/(tabs)/home'}/>
+    return <Redirect href={'/(main)/(rider)/(tabs)/home'}/>
   }
 
   if(isSignedIn && userType === 'employee') {
-    return <Redirect href={'/(main)/(employee)/(tabs)/home'}/>
+    return <Redirect href={'/(main)/(rider)/(tabs)/home'}/>
   }
 
   if(isSignedIn && userType === 'driver') {
@@ -451,25 +460,6 @@ export default function Page() {
             />
           </View>
 
-          <View style={styles.whatsapp_sms_container}>
-            <View style={styles.whatsapp_sms_check}>
-              <TouchableOpacity 
-                style={[styles.whatsapp_sms_check_btn,whatsapp && styles.whatsapp_sms_check_btn_active]} 
-                onPress={whatsappChannelHandler}
-              >
-                <FontAwesome name="whatsapp" size={24} color={whatsapp ? colors.WHITE : colors.BLACK} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.whatsapp_sms_check}>
-              <TouchableOpacity 
-                style={[styles.whatsapp_sms_check_btn,sms && styles.whatsapp_sms_check_btn_active]} 
-                onPress={smsChannelHandler}
-              >
-                <AntDesign name="message1" size={21} color={sms ? colors.WHITE : colors.BLACK} />
-              </TouchableOpacity>
-            </View>       
-          </View>
-
           {isSigningIn ? (
             <TouchableOpacity style={styles.button}>
                 <ActivityIndicator size="small" color={colors.WHITE} />
@@ -504,14 +494,15 @@ const styles = StyleSheet.create({
   },
   logo:{
     width:'100%',
-    height:150,
+    height:200,
     marginTop:50,
     justifyContent:'center',
     alignItems:'center',
+    //backgroundColor:'red'
   },
   logo_image:{
-    height:120,
-    width:120,
+    height:180,
+    width:180,
     resizeMode:'contain',
   },
   form:{
@@ -651,3 +642,24 @@ const styles = StyleSheet.create({
     marginHorizontal:5,
   },
 })
+
+/*
+<View style={styles.whatsapp_sms_container}>
+            <View style={styles.whatsapp_sms_check}>
+              <TouchableOpacity 
+                style={[styles.whatsapp_sms_check_btn,whatsapp && styles.whatsapp_sms_check_btn_active]} 
+                onPress={whatsappChannelHandler}
+              >
+                <FontAwesome name="whatsapp" size={24} color={whatsapp ? colors.WHITE : colors.BLACK} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.whatsapp_sms_check}>
+              <TouchableOpacity 
+                style={[styles.whatsapp_sms_check_btn,sms && styles.whatsapp_sms_check_btn_active]} 
+                onPress={smsChannelHandler}
+              >
+                <AntDesign name="message1" size={21} color={sms ? colors.WHITE : colors.BLACK} />
+              </TouchableOpacity>
+            </View>       
+          </View>
+*/

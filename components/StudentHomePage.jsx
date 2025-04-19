@@ -14,11 +14,10 @@ import tripReady from '../assets/animations/next_trip.json'
 
 const toArabicNumbers = (num) => num.toString().replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d])
 
+// ****  cancel tomorrow trip needs to be date format and acrivated in the driver page
+// ****  if we switch the line to driver B riders must track the new driver location and not the old one
+
 const StudentHomePage = ({student}) => {
-
-  // after the driver picked up the student and hiding toward a next student location show a message of "student is in the car" instead of "student going to school"
-  // Add Advertising slide for private schools and universities 
-
   const GOOGLE_MAPS_APIKEY = ''
   const mapRef = useRef(null)
   const markerRef = useRef(null)
@@ -32,6 +31,40 @@ const StudentHomePage = ({student}) => {
   const [driverCurrentLocation, setDriverCurrentLocation] = useState(null);
   const [driverCurrentLocationLoading, setDriverCurrentLocationLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false)
+  const [todayJourneyStarted, setTodayJourneyStarted] = useState(false);
+
+  const createAlert = (alerMessage) => {
+    Alert.alert(alerMessage)
+  }
+
+  // Student today status
+  useEffect(() => {
+    const checkTodayJourney = async () => {
+      try {
+        const iraqTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
+        const [month, day, year] = iraqTime.split(/[/, ]/);
+        const yearMonthKey = `${year}-${month.padStart(2, "0")}`;
+        const dayKey = day.padStart(2, "0");
+  
+        const driverDoc = await getDoc(doc(DB, "drivers", student?.driver_id));
+        if (!driverDoc.exists()) {
+          setTodayJourneyStarted(false);
+          return;
+        }
+  
+        const driverData = driverDoc.data();
+        const journeyCheck = driverData?.dailyTracking?.[yearMonthKey]?.[dayKey]?.start_the_journey || false;
+        setTodayJourneyStarted(journeyCheck);
+      } catch (error) {
+        createAlert("حدث خطأ أثناء التحقق من حالة الرحلة اليوم.");
+        console.log("Error checking today's journey:", error);
+      }
+    };
+  
+    if (student?.driver_id) {
+      checkTodayJourney();
+    }
+  }, [student?.driver_id]);
 
   // Next trip date
   useEffect(() => {
@@ -175,10 +208,6 @@ const StudentHomePage = ({student}) => {
     longitudeDelta: 0.05,
   })).current;
   
-  const createAlert = (alerMessage) => {
-    Alert.alert(alerMessage)
-  }
-
   const markerIcon = () => {
     return(
       <Svg height={20} width={20}>
@@ -453,7 +482,7 @@ const StudentHomePage = ({student}) => {
   }
 
   // If the student is at home
-  if(student.driver_id && student.trip_status === 'at home') {
+  if(student.driver_id && (todayJourneyStarted === false || student.trip_status === 'at home')) {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
@@ -471,39 +500,13 @@ const StudentHomePage = ({student}) => {
               <Text style={styles.next_trip_counter_text}>{nextTripText}</Text>
             </View>            
           </View> 
-          {!student.tomorrow_trip_canceled && (
-            <View style={styles.cancel_trip_btn_container}>
-              <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
-                <Text style={styles.cancel_trip_btn_text}>الغاء الرحلة القادمة</Text>
-              </TouchableOpacity>
-              {isCanceling && (
-                <View style={styles.cancel_trip_confirmation}>
-                  <TextInput
-                    style={styles.cancel_trip_input}
-                    placeholderTextColor={colors.BLACK}
-                    value={cancelText}
-                    onChangeText={setCancelText}
-                    placeholder="للتاكيد اكتب كلمة نعم هنا"
-                  />
-                  <View style={styles.confirm_deny_canceling_btn}>
-                    <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
-                      <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
-                      <Text style={styles.deny_cancel_btn_text}>لا</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
         </View>
       </SafeAreaView>
     )
   }
 
   // If the student is at school
-  if(student.driver_id && student.trip_status === 'at destination') {
+  if(student.driver_id && todayJourneyStarted !== false && student.trip_status === 'at destination') {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
@@ -527,7 +530,7 @@ const StudentHomePage = ({student}) => {
   }
 
   // If the student is going to school
-  if(student.driver_id && student.trip_status === 'to destination'){
+  if(student.driver_id && todayJourneyStarted !== false && student.trip_status === 'to destination'){
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_route_status_container}>
@@ -543,7 +546,7 @@ const StudentHomePage = ({student}) => {
   }
 
   // If the student is going to school or going to home
-  if(student.driver_id && student.trip_status === 'to home') {
+  if(student.driver_id && todayJourneyStarted !== false && student.trip_status === 'to home') {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_route_status_container}>
@@ -591,7 +594,7 @@ const styles = StyleSheet.create({
   next_trip_box:{
     width:300,
     height:350,
-    marginTop:55,
+    marginTop:0,
     borderRadius:15,
     alignItems:'center',
     justifyContent:'center',
@@ -728,4 +731,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   }
 })
+
+
+/*
+{!student.tomorrow_trip_canceled && (
+            <View style={styles.cancel_trip_btn_container}>
+              <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
+                <Text style={styles.cancel_trip_btn_text}>الغاء الرحلة القادمة</Text>
+              </TouchableOpacity>
+              {isCanceling && (
+                <View style={styles.cancel_trip_confirmation}>
+                  <TextInput
+                    style={styles.cancel_trip_input}
+                    placeholderTextColor={colors.BLACK}
+                    value={cancelText}
+                    onChangeText={setCancelText}
+                    placeholder="للتاكيد اكتب كلمة نعم هنا"
+                  />
+                  <View style={styles.confirm_deny_canceling_btn}>
+                    <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
+                      <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
+                      <Text style={styles.deny_cancel_btn_text}>لا</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+*/
 

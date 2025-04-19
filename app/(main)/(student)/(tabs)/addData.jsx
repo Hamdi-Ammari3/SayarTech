@@ -13,7 +13,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import { Dropdown } from 'react-native-element-dropdown'
 import { useRiderData } from '../../../stateManagment/RiderContext'
-import logo from '../../../../assets/images/logo.jpeg'
+import logo from '../../../../assets/images/logo.jpg'
 
 const addData = () => {
   const { user } = useUser()
@@ -243,7 +243,7 @@ const addData = () => {
     // Step 1: Provide a prominent disclosure
     Alert.alert(
       "مطلوب إذن الموقع",
-      "يستخدم تطبيق Sayartech بيانات موقعك للمساعدة في حفظ عنوان منزلك. يضمن ذلك توفير خدمات التوصيل والاستلام بدقة. لن يتم جمع بيانات موقعك في الخلفية ولن يتم مشاركتها مع أطراف خارجية.",
+      "يستخدم تطبيق Safe بيانات موقعك للمساعدة في حفظ عنوان منزلك. يضمن ذلك توفير خدمات التوصيل والاستلام بدقة. لن يتم جمع بيانات موقعك في الخلفية ولن يتم مشاركتها مع أطراف خارجية.",
       [
         {
           text: "Cancel",
@@ -806,8 +806,8 @@ const styles = StyleSheet.create({
     alignItems:'center',
   },
   logo_image:{
-    height:150,
-    width:150,
+    height:180,
+    width:180,
     resizeMode:'contain',
   },
   student_info_box:{

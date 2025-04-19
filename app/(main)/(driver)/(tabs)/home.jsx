@@ -8,7 +8,7 @@ import LottieView from "lottie-react-native"
 import { useDriverData } from '../../../stateManagment/DriverContext'
 import { useUser } from '@clerk/clerk-expo'
 import colors from '../../../../constants/Colors'
-import logo from '../../../../assets/images/logo.jpeg'
+import logo from '../../../../assets/images/logo.jpg'
 import LinePage from '../../../../components/LinePage'
 import addDataAnimation from '../../../../assets/animations/adding_data.json'
 import driverWaiting from '../../../../assets/animations/waiting_driver.json'
@@ -175,6 +175,17 @@ const Home = () => {
       batch.update(driverRef, {
         dailyTracking: existingTracking,
       });
+
+      // Reset trip status for all riders in today's active lines
+      for (const line of activeLinesToday) {
+        for (const rider of line.riders) {
+          const riderRef = doc(DB, 'riders', rider.id);
+          batch.update(riderRef, {
+            trip_status: 'at home',
+            picked_up: false
+          });
+        }
+      }
   
       // Commit batch updates
       await batch.commit();
@@ -307,7 +318,12 @@ const Home = () => {
             const yearMonthKey = `${year}-${month.padStart(2, "0")}`;
             const dayKey = day.padStart(2, "0") || "01"; // fallback
 
-            const todayLines = driverData[0]?.dailyTracking?.[yearMonthKey]?.[dayKey]?.today_lines || [];
+            const todayLines = (
+              driverData[0]?.dailyTracking?.[yearMonthKey]?.[dayKey]?.today_lines || []
+            ).filter(line => {
+              const isCompleted = line.second_trip_finished === true;
+              return !isCompleted;
+            });
 
             return todayLines
               .sort((a, b) => (a.line_index || 999) - (b.line_index || 999))
@@ -340,7 +356,13 @@ const Home = () => {
           const yearMonthKey = `${year}-${month.padStart(2, "0")}`;
           const dayKey = day.padStart(2, "0");
   
-          const todayLines = driverData[0]?.dailyTracking?.[yearMonthKey]?.[dayKey]?.today_lines || [];
+          const todayLines = (
+            driverData[0]?.dailyTracking?.[yearMonthKey]?.[dayKey]?.today_lines || []
+          ).filter(line => {
+            const isCompleted =
+              line.second_trip_finished === true;
+            return !isCompleted;
+          });
 
           return todayLines[selectedLine] && (
             <LinePage
@@ -377,8 +399,8 @@ const styles = StyleSheet.create({
     justifyContent:'center',
   },
   logo_image:{
-    height:150,
-    width:150,
+    height:180,
+    width:180,
     resizeMode:'contain',
   },
   animation_container:{

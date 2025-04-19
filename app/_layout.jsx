@@ -8,8 +8,8 @@ import * as SecureStore from 'expo-secure-store'
 
 SplashScreen.preventAutoHideAsync()
 
-
-const publishableKey = 'pk_test_Zmlyc3QtbWFjYXctOTcuY2xlcmsuYWNjb3VudHMuZGV2JA'
+//const publishableKey = 'pk_test_Zmlyc3QtbWFjYXctOTcuY2xlcmsuYWNjb3VudHMuZGV2JA'
+const publishableKey ='pk_live_Y2xlcmsuc2F5YXJ0ZWNoLmNvbSQ'
 
 if (!publishableKey) {
   throw new Error(

@@ -11,7 +11,7 @@ import { useUser } from '@clerk/clerk-expo'
 import { Dropdown } from 'react-native-element-dropdown'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import * as ImagePicker from 'expo-image-picker'
-import logo from '../../../../assets/images/logo.jpeg'
+import logo from '../../../../assets/images/logo.jpg'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import { useDriverData } from '../../../stateManagment/DriverContext'
@@ -74,7 +74,7 @@ const addData = () => {
     // Step 1: Provide a prominent disclosure
     Alert.alert(
       "مطلوب إذن الموقع",
-      "يقوم تطبيق Sayartech بجمع بيانات موقعك لحفظه كعنوان منزلك. يتيح لنا ذلك مطابقتك مع أقرب الطلاب لتحسين المسار. لا يتم جمع بيانات موقعك في الخلفية ولن يتم مشاركتها مع أطراف خارجية.",
+      "يقوم تطبيق Safe بجمع بيانات موقعك لحفظه كعنوان منزلك. يتيح لنا ذلك مطابقتك مع أقرب الطلاب لتحسين المسار. لا يتم جمع بيانات موقعك في الخلفية ولن يتم مشاركتها مع أطراف خارجية.",
       [
         {
           text: "cancel",
@@ -268,7 +268,7 @@ const addData = () => {
       if (carImage) {
         carImageUrl = await uploadImage(carImage)
       }
-    
+
       const driversCollectionRef = collection(DB,'drivers')
       const driverData = {
         driver_full_name: userData.user_full_name,
@@ -286,10 +286,9 @@ const addData = () => {
         driver_personal_image: personalImageUrl,
         driver_car_image: carImageUrl,
         line:[],
-        start_the_journey:false,
         school_rating:[],
         student_rating:[],
-        sayartech_team_rating:[],
+        team_rating:[],
         points:[],
       }
 
@@ -692,8 +691,8 @@ const styles = StyleSheet.create({
     justifyContent:'center',
   },
   logo_image:{
-    height:150,
-    width:150,
+    height:180,
+    width:180,
     resizeMode:'contain',
   },
   driver_image_box:{

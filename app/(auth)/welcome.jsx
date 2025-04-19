@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import LottieView from "lottie-react-native"
-import logo from '../../assets/images/logo.jpeg'
+import logo from '../../assets/images/logo.jpg'
 import colors from '../../constants/Colors'
 import schoolBus from '../../assets/animations/school_bus.json'
 import schedule from '../../assets/animations/schedule.json'
@@ -38,7 +38,7 @@ const welcome = () => {
           <View style={styles.text_container}>
             <Text style={styles.text_title}>الحل الأفضل لنقل الطلاب</Text>
             <Text style={styles.text_content}>
-              تطبيق "SayarTech" هو الحل الأمثل اللي يجمع السواقين الموثوقين ويخليك تراقب الرحلة، وتنظم جدولك اليومي بكل سهولة.
+              تطبيق "Safe" هو الحل الأمثل اللي يجمع السواقين الموثوقين ويخليك تراقب الرحلة، وتنظم جدولك اليومي بكل سهولة.
             </Text>
             <View style={styles.animation_container}>
               <LottieView

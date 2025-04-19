@@ -7,7 +7,7 @@ import * as Notifications from 'expo-notifications'
 import LottieView from "lottie-react-native"
 import { useRiderData } from '../../../stateManagment/RiderContext'
 import colors from '../../../../constants/Colors'
-import logo from '../../../../assets/images/logo.jpeg'
+import logo from '../../../../assets/images/logo.jpg'
 import addDataAnimation from '../../../../assets/animations/adding_data.json'
 import StudentHomePage from '../../../../components/StudentHomePage'
 
@@ -116,8 +116,8 @@ const styles = StyleSheet.create({
     justifyContent:'center',
   },
   logo_image:{
-    height:150,
-    width:150,
+    height:180,
+    width:180,
     resizeMode:'contain',
   },
   animation_container:{

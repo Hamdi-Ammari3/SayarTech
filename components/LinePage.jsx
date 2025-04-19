@@ -12,20 +12,9 @@ import colors from '../constants/Colors'
 import AntDesign from '@expo/vector-icons/AntDesign'
 import Feather from '@expo/vector-icons/Feather'
 import startEngineImage from '../assets/images/push-button.png'
-import logo from '../assets/images/logo.jpeg'
+import logo from '../assets/images/logo.jpg' 
 
 const LinePage = ({line,todayLines}) => {
-    
-    // disactivate the current line and activate the next if the line trip canceled
-
-    // add points to driver based on time he get to the school
-
-    // add points of the month in the driver profile
-
-    // change driver location tracking from foreground to background
-
-    // **** if line if finished (second trip) must be excluded from activation and indexing *****
-    
     const {driverData} = useDriverData()
     const GOOGLE_MAPS_APIKEY = ''
     const mapRef = useRef(null)
@@ -43,7 +32,7 @@ const LinePage = ({line,todayLines}) => {
     const [mapReady, setMapReady] = useState(false)
     const [distanceToRider,setDistanceToRider] = useState(null)
     const [distanceToDestination,setDistanceToDestination] = useState(null)
-
+    
     const createAlert = (alerMessage) => {
         Alert.alert(alerMessage)
     }
@@ -604,6 +593,29 @@ const LinePage = ({line,todayLines}) => {
             // Determine if the current line is the last one
             const isLastLine = line.line_index === lastLineIndex
 
+             // Create finished line record for archiving
+            const finishedLineRecord = {
+                id: line.id,
+                lineName: line.lineName,
+                first_trip_start_time: line?.first_trip_start_time || null,
+                first_trip_finish_time: line?.first_trip_finish_time || null,
+                second_trip_start_time: line?.second_trip_start_time || null,
+                second_trip_finish_time: iraqRealTime,
+                riders: droppedOffRiders.map(rider => ({
+                    id: rider.id,
+                    name: rider.name,
+                    picked_up_time: rider?.picked_up_time || null,
+                    dropped_off_time: rider?.dropped_off_time || null,
+                })),
+            };
+
+            // Add to finished_lines (initialize array if doesn't exist)
+            const dayTracking = existingTracking[yearMonthKey][dayKey];
+            if (!dayTracking.finished_lines) {
+                dayTracking.finished_lines = [];
+            }
+            dayTracking.finished_lines.push(finishedLineRecord);
+
             // Update current line
             const updatedCurrentLine = {
                 ...line,
@@ -622,10 +634,10 @@ const LinePage = ({line,todayLines}) => {
                 return li
             });
 
-            existingTracking[yearMonthKey][dayKey].today_lines = updatedTodayLines;
+            dayTracking.today_lines = updatedTodayLines;
 
             if(isLastLine){
-                existingTracking[yearMonthKey][dayKey].complete_today_journey = true;
+                dayTracking.complete_today_journey = true;
             }
 
             batch.update(driverDoc, {
@@ -674,9 +686,11 @@ const LinePage = ({line,todayLines}) => {
     // move to the next rider location
     const markRider = async (status) => {
 
-        //if(distanceToRider > 200) {
-            //createAlert('يجب أن تكون على بعد 200 متر أو أقل من منزل الطالب لتتمكن من تأكيد الصعود');
-            //return;
+        //if(status === true) {
+            //if (distanceToRider > 200) {
+                //createAlert('يجب أن تكون على بعد 200 متر أو أقل من منزل الطالب لتتمكن من تأكيد الصعود');
+                //return;
+            //}
         //}
 
         if (isMarkingRider) return;
@@ -1582,8 +1596,8 @@ const styles = StyleSheet.create({
         justifyContent:'center',
     },
     logo_image:{
-        height:150,
-        width:150,
+        height:180,
+        width:180,
         resizeMode:'contain',
     },
     today_trip_completed_text:{

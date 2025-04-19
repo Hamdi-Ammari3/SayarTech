@@ -12,15 +12,17 @@ import {DB} from '../../../../firebaseConfig'
 import LottieView from "lottie-react-native"
 import { useRiderData } from '../../../stateManagment/RiderContext'
 import colors from '../../../../constants/Colors'
-import logo from '../../../../assets/images/logo.jpeg'
+import logo from '../../../../assets/images/logo.jpg'
 import addDataAnimation from '../../../../assets/animations/adding_data.json'
 import driverWaiting from '../../../../assets/animations/waiting_driver.json'
 import tripReady from '../../../../assets/animations/next_trip.json'
 
 const toArabicNumbers = (num) => num.toString().replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d])
 
-const home = () => {
+// ****  cancel tomorrow trip needs to be date format and acrivated in the driver page
+// ****  if we switch the line to driver B riders must track the new driver location and not the old one
 
+const home = () => {
   const GOOGLE_MAPS_APIKEY = ''
   const {rider,fetchingRiderLoading} = useRiderData()
 
@@ -38,6 +40,40 @@ const home = () => {
   const [driverCurrentLocation, setDriverCurrentLocation] = useState(null)
   const [driverCurrentLocationLoading, setDriverCurrentLocationLoading] = useState(true)
   const [mapReady, setMapReady] = useState(false)
+  const [todayJourneyStarted, setTodayJourneyStarted] = useState(false)
+
+  const createAlert = (alerMessage) => {
+    Alert.alert(alerMessage)
+  }
+
+  // Student today status
+    useEffect(() => {
+      const checkTodayJourney = async () => {
+        try {
+          const iraqTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
+          const [month, day, year] = iraqTime.split(/[/, ]/);
+          const yearMonthKey = `${year}-${month.padStart(2, "0")}`;
+          const dayKey = day.padStart(2, "0");
+    
+          const driverDoc = await getDoc(doc(DB, "drivers", rider[0]?.driver_id));
+          if (!driverDoc.exists()) {
+            setTodayJourneyStarted(false);
+            return;
+          }
+    
+          const driverData = driverDoc.data();
+          const journeyCheck = driverData?.dailyTracking?.[yearMonthKey]?.[dayKey]?.start_the_journey || false;
+          setTodayJourneyStarted(journeyCheck);
+        } catch (error) {
+          createAlert("حدث خطأ أثناء التحقق من حالة الرحلة اليوم.");
+          console.log("Error checking today's journey:", error);
+        }
+      };
+    
+      if (rider[0]?.driver_id) {
+        checkTodayJourney();
+      }
+    }, [rider[0]?.driver_id]);
 
   // Next trip date
   useEffect(() => {
@@ -179,10 +215,6 @@ const home = () => {
     latitudeDelta: 0.005,
     longitudeDelta: 0.005,
   })).current;
-
-  const createAlert = (alerMessage) => {
-    Alert.alert(alerMessage)
-  }
 
   const markerIcon = () => {
     return(
@@ -488,7 +520,7 @@ const home = () => {
   }
 
   // If the student is at home
-  if(rider[0]?.driver_id && rider[0]?.trip_status === 'at home') {
+  if(rider[0]?.driver_id && (todayJourneyStarted === false || rider[0]?.trip_status === 'at home')) {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
@@ -509,38 +541,13 @@ const home = () => {
               <Text style={styles.next_trip_counter_text}>{nextTripText}</Text>
             </View>            
           </View> 
-          {!rider[0].tomorrow_trip_canceled && (
-            <View style={styles.cancel_trip_btn_container}>
-              <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
-                <Text style={styles.cancel_trip_btn_text}>الغاء الرحلة القادمة</Text>
-              </TouchableOpacity>
-              {isCanceling && (
-                <View style={styles.cancel_trip_confirmation}>
-                  <TextInput
-                    style={styles.cancel_trip_input}
-                    value={cancelText}
-                    onChangeText={setCancelText}
-                    placeholder="للتاكيد اكتب كلمة نعم هنا"
-                  />
-                  <View style={styles.confirm_deny_canceling_btn}>
-                    <TouchableOpacity style={styles.confirm_cancel_btn} onPress={() => handleCancelTrip(rider[0].id)}>
-                      <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
-                      <Text style={styles.deny_cancel_btn_text}>رفض</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
         </View>
       </SafeAreaView>
     )
   }
 
   // If the student is at school
-  if(rider[0]?.driver_id && rider[0]?.trip_status === 'at destination') {
+  if(rider[0]?.driver_id && todayJourneyStarted !== false && rider[0]?.trip_status === 'at destination') {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_container}>
@@ -567,7 +574,7 @@ const home = () => {
   }
 
   // If the student is going to school
-  if(rider[0]?.driver_id && rider[0]?.trip_status === 'to destination'){
+  if(rider[0]?.driver_id && todayJourneyStarted !== false && rider[0]?.trip_status === 'to destination'){
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_route_status_container}>
@@ -583,7 +590,7 @@ const home = () => {
   }
 
   // If the student is going to school or going to home
-  if(rider[0]?.driver_id && rider[0]?.trip_status === 'to home') {
+  if(rider[0]?.driver_id && todayJourneyStarted !== false && rider[0]?.trip_status === 'to home') {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.student_route_status_container}>
@@ -617,8 +624,8 @@ const styles = StyleSheet.create({
     justifyContent:'center',
   },
   logo_image:{
-    height:150,
-    width:150,
+    height:180,
+    width:180,
     resizeMode:'contain',
   },
   animation_container:{

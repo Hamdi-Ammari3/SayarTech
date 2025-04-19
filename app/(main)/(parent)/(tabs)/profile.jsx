@@ -13,7 +13,6 @@ import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import driverWaiting from '../../../../assets/animations/waiting_driver.json'
-import logo from '../../../../assets/images/logo.jpeg'
 
 const profile = () => {
   const {userData,fetchingUserDataLoading,rider,fetchingRiderLoading} = useRiderData()

@@ -14,10 +14,17 @@ import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 import Checkbox from 'expo-checkbox'
 import { Dropdown } from 'react-native-element-dropdown'
-import logo from '../../assets/images/logo.jpeg'
+import logo from '../../assets/images/logo.jpg'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import FontAwesome from '@expo/vector-icons/FontAwesome'
 import AntDesign from '@expo/vector-icons/AntDesign'
+
+// +1 2015550101 Google
+// +1 2015550102 Apple
+// +1 2015550104 Driver       doc_id => m6cCweDEgE2hs10ODDZa
+// +1 2015550105 Parent       doc_id => XxQmlNXsik6cPLWR8lUn
+// +1 2015550106 Student      doc_id => AsBQJWF0yxHZBTrtHOo0
+// +1 2015550107 Employee     doc_id => GsONchCseOizjLTvPQHu
 
 
 export default function SignUpScreen() {
@@ -51,7 +58,8 @@ export default function SignUpScreen() {
   const [whatsapp,setWatsapp] = useState(true)
   const [sms,setSms] = useState(false)
 
-  const HARDCODED_PASSWORD = "SecurePass123!";
+  //const HARDCODED_PASSWORD = "SecurePass123!";
+  const HARDCODED_PASSWORD = "SecurePass1234!";
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
@@ -71,9 +79,10 @@ export default function SignUpScreen() {
 
   // Account owner type
   const compte_owner = [
-    {label:'ولي أمر',value:'parent'},
-    {label:'طالب',value:'student'},
-    {label:'موظف',value:'employee'},
+    //{label:'ولي أمر',value:'parent'},
+    //{label:'طالب',value:'student'},
+    //{label:'موظف',value:'employee'},
+    {label:'راكب',value:'rider'},
     {label:'سائق',value:'driver'}
   ]
 
@@ -302,7 +311,7 @@ export default function SignUpScreen() {
         createAlert("رمز التحقق غير صحيح");
         return;
       }
-  
+      
       // Create Clerk User
       const username = `user_${phone}`;
       const signUpAttempt = await signUp.create({
@@ -319,11 +328,13 @@ export default function SignUpScreen() {
   
         //Redirect user to the correct page
         if (compteOwner === 'parent') {
-          router.replace('(main)/(parent)/(tabs)/home');
+          router.replace('(main)/(rider)/(tabs)/home');
         } else if (compteOwner === 'student') {
-          router.replace('(main)/(student)/(tabs)/home');
+          router.replace('(main)/(rider)/(tabs)/home');
         } else if (compteOwner === 'employee') {
-          router.replace('(main)/(employee)/(tabs)/home');
+          router.replace('(main)/(rider)/(tabs)/home');
+        } else if (compteOwner === 'rider') {
+          router.replace('(main)/(rider)/(tabs)/home');
         } else if (compteOwner === 'driver') {
           router.replace('(main)/(driver)/(tabs)/home');
         }
@@ -465,25 +476,6 @@ export default function SignUpScreen() {
               keyboardType='numeric'
             />
           </View>
-
-          <View style={styles.whatsapp_sms_container}>
-            <View style={styles.whatsapp_sms_check}>
-              <TouchableOpacity 
-                style={[styles.whatsapp_sms_check_btn,whatsapp && styles.whatsapp_sms_check_btn_active]} 
-                onPress={whatsappChannelHandler}
-              >
-                <FontAwesome name="whatsapp" size={24} color={whatsapp ? colors.WHITE : colors.BLACK} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.whatsapp_sms_check}>
-              <TouchableOpacity 
-                style={[styles.whatsapp_sms_check_btn,sms && styles.whatsapp_sms_check_btn_active]} 
-                onPress={smsChannelHandler}
-              >
-                <AntDesign name="message1" size={21} color={sms ? colors.WHITE : colors.BLACK} />
-              </TouchableOpacity>
-            </View>       
-          </View>   
           
           <TouchableOpacity style={styles.privacy_terms_approve_btn} onPress={openPrivacyTermsModal}>
             {privacyAccepted && termsAccepted ? (
@@ -503,7 +495,7 @@ export default function SignUpScreen() {
             <View style={styles.privacy_modal_box}>
 
               <View style={styles.privacy_policy_box}>
-                <Text style={styles.privacy_policy_title}>Privacy Policy for Sayartech</Text>
+                <Text style={styles.privacy_policy_title}>Privacy Policy for Safe</Text>
 
                 <View style={styles.privacy_policy_scrollview}>
                 <ScrollView
@@ -511,16 +503,16 @@ export default function SignUpScreen() {
                   showsVerticalScrollIndicator={true}
                 >
                   <Text style={styles.privacy_policy_text}>
-                        About Sayartech,
-                        Sayartech is a dedicated platform designed to facilitate the safe and reliable transportation of children between home and school. Our mission is to provide parents with peace of mind by connecting them with trusted, professional drivers specializing in school transportation.
-                        Using Sayartech, parents can:
+                        About Safe,
+                        Safe is a dedicated platform designed to facilitate the safe and reliable transportation of children between home and school. Our mission is to provide parents with peace of mind by connecting them with trusted, professional drivers specializing in school transportation.
+                        Using Safe, parents can:
                         Register their children by providing essential information such as their name, age, gender, school details, and home location.
                         Find and connect with professional drivers who have been carefully vetted and specialize in transporting schoolchildren.
                         Monitor the driver’s navigation and progress in real-time through the app’s tracking system.
                         Receive timely notifications when the driver is approaching their home, when the child arrives at school, and when they are on their way back home.
                         We aim to create a secure, efficient, and stress-free transportation experience for parents and their children.
                         Why We Collect User Data
-                        To deliver a seamless and secure experience, Sayartech collects user data to:
+                        To deliver a seamless and secure experience, Safe collects user data to:
                         Personalize Services
                         We use the information provided during registration to ensure the app is tailored to the user’s specific needs, such as matching families with drivers operating in their area and associated with their child’s school.
                         Ensure Safety and Reliability
@@ -559,7 +551,7 @@ export default function SignUpScreen() {
                         Purpose:
                         To identify areas for improvement and to enhance the overall app experience.
                         Data Collection Practices and Security
-                        Sayartech follows strict data privacy and security protocols to comply with global standards and the best practices required by app distribution platforms.:
+                        Safe follows strict data privacy and security protocols to comply with global standards and the best practices required by app distribution platforms.:
                         Consent-Based Collection:
                         We collect user data only after obtaining explicit consent during account registration.
                         Users can review and agree to the app's privacy policy and terms of use before proceeding.
@@ -574,7 +566,7 @@ export default function SignUpScreen() {
                         Child Safety:
                         We prioritize the safety of children by ensuring that drivers undergo rigorous background checks before being onboarded.
                         How We Protect User Data
-                        At Sayartech, user privacy is a top priority. We implement the following measures to protect data:
+                        At Safe, user privacy is a top priority. We implement the following measures to protect data:
                         End-to-End Encryption: Ensures that sensitive data, such as location and personal information, is secure during transmission.
                         Authentication Protocols: Verifies user identity before granting access to the app.
                         Regular Security Audits: Our systems are regularly tested to ensure they are protected from potential vulnerabilities.
@@ -593,7 +585,7 @@ export default function SignUpScreen() {
                 <View style={styles.privacy_policy_contact_box}>
                   <Text style={styles.privacy_policy_contact}>Email: sufiankamel404@gmail.com</Text>
                   <Text style={styles.privacy_policy_contact}>Phone: +964 771 420 0085</Text>
-                  <Text style={styles.privacy_policy_text}>Sayartech is dedicated to creating a secure and seamless experience for parents and their children while maintaining the highest standards of data protection.                     
+                  <Text style={styles.privacy_policy_text}>Safe is dedicated to creating a secure and seamless experience for parents and their children while maintaining the highest standards of data protection.                     
                   </Text>
                 </View>
 
@@ -610,7 +602,7 @@ export default function SignUpScreen() {
               </View>
                     
               <View style={styles.term_of_use_box}>
-                <Text style={styles.privacy_policy_title}>Terms of Use for Sayartech</Text>
+                <Text style={styles.privacy_policy_title}>Terms of Use for Safe</Text>
 
                 <View style={styles.privacy_policy_scrollview}>
                 <ScrollView               
@@ -619,29 +611,29 @@ export default function SignUpScreen() {
                 >
                   <Text style={styles.privacy_policy_text}>
                     Effective Date: November 26, 2024
-                    Welcome to Sayartech!
-                    These Terms of Use govern your use of the Sayartech mobile application (the "App") and related services provided by Sayartech. By accessing or using the App, you agree to these Terms of Use. If you do not agree to these terms, you may not use the App.
+                    Welcome to Safe!
+                    These Terms of Use govern your use of the Safe mobile application (the "App") and related services provided by Safe. By accessing or using the App, you agree to these Terms of Use. If you do not agree to these terms, you may not use the App.
                     1. Overview of Our Services
-                    Sayartech is a platform designed to connect parents with trusted, professional drivers specializing in transporting children to and from school. The App allows parents to:
+                    Safe is a platform designed to connect parents with trusted, professional drivers specializing in transporting children to and from school. The App allows parents to:
                     Register their children, providing relevant details such as name, age, sex, school, and home location.
                     Book drivers for school transportation.
                     Track drivers in real-time and receive notifications about their child's journey.
                     2. Eligibility to Use the App
-                    To use Sayartech:
+                    To use Safe:
                     You must be at least 18 years old.
                     If you are registering on behalf of a child, you must have the legal authority to do so.
                     You must provide accurate and complete information when creating an account.
                     3. Account Responsibilities
                     You are responsible for maintaining the confidentiality of your account login credentials.
-                    You agree to notify Sayartech immediately if you suspect unauthorized access or use of your account.
-                    Sayartech is not responsible for any loss resulting from unauthorized use of your account.
+                    You agree to notify Safe immediately if you suspect unauthorized access or use of your account.
+                    Safe is not responsible for any loss resulting from unauthorized use of your account.
                     4. User Obligations
                     By using the App, you agree:
                     To provide accurate and up-to-date information about your children and yourself.
                     Not to misuse the App, including attempting to disrupt services, gain unauthorized access, or engage in illegal activities.
                     To respect the drivers and ensure clear communication during the transportation process.
                     5. Driver and Parent Conduct
-                    Sayartech aims to maintain a safe and professional environment:
+                    Safe aims to maintain a safe and professional environment:
                     Parents are expected to ensure that children are ready for pickup on time.
                     Drivers are expected to follow all traffic laws and prioritize safety during journeys.
                     Inappropriate behavior, harassment, or misconduct from either party may result in account suspension or termination.
@@ -653,14 +645,14 @@ export default function SignUpScreen() {
                     Notifications include alerts for when a driver is arriving at your home, when a child is dropped off at school, and when a child is returning home.
                     You agree to allow location data to be used for these purposes in compliance with our Privacy Policy.
                     8. Intellectual Property
-                    All intellectual property rights in the App, including text, graphics, logos, and software, are owned by Sayartech or its licensors.
+                    All intellectual property rights in the App, including text, graphics, logos, and software, are owned by Safe or its licensors.
                     You may not copy, modify, distribute, or create derivative works based on the App without prior written consent.
                     9. Limitation of Liability
-                    Sayartech strives to provide reliable services but does not guarantee uninterrupted access to the App.
-                    Sayartech is not responsible for delays, cancellations, or issues caused by drivers or external circumstances (e.g., traffic, accidents).
-                    In no event shall Sayartech be liable for indirect, incidental, or consequential damages arising from your use of the App.
+                    Safe strives to provide reliable services but does not guarantee uninterrupted access to the App.
+                    Safe is not responsible for delays, cancellations, or issues caused by drivers or external circumstances (e.g., traffic, accidents).
+                    In no event shall Safe be liable for indirect, incidental, or consequential damages arising from your use of the App.
                     10. Termination of Use
-                    Sayartech reserves the right to suspend or terminate accounts at its discretion, including but not limited to cases of:
+                    Safe reserves the right to suspend or terminate accounts at its discretion, including but not limited to cases of:
                     Misuse of the App.
                     Violations of these Terms of Use.
                     Complaints of misconduct from drivers or parents.
@@ -668,11 +660,11 @@ export default function SignUpScreen() {
                     Your use of the App is governed by our Privacy Policy, which explains how we collect, store, and use your data.
                     By agreeing to these Terms of Use, you also agree to the terms outlined in our Privacy Policy.
                     12. Changes to These Terms
-                    Sayartech may update these Terms of Use periodically. Any changes will be effective upon posting in the App. Continued use of the App signifies your acceptance of updated terms.
+                    Safe may update these Terms of Use periodically. Any changes will be effective upon posting in the App. Continued use of the App signifies your acceptance of updated terms.
                     13. Governing Law
                     These Terms of Use shall be governed by and construed in accordance with the laws of the Republic of Iraq.
                     14. Dispute Resolution
-                    In the event of a dispute, users agree to first attempt to resolve the issue informally by contacting Sayartech support. If a resolution cannot be reached, disputes may be submitted to binding arbitration in accordance with local laws.
+                    In the event of a dispute, users agree to first attempt to resolve the issue informally by contacting Safe support. If a resolution cannot be reached, disputes may be submitted to binding arbitration in accordance with local laws.
                     15. Contact Us
                     If you have questions about these Terms of Use or the App, please contact us at:
                   </Text>
@@ -783,14 +775,14 @@ const styles = StyleSheet.create({
   },
   logo:{
     width:'100%',
-    height:150,
+    height:200,
     marginTop:25,
     justifyContent:'center',
     alignItems:'center',
   },
   logo_image:{
-    height:120,
-    width:120,
+    height:180,
+    width:180,
     resizeMode:'contain',
   },
   form:{
@@ -1198,4 +1190,24 @@ const styles = StyleSheet.create({
               </View>
             </View>
           </Modal>
+
+
+<View style={styles.whatsapp_sms_container}>
+            <View style={styles.whatsapp_sms_check}>
+              <TouchableOpacity 
+                style={[styles.whatsapp_sms_check_btn,whatsapp && styles.whatsapp_sms_check_btn_active]} 
+                onPress={whatsappChannelHandler}
+              >
+                <FontAwesome name="whatsapp" size={24} color={whatsapp ? colors.WHITE : colors.BLACK} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.whatsapp_sms_check}>
+              <TouchableOpacity 
+                style={[styles.whatsapp_sms_check_btn,sms && styles.whatsapp_sms_check_btn_active]} 
+                onPress={smsChannelHandler}
+              >
+                <AntDesign name="message1" size={21} color={sms ? colors.WHITE : colors.BLACK} />
+              </TouchableOpacity>
+            </View>       
+          </View>   
 */
