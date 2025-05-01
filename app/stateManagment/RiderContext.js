@@ -24,6 +24,7 @@ export const RiderProvider = ({ children }) => {
       
     const [error, setError] = useState(null)
 
+    /*
     // Fetch user data once
     useEffect(() => {
         const fetchUserData = async () => {
@@ -48,6 +49,44 @@ export const RiderProvider = ({ children }) => {
         }
         fetchUserData()
     }, [user])
+    */
+
+    // Fetch user data once with real-time updates
+    useEffect(() => {
+        if (!user) {
+            setError('User is not defined');
+            setFetchingUserDataLoading(false);
+            return;
+        }
+
+        const userInfoCollectionRef = collection(DB, 'users');
+        const q = query(userInfoCollectionRef, where('user_id', '==', user.id));
+
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                if (!snapshot.empty) {
+                    const userDoc = snapshot.docs[0];
+                    const userDataWithId = {
+                        id: userDoc.id,
+                        ...userDoc.data(),
+                    };
+                    setUserData(userDataWithId);
+                } else {
+                    setError('No user data found');
+                }
+                setFetchingUserDataLoading(false);
+            },
+            (error) => {
+                console.error('Error fetching user data:', error);
+                setError('Failed to load user data. Please try again.');
+                setFetchingUserDataLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, [user]);
+
 
     // Fetch riders registered with the logged-in user ID
     useEffect(() => {

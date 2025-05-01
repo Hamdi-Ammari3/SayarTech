@@ -71,16 +71,20 @@ const index = () => {
       return <Redirect href={'/(auth)/welcome'}/>
     }
 
+    if(isSignedIn && userType === 'rider') {
+      return <Redirect href={'/(main)/(rider)/(tabs)/home'}/>
+    }
+
     if(isSignedIn && userType === 'parent') {
-      return <Redirect href={'/(main)/(parent)/(tabs)/home'}/>
+      return <Redirect href={'/(main)/(rider)/(tabs)/home'}/>
     }
 
     if(isSignedIn && userType === 'student') {
-      return <Redirect href={'/(main)/(student)/(tabs)/home'}/>
+      return <Redirect href={'/(main)/(rider)/(tabs)/home'}/>
     }
 
     if(isSignedIn && userType === 'employee') {
-      return <Redirect href={'/(main)/(employee)/(tabs)/home'}/>
+      return <Redirect href={'/(main)/(rider)/(tabs)/home'}/>
     }
 
     if(isSignedIn && userType === 'driver') {

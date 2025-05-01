@@ -403,13 +403,14 @@ const LinePage = ({line,todayLines}) => {
 
     // Finish the first trip
     const handleFirstTripFinish = async () => {
-        if (isMarkingRider) return; // Prevent double-click
-        setIsMarkingRider(true);
-
+        
         //if (distanceToDestination > 200) {
             //createAlert('يجب أن تكون على بعد 200 متر أو أقل من الوجهة النهائية لإنهاء الرحلة');
             //return;
         //}
+
+        if (isMarkingRider) return; // Prevent double-click
+        setIsMarkingRider(true);
 
         try {
             const batch = writeBatch(DB);

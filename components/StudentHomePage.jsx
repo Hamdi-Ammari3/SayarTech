@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react'
-import { Alert,StyleSheet,Text,View,TextInput,ActivityIndicator,TouchableOpacity } from 'react-native'
+import { Alert,StyleSheet,Text,View,ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, {Circle} from 'react-native-svg'
 import haversine from 'haversine'
@@ -10,7 +10,8 @@ import { DB } from '../firebaseConfig'
 import LottieView from "lottie-react-native"
 import colors from '../constants/Colors'
 import driverWaiting from '../assets/animations/waiting_driver.json'
-import tripReady from '../assets/animations/next_trip.json'
+import tripReady from '../assets/animations/school_bus.json'
+//import schoolBus from '../assets/animations/school_bus.json'
 
 const toArabicNumbers = (num) => num.toString().replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d])
 

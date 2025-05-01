@@ -192,7 +192,7 @@ const Home = () => {
 
     } catch (error) {
       alert("حدث خطأ أثناء بدء الرحلة.");
-      console.log(error)
+      console.log('error', error)
     } finally {
       setStartJouneyLoading(false)
     }
