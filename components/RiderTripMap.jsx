@@ -1,15 +1,13 @@
 import React,{useState,useEffect,useRef} from 'react'
-import { StyleSheet,View,ActivityIndicator } from 'react-native'
+import { StyleSheet,View,ActivityIndicator,Dimensions } from 'react-native'
 import Svg, {Circle} from 'react-native-svg'
 import haversine from 'haversine'
 import MapView, { Marker ,AnimatedRegion } from 'react-native-maps'
-import MapViewDirections from 'react-native-maps-directions'
 import { doc,onSnapshot } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
 import colors from '../constants/Colors'
 
-const TripStatus = ({tripData,userData}) => {
-    const GOOGLE_MAPS_APIKEY = ''
+const RiderTripMap = ({tripData,userData}) => {
     const mapRef = useRef(null)
     const markerRef = useRef(null)
 
@@ -144,39 +142,19 @@ const TripStatus = ({tripData,userData}) => {
         mapRef.current.fitToCoordinates(
             [driverOriginLocation, destination],
             {
-            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+            edgePadding: { top: 120, right: 120, bottom: 120, left: 120 },
             animated: true,
             }
         );
         }
-    };
+    }
         
     useEffect(() => {
         if (mapReady && driverOriginLocation && destination) {
         fitCoordinatesForCurrentTrip();
         }
     }, [mapReady,destination])
-    
-    /*
-    // Render directions
-    const renderDirections = () => {
-        if (driverOriginLocation && destination) {
-        return (
-            <MapViewDirections
-            origin={driverOriginLocation}
-            destination={destination}
-            optimizeWaypoints={true}
-            apikey={GOOGLE_MAPS_APIKEY}
-            strokeWidth={4}
-            strokeColor="blue"
-            onError={(error) => console.log('Directions error:', error)}
-            />
-        );
-        }
-        return null;
-    };
-    */
-    
+        
     // Render the Map
     const renderMap = () => (
         <MapView
@@ -220,9 +198,6 @@ const TripStatus = ({tripData,userData}) => {
     )
   }
 
-    console.log('driverOriginLocation',driverOriginLocation)
-    console.log('destination',destination)
-
   return (
     <View style={styles.map_container}>
         {renderMap()}
@@ -230,13 +205,15 @@ const TripStatus = ({tripData,userData}) => {
   )
 }
 
-export default TripStatus
+export default RiderTripMap
+
+//get screen height
+const { width: SCwidth, height: SCheight } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
     map_container:{
-        width:500,
-        height:500,
-        marginTop:0
+        width:SCwidth,
+        height:SCheight,
     },
     map: {
         flex:1,

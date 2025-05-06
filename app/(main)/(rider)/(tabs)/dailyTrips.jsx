@@ -3,10 +3,11 @@ import React,{useEffect,useState,useRef} from 'react'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Dropdown } from 'react-native-element-dropdown'
-import { collection, onSnapshot,getDoc,setDoc,doc,updateDoc,writeBatch,arrayRemove,increment } from 'firebase/firestore'
+import { collection, onSnapshot,getDoc,doc,writeBatch,arrayRemove,increment } from 'firebase/firestore'
 import {DB} from '../../../../firebaseConfig'
 import { captureRef } from 'react-native-view-shot'
 import * as MediaLibrary from 'expo-media-library'
+import QRCode from 'react-native-qrcode-svg'
 import colors from '../../../../constants/Colors'
 import road from '../../../../assets/images/road.jpg'
 import logo from '../../../../assets/images/logo.jpg'
@@ -14,7 +15,7 @@ import { useRiderData } from '../../../stateManagment/RiderContext'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import AntDesign from '@expo/vector-icons/AntDesign'
-import TripStatus from '../../../../components/TripStatus'
+import RiderTripMap from '../../../../components/RiderTripMap'
 
 
 const dailyTrips = () => {
@@ -39,25 +40,23 @@ const dailyTrips = () => {
     Alert.alert(alerMessage)
   }
 
-  // Fetch trip data
+  // Fetch active trip data
   useEffect(() => {
     let unsubscribe;
   
     const fetchTripData = () => {
-      // Stop if user data is still loading or not available
       if (fetchingUserDataLoading || !userData) {
         setLoadingTripData(false);
         return;
       }
-  
-      // No active trip ID
-      if (!userData.intercityTripId) {
+
+      if (!userData.activeTripId) {
         setHasActiveTripToday(false);
         setLoadingTripData(false);
         return;
       }
   
-      const tripRef = doc(DB, 'activeTrips', userData.intercityTripId);
+      const tripRef = doc(DB, 'activeTrips', userData.activeTripId);
   
       unsubscribe = onSnapshot(tripRef, (snapshot) => {
         const today = new Date().toISOString().split('T')[0];
@@ -185,43 +184,47 @@ const dailyTrips = () => {
 
       // Step 4: If no valid trip found, create a new one
       if (!tripData) {
-        // Find active driver from drivers array
-        const activeDriver = intercityTripData.drivers?.[0]; // Assuming first driver is active
+        const activeDriver = intercityTripData.inStation?.[0]; // Assuming first driver is active
 
         if (!activeDriver) {
-          console.log('No active driver found');
-          return;
+          createAlert('لا يوجد سائق متوفر حاليا, الرجاء اعادة المحاولة لاحقا')
+          return
         }
 
         const newTripRef = doc(collection(DB, 'activeTrips'));
         const todayDate = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
 
         const newTripData = {
-          from:startPoint,
-          to:endPoint,
+          intercityTripId: selectedTripId,
+          oppositeIntercityTripId:intercityTripData.oppositeTrip,
+          from: startPoint,
+          to: endPoint,
           date: todayDate,
-          driver_id: activeDriver.driver_id,
-          driver_notification_token:activeDriver.driver_notification_token,
-          driver_phone_number:activeDriver.driver_phone_number,
-          active: true,
-          started: false,
+          driver_id: activeDriver.id,
+          driver_notification_token: activeDriver.driver_notification_token,
+          driver_phone_number: activeDriver.driver_phone_number,
           seats_capacity: activeDriver.seats_capacity || 8, // Default seats
           seats_booked: 0,
           riders: [],
-          price:selectedTripPrice
-        };
-        await setDoc(newTripRef, newTripData);
+          price:selectedTripPrice,
+          started: false,
+        }
+
+        const batch = writeBatch(DB)
+        batch.set(newTripRef, newTripData)
 
         // Update currentTrip id in intercityTrips
-        await updateDoc(intercityTripDocRef, {
+        batch.update(intercityTripDocRef, {
           currentTrip: newTripRef.id,
         });
 
-        // Update driver's intercityTripId
-        const driverRef = doc(DB, 'drivers', activeDriver.driver_id);
-        await updateDoc(driverRef, {
-          intercityTripId: newTripRef.id
+         // Update driver's activeTripId
+        const driverRef = doc(DB, 'drivers', activeDriver.id);
+        batch.update(driverRef, {
+          activeTripId: newTripRef.id,
         });
+
+        await batch.commit();
 
         tripData = { ...newTripData, id: newTripRef.id };
       }
@@ -231,11 +234,13 @@ const dailyTrips = () => {
         pathname: "/tripResult",
         params: {
           tripId: tripData.id,
+          intercityTripId:selectedTripId,
           from: startPoint,
           to: endPoint,
           price: selectedTripPrice,
           riderId: userData.id,
           riderNotificationToken:userData.user_notification_token,
+          riderPhoneNumber:userData.phone_number,
           driverNotificationToken:tripData.driver_notification_token,
           driverId: tripData.driver_id,
           seatsCapacity: tripData.seats_capacity,
@@ -315,9 +320,9 @@ const dailyTrips = () => {
           canceled: true
         });
 
-        // 3. Reset the rider's intercityTripId to empty string
+        // 3. Reset the rider's activeTripId to empty string
         batch.update(riderRef, {
-          intercityTripId: ""
+          activeTripId: null
         });
     
         await batch.commit();
@@ -343,7 +348,7 @@ const dailyTrips = () => {
               <Ionicons name="call" size={24} color="white" />
             </TouchableOpacity>
           </View>
-          <TripStatus tripData={tripData} userData={userData} driverInfo={driverInfo}/>
+          <RiderTripMap tripData={tripData} userData={userData} driverInfo={driverInfo}/>
         </View>
       )
     }
@@ -440,7 +445,14 @@ const dailyTrips = () => {
           <View style={styles.separatorLine} ></View>
           <View style={styles.ticketCodeBox}>
             <Text style={styles.ticketText}>رمز التذكرة:</Text>
-            <Text style={styles.ticketCodeText}>{tripRider.ticket_code}</Text>
+            <View style={styles.ticketQrTextCodeBox}>
+              <Text style={styles.ticketCodeText}>{tripRider.ticket_code}</Text>
+              <QRCode
+                value={tripRider.ticket_code}
+                size={60}
+              />
+            </View>
+            
           </View>
         </View>
         <View>
@@ -765,7 +777,7 @@ const styles = StyleSheet.create({
     alignItems:'center',
   },
   ticketBox:{
-    height:400,
+    height:430,
     width:330,
     marginTop:50,
     alignItems:'center',
@@ -817,12 +829,18 @@ const styles = StyleSheet.create({
   },
   ticketCodeBox:{
     alignItems:'center',
-    justifyContent:'center',
+    justifyContent:'space-around',
   },
   ticketCodeText:{
     lineHeight:40,
     fontFamily:'Cairo_700Bold',
     fontSize:16,
+  },
+  ticketQrTextCodeBox:{
+    width:'90%',
+    flexDirection:'row-reverse',
+    alignItems:'center',
+    justifyContent:'space-between'
   },
   saveTicketBtn:{
     height:45,

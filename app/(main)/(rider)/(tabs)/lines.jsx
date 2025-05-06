@@ -1,9 +1,8 @@
 import { StyleSheet, Text, View, ActivityIndicator,Image,ScrollView,TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useUser } from '@clerk/clerk-expo'
-import { useState,useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'expo-router'
-import * as Notifications from 'expo-notifications'
 import LottieView from "lottie-react-native"
 import { useRiderData } from '../../../stateManagment/RiderContext'
 import colors from '../../../../constants/Colors'
@@ -15,13 +14,6 @@ const home = () => {
   const { isLoaded } = useUser()
   const {rider,fetchingRiderLoading} = useRiderData()
   const [selectedStudent,setSelectedStudent] = useState(0)
-
-  useEffect(() => {
-    const subscription = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('Notification received:', notification);
-    });
-    return () => subscription.remove();
-  }, []);
   
   // Wait untill data load
   if (fetchingRiderLoading || !isLoaded) {

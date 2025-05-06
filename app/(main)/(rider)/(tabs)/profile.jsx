@@ -1,5 +1,5 @@
 import { useState,useRef } from 'react'
-import { Alert,StyleSheet,Text,View,FlatList,ActivityIndicator,TouchableOpacity,Linking,Animated,Image } from 'react-native'
+import { Alert,StyleSheet,Text,View,FlatList,ActivityIndicator,TouchableOpacity,Linking,Animated } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'

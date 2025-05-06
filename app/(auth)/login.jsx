@@ -8,8 +8,6 @@ import { DB } from '../../firebaseConfig'
 import axios from 'axios'
 import colors from '../../constants/Colors'
 import logo from '../../assets/images/logo.jpg'
-import FontAwesome from '@expo/vector-icons/FontAwesome'
-import AntDesign from '@expo/vector-icons/AntDesign'
 
 export default function Page() {
   const { signIn, setActive, isLoaded } = useSignIn()
@@ -30,8 +28,6 @@ export default function Page() {
   const [userType,setUserType] = useState('')
   const [loadingUserType, setLoadingUserType] = useState(false)
   const [timer, setTimer] = useState(60)
-  const [whatsapp,setWatsapp] = useState(true)
-  const [sms,setSms] = useState(false)
   const [guestModeSigninLoading,setGuestModeSigninLoading] = useState(false)
 
   //const HARDCODED_PASSWORD = "SecurePass123!";  // Clerk dev env password
@@ -46,18 +42,6 @@ export default function Page() {
 
   // Handle country code
   const handleCountryCode = (code) => setCountryCode(code)
-
-  // Using whatsapp for code
-  const whatsappChannelHandler = () => {
-    setWatsapp(true)
-    setSms(false)
-  }
-  
-  // Using sms for code
-  const smsChannelHandler = () => {
-    setSms(true)
-    setWatsapp(false)
-  }
 
   // Sign out from the existing session
   const handleSignOut = async () => {
@@ -164,7 +148,7 @@ export default function Page() {
         TWILIO_API_URL,
         new URLSearchParams({
           To: `${countryCode} ${phone}`,
-          Channel: whatsapp ? 'whatsapp' : 'sms',
+          //Channel: whatsapp ? 'whatsapp' : 'sms',
         }).toString(),
         {
           headers: {
@@ -328,6 +312,10 @@ export default function Page() {
   }
 
   if(isSignedIn && userType === 'employee') {
+    return <Redirect href={'/(main)/(rider)/(tabs)/home'}/>
+  }
+
+  if(isSignedIn && userType === 'rider') {
     return <Redirect href={'/(main)/(rider)/(tabs)/home'}/>
   }
 

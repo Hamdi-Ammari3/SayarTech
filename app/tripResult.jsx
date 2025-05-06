@@ -1,8 +1,8 @@
-import { useLocalSearchParams , useRouter } from 'expo-router'
+import { useLocalSearchParams,useRouter } from 'expo-router'
 import { View,Text,TouchableOpacity,StyleSheet,ActivityIndicator,Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Location from 'expo-location'
-import { collection,doc,getDoc,writeBatch,setDoc,arrayUnion,increment,onSnapshot } from 'firebase/firestore'
+import { collection,doc,getDoc,writeBatch,setDoc,arrayUnion,increment,onSnapshot,runTransaction } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
 import { useEffect, useState } from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
@@ -12,7 +12,7 @@ import colors from '../constants/Colors'
 
 const TripResult = () => {
 
-  const { tripId,from,to,price,riderId,riderNotificationToken,driverId } = useLocalSearchParams ()
+  const { tripId,from,to,price,riderId,riderNotificationToken,riderPhoneNumber,driverId,intercityTripId } = useLocalSearchParams ()
   const router = useRouter()
   const tripPrice = Number(price || 0);
 
@@ -22,7 +22,7 @@ const TripResult = () => {
   const [bookingTheTrip,setBookingTheTrip] = useState(false)
   const [seatsAvailable, setSeatsAvailable] = useState(0)
 
-  //Fetch trip info
+  //Fetch active trip info
   useEffect(() => {
     const fetchTrip = async () => {
       const docRef = doc(DB, 'activeTrips', tripId);
@@ -74,17 +74,12 @@ const TripResult = () => {
       if (snapshot.exists()) {
         const tripData = snapshot.data();
         setSeatsAvailable(tripData.seats_capacity - tripData.seats_booked);
-  
-        //if (tripData.seats_booked >= tripData.seats_capacity) {
-          //setTripFull(true); // trip is full now
-        //}
       }
     });
   
     return () => unsubscribe();
   }, [tripId]);
   
-
   // Get rider current location
   const getLocation = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
@@ -110,9 +105,9 @@ const TripResult = () => {
       await fetch('https://exp.host/--/api/v2/push/send', {
           method: 'POST',
           headers: {
-              Accept: 'application/json',
-              'Accept-encoding': 'gzip, deflate',
-              'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'Accept-encoding': 'gzip, deflate',
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify(messages),
       });
@@ -158,7 +153,7 @@ const TripResult = () => {
         total_price: totalPrice,
         used: false,
         canceled:false,
-        createdAt: new Date()
+        bookedAt: new Date()
       };
 
       await setDoc(ticketRef, ticketData);
@@ -171,7 +166,8 @@ const TripResult = () => {
         seats_booked: seatCount,
         total_price:totalPrice,
         ticket_code: ticketId,
-        rider_notification_token:riderNotificationToken
+        rider_notification_token:riderNotificationToken,
+        rider_phone_number:riderPhoneNumber
       };
 
       const batch = writeBatch(DB);
@@ -184,13 +180,57 @@ const TripResult = () => {
       // Also update user doc with activeTripId
       const riderRef = doc(DB, "users", riderId);
       batch.update(riderRef, {
-        intercityTripId: tripId,
+        activeTripId: tripId,
         tickets: arrayUnion(ticketId)
       });
 
       await batch.commit();
 
-      // 🚀 After successful booking, send notifications:
+      // 🚀 Step 2: Check if car is now full
+      const updatedSeatsBooked = activeTripData.seats_booked + seatCount;
+
+      if (updatedSeatsBooked >= activeTripData.seats_capacity) {
+        const intercityTripRef = doc(DB, "intercityTrips",intercityTripId);
+  
+        await runTransaction(DB, async (transaction) => {
+          const intercityTripSnap = await transaction.get(intercityTripRef);
+          if (!intercityTripSnap.exists()) {
+            throw new Error("Intercity trip document does not exist!");
+          }
+  
+          const intercityTripData = intercityTripSnap.data();
+          const currentDrivers = intercityTripData.inStation || [];
+          const currentInRoute = intercityTripData.inRoute || [];
+  
+          const driverToMove = currentDrivers.find(d => d.id === activeTripData.driver_id);
+          if (!driverToMove) {
+            console.log("Driver not found in drivers array!");
+            return;
+          }
+  
+          const updatedDrivers = currentDrivers.filter(d => d.id !== activeTripData.driver_id);
+          const updatedInRoute = [...currentInRoute, driverToMove];
+
+          transaction.update(intercityTripRef, {
+            inStation: updatedDrivers,
+            inRoute: updatedInRoute,
+          });
+  
+          // 🚀 Get the next driver (first in line)
+          const nextDriver = updatedDrivers[0];
+
+          // 🚀 Send notification to next driver
+          if (nextDriver?.driver_notification_token) {
+            await sendBatchNotification(
+              [nextDriver?.driver_notification_token],
+              "استعد للرحلة القادمة",
+              "لقد أصبحت السائق النشط التالي، الرجاء الاستعداد."
+            );
+          }
+        });
+      }
+
+      // 🚀 Step 3: After successful booking, send notifications:
       const tokensToNotify = [];
 
       // Notify other riders in the trip
@@ -203,8 +243,8 @@ const TripResult = () => {
       }
 
       // Notify the driver also
-      if (activeTripData.driver_notification_token) {
-        tokensToNotify.push(activeTripData.driver_notification_token);
+      if (activeTripData?.driver_notification_token) {
+        tokensToNotify.push(activeTripData?.driver_notification_token);
       }
 
       // Send notifications

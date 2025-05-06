@@ -1,28 +1,15 @@
-import { StyleSheet, Text, View, ActivityIndicator,Image,ScrollView,TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, ActivityIndicator,Image,TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useUser } from '@clerk/clerk-expo'
-import { useState,useEffect } from 'react'
 import { Link } from 'expo-router'
-import * as Notifications from 'expo-notifications'
 import { useRiderData } from '../../../stateManagment/RiderContext'
 import colors from '../../../../constants/Colors'
 import logo from '../../../../assets/images/logo.jpg'
 
 const home = () => {
-  const { isLoaded } = useUser()
-  const {userData,fetchingUserDataLoading,rider,fetchingRiderLoading} = useRiderData()
-
-  useEffect(() => {
-    const subscription = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('Foreground Notification:', notification);
-      // You can also add logic here like showToast(), update a badge, etc.
-    });
-  
-    return () => subscription.remove();
-  }, []);
+  const {userData,fetchingUserDataLoading} = useRiderData()
 
   //Loading 
-  if (fetchingUserDataLoading || fetchingRiderLoading) {
+  if (fetchingUserDataLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>

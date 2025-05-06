@@ -17,7 +17,6 @@ import { Dropdown } from 'react-native-element-dropdown'
 import logo from '../../assets/images/logo.jpg'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import FontAwesome from '@expo/vector-icons/FontAwesome'
-import AntDesign from '@expo/vector-icons/AntDesign'
 
 // +1 2015550101 Google
 // +1 2015550102 Apple
@@ -55,8 +54,6 @@ export default function SignUpScreen() {
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [expoPushToken, setExpoPushToken] = useState('')
   const [notification, setNotification] = useState(false)
-  const [whatsapp,setWatsapp] = useState(true)
-  const [sms,setSms] = useState(false)
 
   //const HARDCODED_PASSWORD = "SecurePass123!";
   const HARDCODED_PASSWORD = "SecurePass1234!";
@@ -79,9 +76,6 @@ export default function SignUpScreen() {
 
   // Account owner type
   const compte_owner = [
-    //{label:'ولي أمر',value:'parent'},
-    //{label:'طالب',value:'student'},
-    //{label:'موظف',value:'employee'},
     {label:'راكب',value:'rider'},
     {label:'سائق',value:'driver'}
   ]
@@ -145,18 +139,6 @@ export default function SignUpScreen() {
       Notifications.removeNotificationSubscription(responseListener.current);
     };
   }, []);
-
-  // Using whatsapp for code
-  const whatsappChannelHandler = () => {
-    setWatsapp(true)
-    setSms(false)
-  }
-
-  // Using sms for code
-  const smsChannelHandler = () => {
-    setSms(true)
-    setWatsapp(false)
-  }
 
   // Open privacy terms
   const openPrivacyTermsModal = () => {
@@ -273,7 +255,7 @@ export default function SignUpScreen() {
         TWILIO_API_URL,
         new URLSearchParams({
           To: `${countryCode} ${phone}`,
-          Channel: whatsapp ? 'whatsapp' : 'sms',
+          //Channel: whatsapp ? 'whatsapp' : 'sms',
         }).toString(),
         {
           headers: {
@@ -327,13 +309,7 @@ export default function SignUpScreen() {
         await saveUserDataToFirestore(signUpAttempt.createdUserId);
   
         //Redirect user to the correct page
-        if (compteOwner === 'parent') {
-          router.replace('(main)/(rider)/(tabs)/home');
-        } else if (compteOwner === 'student') {
-          router.replace('(main)/(rider)/(tabs)/home');
-        } else if (compteOwner === 'employee') {
-          router.replace('(main)/(rider)/(tabs)/home');
-        } else if (compteOwner === 'rider') {
+        if (compteOwner === 'rider') {
           router.replace('(main)/(rider)/(tabs)/home');
         } else if (compteOwner === 'driver') {
           router.replace('(main)/(driver)/(tabs)/home');
@@ -1121,93 +1097,3 @@ const styles = StyleSheet.create({
     marginHorizontal:5,
   }
 })
-
-/*
-
-  const generateReferralCode = (phone) => {
-    // Get the last 2 digits of the phone number
-    const lastTwoDigits = phone.slice(-2);
-
-  // Generate a 4-character code using the referral-codes library
-    const randomCode = generate({
-      length: 4,
-      count: 1,
-    })[0];
-
-    // Combine the random code with the last 2 digits of the phone number
-    return `${randomCode}${lastTwoDigits}`;
-  }
-
-  // Update referredByFriend based on the friendReferralCode input
-  useEffect(() => {
-    setReferredByFriend(friendReferralCode.trim() !== '');
-  }, [friendReferralCode]);
-  // Generate the user's referral code
-  const newReferralCode = generateReferralCode(phone);
-  setReferralCode(newReferralCode);
-
-
-  // Press no for referred by friend
-  const closeReferredBy = () => {
-    setReferredByFriend(false)
-    setFriendReferralCode('')
-    setShowReferralModal(false)
-  }
-
-  // Press Yes for referred by friend
-  const confirmReferredBy = () => {
-    setShowReferralModal(false)
-  }
-
-
-<TouchableOpacity style={styles.referralBtn} onPress={() => setShowReferralModal(true)}>
-            <Text style={styles.referralBtnText}>هل تمت دعوتك من قبل صديق؟</Text>
-          </TouchableOpacity>
-          <Modal
-            animationType="fade"
-            transparent={true}
-            visible={showReferralModal}
-            onRequestClose={() => setShowReferralModal(false)}
-          >
-            <View style={styles.rfCode_modal_container}>
-              <View style={styles.rfCode_modal_box}>
-                <TextInput
-                  style={styles.rfCode_input}
-                  value={friendReferralCode}
-                  onChangeText={setFriendReferralCode}
-                  placeholder="ادخل الكود"
-                  placeholderTextColor={colors.BLACK}
-                />
-                <View style={styles.rfCode_btn_container}>
-                  <TouchableOpacity style={styles.deny_rfCode_btn} onPress={closeReferredBy}>
-                    <Text style={styles.deny_rfCode_btn_text}>لا</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.add_rfCode_btn} onPress={confirmReferredBy}>
-                    <Text style={styles.add_rfCode_btn_text}>اضف</Text>
-                  </TouchableOpacity>
-                </View>
-                
-              </View>
-            </View>
-          </Modal>
-
-
-<View style={styles.whatsapp_sms_container}>
-            <View style={styles.whatsapp_sms_check}>
-              <TouchableOpacity 
-                style={[styles.whatsapp_sms_check_btn,whatsapp && styles.whatsapp_sms_check_btn_active]} 
-                onPress={whatsappChannelHandler}
-              >
-                <FontAwesome name="whatsapp" size={24} color={whatsapp ? colors.WHITE : colors.BLACK} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.whatsapp_sms_check}>
-              <TouchableOpacity 
-                style={[styles.whatsapp_sms_check_btn,sms && styles.whatsapp_sms_check_btn_active]} 
-                onPress={smsChannelHandler}
-              >
-                <AntDesign name="message1" size={21} color={sms ? colors.WHITE : colors.BLACK} />
-              </TouchableOpacity>
-            </View>       
-          </View>   
-*/
