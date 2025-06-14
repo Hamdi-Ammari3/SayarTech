@@ -1,27 +1,27 @@
-import { useState,useRef } from 'react'
-import { Alert,StyleSheet,Text,View,FlatList,ActivityIndicator,TouchableOpacity,Linking,Animated } from 'react-native'
+import { useState } from 'react'
+import { Alert,StyleSheet,Text,View,ActivityIndicator,TouchableOpacity,Linking,Modal } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import colors from '../../../../constants/Colors'
-import StudentCard from '../../../../components/StudentCard'
 import { useAuth,useUser } from '@clerk/clerk-expo'
 import { deleteDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { DB } from '../../../../firebaseConfig'
-import LottieView from "lottie-react-native"
 import { useRiderData } from '../../../stateManagment/RiderContext'
 import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import driverWaiting from '../../../../assets/animations/waiting_driver.json'
+import AntDesign from '@expo/vector-icons/AntDesign'
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5'
+import FontAwesome from '@expo/vector-icons/FontAwesome'
+import Fontisto from '@expo/vector-icons/Fontisto'
 
 const profile = () => {
-  const {userData,fetchingUserDataLoading,rider,fetchingRiderLoading} = useRiderData()
+  const {userData,fetchingUserDataLoading} = useRiderData()
 
-  const [menuVisible, setMenuVisible] = useState(false)
+  const [openUpPersonalInfo,setOpenUpPersonalInfo] = useState(false)
+  const [openUpCustomerSupport,setOpenUpCustomerSupport] = useState(false)
   const [signOutLoading,setSignOutLoading] = useState(false)
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
-
-  const slideAnim = useRef(new Animated.Value(-250)).current
 
   const { signOut } = useAuth()
   const {user} = useUser()
@@ -29,24 +29,6 @@ const profile = () => {
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
-  }
-
-  // Function to toggle the menu
-  const toggleMenu = () => {
-    if (menuVisible) {
-      Animated.timing(slideAnim, {
-        toValue: -250, // Hide the menu
-        duration: 300,
-        useNativeDriver: false,
-      }).start(() => setMenuVisible(false));
-    } else {
-      setMenuVisible(true);
-      Animated.timing(slideAnim, {
-        toValue: 0, // Show the menu
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
-    }
   }
 
   const handleSignOut = async () => {
@@ -119,9 +101,16 @@ const profile = () => {
     Linking.openURL('https://sayartech.com/terms-of-use');
   };
 
+  const userTypeArabic = (riderType) => {
+    if(riderType === 'rider') {
+      return 'راكب'
+    } else if (riderType === 'driver') {
+      return 'سائق'
+    }
+  }
 
-//Loading 
-  if (fetchingRiderLoading || fetchingUserDataLoading || deleteAccountLoading || signOutLoading) {
+  //Loading 
+  if (fetchingUserDataLoading || deleteAccountLoading || signOutLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -133,63 +122,97 @@ const profile = () => {
 
    return (
     <SafeAreaView style={styles.container}>
-      {/* Header Section  */}
-      <View style={styles.user_info}>
-        <Text style={styles.user_info_text}>{userData.user_full_name}</Text>
-        <TouchableOpacity onPress={toggleMenu} style={styles.menu_button}>
-          <Ionicons name="menu-outline" size={28} color="white" />
+      <View style={styles.profile_header}>
+        <Text style={styles.profile_header_text}>{userData.user_full_name} {userData.user_family_name}</Text>
+      </View>
+      <View style={styles.profile_main}>
+        <TouchableOpacity style={styles.profile_main_box_button} onPress={() => setOpenUpPersonalInfo(true)}>
+          <Text style={styles.profile_main_box_button_text}>المعلومات الشخصية</Text>
+          <FontAwesome5 name="user" size={20} color="black" />
+        </TouchableOpacity>
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={openUpPersonalInfo}
+          onRequestClose={() => setOpenUpPersonalInfo(false)}
+        >
+          <View style={styles.personal_info_container}> 
+            <View style={styles.personal_info_box}>
+              <View style={styles.personal_info_box_header}>
+                <Text style={styles.personal_info_box_header_text}>المعلومات الشخصية</Text>
+                <TouchableOpacity onPress={() => setOpenUpPersonalInfo(false)}>
+                  <AntDesign name="closecircleo" size={20} color="black" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.personal_info_box_main}>
+                <View style={styles.personal_info_box_main_box}>
+                  <Text style={styles.personal_info_box_main_box_text}>الاسم و اللقب:</Text>
+                  <Text style={styles.personal_info_box_main_box_text}>{userData?.user_full_name} {userData?.user_family_name}</Text>
+                </View>
+                <View style={styles.personal_info_box_main_box}>
+                  <Text style={styles.personal_info_box_main_box_text}>نوع الحساب:</Text>
+                  <Text style={styles.profile_main_box_button_text}>{userTypeArabic(userData?.compte_owner_type)}</Text>
+                </View>
+                <View style={styles.personal_info_box_main_box}>
+                  <Text style={styles.personal_info_box_main_box_text}>رقم الهاتف:</Text>
+                  <Text style={styles.profile_main_box_button_text}>{userData?.phone_number}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        <TouchableOpacity style={styles.profile_main_box_button} onPress={() => setOpenUpCustomerSupport(true)}>
+          <Text style={styles.profile_main_box_button_text}>خدمة العملاء</Text>
+          <Ionicons name="help-buoy-outline" size={24} color="black" />
+        </TouchableOpacity>
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={openUpCustomerSupport}
+          onRequestClose={() => setOpenUpCustomerSupport(false)}
+        >
+          <View style={styles.personal_info_container}> 
+            <View style={styles.personal_info_box}>
+              <View style={styles.personal_info_box_header}>
+                <Text style={styles.personal_info_box_header_text}>تواصل معنا</Text>
+                <TouchableOpacity onPress={() => setOpenUpCustomerSupport(false)}>
+                  <AntDesign name="closecircleo" size={20} color="black" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.personal_info_box_main}>
+                <View style={styles.personal_info_box_main_box}>
+                  <FontAwesome name="whatsapp" size={24} color="black" />
+                  <Text style={styles.personal_info_box_main_box_text}>+964 771 420 0085</Text>
+                </View>
+                <View style={styles.personal_info_box_main_box}>
+                  <Fontisto name="email" size={24} color="black" />
+                  <Text style={styles.profile_main_box_button_text}>support@sayartech.com</Text>
+                </View>
+                <View style={styles.personal_info_box_main_box}>
+                  <SimpleLineIcons name="location-pin" size={24} color="black" />
+                  <Text style={styles.profile_main_box_button_text}>الفلوجة - الانبار - العراق</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        <TouchableOpacity style={styles.profile_main_box_button} onPress={openPrivacyPolicy}>
+          <Text style={styles.profile_main_box_button_text}>سياسة الخصوصية</Text>
+          <AntDesign name="Safety" size={24} color="black" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.profile_main_box_button} onPress={openTermsOfUse}>
+          <Text style={styles.profile_main_box_button_text}>شروط الاستخدام</Text>
+          <AntDesign name="profile" size={24} color="black" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.profile_main_box_button} onPress={handleSignOut}>
+          <Text style={styles.profile_main_box_button_text}>تسجيل الخروج</Text>
+          <MaterialIcons name="logout" size={24} color="black" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.profile_main_box_button} onPress={confirmDeleteAccount}>
+          <Text style={styles.profile_main_box_button_text}>حذف الحساب</Text>
+          <Ionicons name="trash-outline" size={24} color="black" />
         </TouchableOpacity>
       </View>
-
-      {/* Side Menu Drawer */}
-      {menuVisible && (
-        <TouchableOpacity 
-          style={styles.overlay} 
-          activeOpacity={1} 
-          onPress={toggleMenu}
-        />
-      )}
-      <Animated.View style={[styles.side_menu, { left: slideAnim }]}>
-        <View style={styles.side_menu_container}>
-          <Text style={styles.user_phone_number}>{userData.phone_number}</Text>
-          <TouchableOpacity style={styles.logout_button} onPress={handleSignOut}>
-            <SimpleLineIcons name="logout" size={20} color="white" />
-            <Text style={styles.logout_button_text}>خروج</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.delete_button} onPress={confirmDeleteAccount}>
-            <MaterialIcons name="delete-outline" size={24} color="white" />
-            <Text style={styles.delete_text}>مسح الحساب</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.privacy_button} onPress={openPrivacyPolicy}>
-            <Text style={styles.privacy_button_text}>Privacy Policy</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.privacy_button} onPress={openTermsOfUse}>
-            <Text style={styles.privacy_button_text}>Terms of Use</Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-
-      <FlatList
-      data={rider}
-      renderItem={({item}) => <StudentCard item={item}/>}
-      keyExtractor={item => item.id}
-      contentContainerStyle={styles.flatList_style}
-      ListEmptyComponent={() => (
-        <View style={styles.add_your_data_container}>
-          <View style={styles.animation_container}>
-            <LottieView
-              source={driverWaiting}
-              autoPlay
-              loop
-              style={{ width: 150, height: 150}}
-            />
-          </View>
-          <View style={styles.no_assigned_students_box}>
-            <Text style={styles.no_student_text}>يرجى اضافة بياناتك حتى نتمكن من ربط حسابك مع سائق</Text>
-          </View>
-        </View>
-      )}
-      />
     </SafeAreaView>
   )
 }
@@ -201,145 +224,79 @@ const styles = StyleSheet.create({
     alignItems:'center',
     backgroundColor: colors.WHITE,
   },  
-  user_info:{
+  profile_header:{
     width:350,
+    marginVertical:30,
+  },
+  profile_header_text:{
+    fontSize: 16,
+    fontFamily: 'Cairo_700Bold',
+    lineHeight: 40,
+    textAlign: 'center',
+  },
+  profile_main:{
+    marginTop:80
+  },
+  profile_main_box_button:{
+    width:300,
+    height:70,
+    flexDirection:'row',
+    justifyContent:'flex-end',
+    alignItems:'center',
+    gap:10,
+    borderBottomColor:colors.GRAY,
+    borderBottomWidth:1,
+  },
+  profile_main_box_button_text:{
+    fontSize: 14,
+    fontFamily: 'Cairo_400Regular',
+    lineHeight: 50,
+  },
+  personal_info_container:{
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  personal_info_box:{
+    width: '90%',
+    height:450,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingVertical:10,
+    alignItems: 'center',
+  },
+  personal_info_box_header:{
     height:50,
-    borderRadius:15,
-    marginVertical:15,
     flexDirection:'row-reverse',
     alignItems:'center',
-    justifyContent:'space-around',
-    backgroundColor:colors.PRIMARY,
-  },
-  user_info_text:{
-    lineHeight:50,
-    fontFamily:'Cairo_400Regular',
-    fontSize:14,
-    color:colors.WHITE,
-  },
-  side_menu: {
-    position: "absolute",
-    top: 40,
-    left: -250,
-    width: 250,
-    height: "92%",
-    backgroundColor: colors.GRAY,
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    zIndex: 10,
-    borderRadius:15,
-  },
-  menu_item: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  menu_text: {
-    color: "white",
-    fontSize: 16,
-    marginLeft: 10,
-  },
-  overlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    backgroundColor: "rgba(0,0,0,0.4)",
-    zIndex: 5,
-  },
-  side_menu_container:{
-    width:200,
-    alignItems:'center',
-  },
-  user_phone_number:{
-    fontFamily:'Cairo_700Bold',
-    fontSize:14,
-    color:colors.BLACK,
-    marginBottom:30,
-  },
-  logout_button:{
-    width:130,
-    height:40,
-    marginBottom:15,
-    backgroundColor:colors.BLUE,
-    borderRadius:15,
-    flexDirection:'row',
-    alignItems:'center',
-    justifyContent:'center'
-  },
-  logout_button_text:{
-    lineHeight:40,
-    fontFamily: 'Cairo_400Regular',
-    fontSize:14,
-    marginLeft:10,
-    verticalAlign:'middle',
-    color:colors.WHITE,
-  },
-  delete_button:{
-    width:130,
-    height:40,
-    marginBottom:15,
-    backgroundColor:'#d11a2a',
-    borderRadius:15,
-    flexDirection:'row',
-    alignItems:'center',
-    justifyContent:'center'
-  },
-  delete_text:{
-    color:colors.WHITE,
-    lineHeight:40,
-    fontFamily: 'Cairo_400Regular',
-    fontSize:14,
-    marginLeft:7,
-    verticalAlign:'middle',
-  },
-  privacy_button:{
-    width:130,
-    height:40,
-    marginBottom:15,
-    borderColor:colors.BLACK,
-    borderWidth:1,
-    borderRadius:15,
-    flexDirection:'row',
-    alignItems:'center',
-    justifyContent:'center'
-  },
-  privacy_button_text:{
-    color:colors.BLACK,
-    lineHeight:40,
-    fontFamily: 'Cairo_400Regular',
-    fontSize:14,
-    verticalAlign:'middle',
-  },
-  flatList_style:{
-    marginTop:10,
-    paddingBottom:40,
-  },
-  add_your_data_container:{
-    width:350,
-    height:250,
-    backgroundColor:colors.GRAY,
-    borderRadius:15,
-    alignItems:'center',
-  },
-  animation_container:{
-    width:200,
-    height:200,
     justifyContent:'center',
-    alignItems:'center',
+    gap:10,
   },
-  no_assigned_students_box:{
-    width:'100%',
-    height:30,
+  personal_info_box_header_text:{
+    fontFamily: 'Cairo_700Bold',
+    lineHeight: 50,
+    textAlign: 'center',
+  },
+  personal_info_box_main:{
+    marginTop:50,
+    alignItems:'center',
     justifyContent:'center',
-    alignItems:'center',
   },
-  no_student_text: {
+  personal_info_box_main_box:{
+    width:300,
+    height:70,
+    flexDirection:'row-reverse',
+    justifyContent:'flex-start',
+    alignItems:'center',
+    gap:10,
+    borderBottomColor:colors.GRAY,
+    borderBottomWidth:1,
+  },
+  personal_info_box_main_box_text:{
+    fontSize: 14,
     fontFamily: 'Cairo_400Regular',
-    color:colors.BLACK,
-    textAlign:'center',
-    lineHeight:30,
+    lineHeight: 50,
   },
   spinner_error_container:{
     flex:1,

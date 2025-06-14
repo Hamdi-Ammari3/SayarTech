@@ -12,7 +12,7 @@ import colors from '../constants/Colors'
 
 const TripResult = () => {
 
-  const { tripId,from,to,price,riderId,riderNotificationToken,riderPhoneNumber,driverId,intercityTripId } = useLocalSearchParams ()
+  const { tripId,from,to,price,riderId,riderNotificationToken,riderPhoneNumber,driverId,intercityTripId } = useLocalSearchParams()
   const router = useRouter()
   const tripPrice = Number(price || 0);
 
@@ -263,7 +263,7 @@ const TripResult = () => {
       alert("حدث خطأ أثناء الحجز، حاول مرة أخرى.");
     }  finally {
       setBookingTheTrip(false)
-      router.push('/dailyTrips');
+      router.push('/(main)/(rider)/(tabs)/dailyTrips')  
     } 
   };
 

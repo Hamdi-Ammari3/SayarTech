@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router'
 import colors from '../../../../constants/Colors'
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5'
-import AntDesign from '@expo/vector-icons/AntDesign'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import Entypo from '@expo/vector-icons/Entypo'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
@@ -42,16 +41,6 @@ const TabsLayout = () => {
             headerShown:false,
             title: 'بين المدن',
             tabBarIcon:({color}) => (<FontAwesome6 name="location-dot" size={22} color={color} />)
-          }}
-        />
-
-        {/* 🟪 Section Add Data */}
-        <Tabs.Screen 
-          name='addData' 
-          options={{
-            headerShown:false,
-            title: 'اضافة خط',
-            tabBarIcon:({color}) => (<AntDesign name="plussquare" size={20} color={color}/>)
           }}
         />
 

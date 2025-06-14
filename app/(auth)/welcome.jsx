@@ -1,4 +1,4 @@
-import React,{useState} from 'react'
+import {useState} from 'react'
 import { StyleSheet,View,Image,Text,TouchableOpacity } from 'react-native'
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router } from 'expo-router'
@@ -10,6 +10,7 @@ import schoolBus from '../../assets/animations/school_bus.json'
 import schedule from '../../assets/animations/schedule.json'
 import driver from '../../assets/animations/driver.json'
 import mapTracking from '../../assets/animations/map_tracking.json'
+import AntDesign from '@expo/vector-icons/AntDesign'
 
 const welcome = () => {
 
@@ -97,40 +98,62 @@ const welcome = () => {
                 style={{ width: 200, height: 200,borderRadius:10}} // Ensures it fills the button
               />
             </View>
+            <TouchableOpacity 
+              style={styles.start_now_button}
+              onPress={onPressHandler}
+            >
+              <Text style={styles.start_now_button_text}>ابدا الان</Text>
+            </TouchableOpacity>
           </View>
         )
       default:
         null;
     }
   }
+
+  // Page indicator component
+  const renderPageIndicator = () => {
+    return (
+      <View style={styles.page_indicator_container}>
+        <View style={styles.page_indicator_buttons_container}>
+          {currentPage > 1 && (
+            <TouchableOpacity style={styles.page_indicator_button} onPress={handlePrevious}>
+              <AntDesign name="left" size={24} color={colors.BLUE}/>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.page_indicator_dots}>
+          {Array.from({ length: totalSteps }, (_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.pageIndicator,
+                currentPage === index + 1 ? styles.activeIndicator : styles.inactiveIndicator,
+              ]}
+            />
+          ))}
+        </View>
+        <View style={styles.page_indicator_buttons_container}>
+          {currentPage < totalSteps && (
+            <TouchableOpacity style={styles.page_indicator_button} onPress={handleNext}>
+              <AntDesign name="right" size={24} color={colors.BLUE}/>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
   
   return (
     <>
       <StatusBar style="auto"/>
       <SafeAreaView style={styles.container}>
-
         <View style={styles.image_text_container}>
           <View style={styles.image_container}>
             <Image style={styles.image} source={logo}/>
           </View>
           {renderPage()}
-        </View>
-
-        <View style={styles.BtnHalfContainer}>
-          {currentPage > 1 && (
-            <TouchableOpacity style={styles.halfButton} onPress={handlePrevious}>
-              <Text style={styles.btnText}>السابق</Text>
-            </TouchableOpacity>
-          )}
-          {currentPage < totalSteps ? (
-            <TouchableOpacity style={styles.halfButton} onPress={handleNext}>
-              <Text style={styles.btnText}>التالي</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.halfButton} onPress={onPressHandler}>
-              <Text style={styles.btnText}>ابدا الان</Text>
-            </TouchableOpacity>
-          )}
+          {renderPageIndicator()}
         </View>
       </SafeAreaView>
     </>
@@ -141,14 +164,13 @@ export default welcome
 
 const styles = StyleSheet.create({
   container:{
-    width:'100%',
-    height:'100%',
+    flex:1,
     backgroundColor:colors.WHITE,
   },
   image_text_container:{
     width:'100%',
     alignItems:'center',
-    justifyContent:'center'
+    justifyContent:'center',
   },
   image_container:{
     width:'100%',
@@ -184,34 +206,53 @@ const styles = StyleSheet.create({
     alignItems:'center',
     marginTop:25,
   },
-  BtnHalfContainer:{
-    height:100,
-    width:'100%',
+  start_now_button:{
+    width:120,
+    height:40,
+    justifyContent:'center',
+    alignItems:'center',
+    marginVertical:25,
+    borderRadius:15,
+    backgroundColor:colors.BLUE
+  },
+  start_now_button_text:{
+    lineHeight:40,
+    fontFamily:'Cairo_400Regular',
+    textAlign:'center',
+    color:colors.WHITE
+  },
+  page_indicator_container:{ 
+    width:300,
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems:'center',
+  },
+  page_indicator_dots:{
+    width:100,
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+  },
+  pageIndicator: { 
+    width: 13, 
+    height: 13, 
+    borderRadius: 10,
+    margin: 5 
+  },
+  activeIndicator: { 
+    backgroundColor: colors.PRIMARY
+  },
+  inactiveIndicator: { 
+    backgroundColor: '#CCC' 
+  },
+  page_indicator_buttons_container:{
+    width:50,
     flexDirection:'row',
     justifyContent:'center',
     alignItems:'center',
   },
-  halfButton:{
-    width:130,
-    height:50,
-    marginHorizontal:5,
-    backgroundColor:colors.PRIMARY,
-    borderRadius:15,
+  page_indicator_button:{
     flexDirection:'row',
     alignItems:'center',
     justifyContent:'center'
-  },
-  finalBtnContainer:{
-    width:'100%',
-    marginTop:10,
-    alignItems:'center',
-    justifyContent:'center',
-  },
-  btnText:{
-    lineHeight:50,
-    verticalAlign:'middle',
-    fontFamily:'Cairo_700Bold',
-    fontSize:15,
-    color:colors.WHITE
   },
 })

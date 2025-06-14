@@ -1,44 +1,42 @@
-import React,{useState,useEffect,useRef} from 'react'
+import {useState,useEffect,useRef} from 'react'
 import { Alert,StyleSheet,Text,View,ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, {Circle} from 'react-native-svg'
 import haversine from 'haversine'
 import MapView, { Marker ,AnimatedRegion } from 'react-native-maps'
 import MapViewDirections from 'react-native-maps-directions'
-import { getDoc,doc,writeBatch,onSnapshot } from 'firebase/firestore'
+import { getDoc,doc,onSnapshot } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
 import LottieView from "lottie-react-native"
 import colors from '../constants/Colors'
-import driverWaiting from '../assets/animations/waiting_driver.json'
 import tripReady from '../assets/animations/school_bus.json'
-//import schoolBus from '../assets/animations/school_bus.json'
+import LineWithoutDriver from './LineWithoutDriver'
+import LinesFeed from './LinesFeed'
 
 const toArabicNumbers = (num) => num.toString().replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d])
 
-// ****  cancel tomorrow trip needs to be date format and acrivated in the driver page
+// ****  calculate the rider subscription fee on adding new rider page and create the bill when the line taken by a driver
 // ****  if we switch the line to driver B riders must track the new driver location and not the old one
 
-const StudentHomePage = ({student}) => {
+const RiderLineStatus = ({rider}) => {
   const GOOGLE_MAPS_APIKEY = ''
   const mapRef = useRef(null)
   const markerRef = useRef(null)
 
-  const [isCanceling, setIsCanceling] = useState(false)
-  const [cancelText, setCancelText] = useState('')
-  const [nextTripText, setNextTripText] = useState("");
-  const [returnTripText, setReturnTripText] = useState("");
+  const [nextTripText, setNextTripText] = useState("")
+  const [returnTripText, setReturnTripText] = useState("")
   const [driverOriginLocation,setDriverOriginLocation] = useState(null)
-  const [destination, setDestination] = useState(null);
-  const [driverCurrentLocation, setDriverCurrentLocation] = useState(null);
-  const [driverCurrentLocationLoading, setDriverCurrentLocationLoading] = useState(true);
+  const [destination, setDestination] = useState(null)
+  const [driverCurrentLocation, setDriverCurrentLocation] = useState(null)
+  const [driverCurrentLocationLoading, setDriverCurrentLocationLoading] = useState(true)
   const [mapReady, setMapReady] = useState(false)
-  const [todayJourneyStarted, setTodayJourneyStarted] = useState(false);
+  const [todayJourneyStarted, setTodayJourneyStarted] = useState(false)
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
   }
 
-  // Student today status
+  // Rider today status
   useEffect(() => {
     const checkTodayJourney = async () => {
       try {
@@ -47,7 +45,7 @@ const StudentHomePage = ({student}) => {
         const yearMonthKey = `${year}-${month.padStart(2, "0")}`;
         const dayKey = day.padStart(2, "0");
   
-        const driverDoc = await getDoc(doc(DB, "drivers", student?.driver_id));
+        const driverDoc = await getDoc(doc(DB, "drivers", rider?.driver_id));
         if (!driverDoc.exists()) {
           setTodayJourneyStarted(false);
           return;
@@ -62,16 +60,16 @@ const StudentHomePage = ({student}) => {
       }
     };
   
-    if (student?.driver_id) {
+    if (rider?.driver_id) {
       checkTodayJourney();
     }
-  }, [student?.driver_id]);
+  }, [rider?.driver_id]);
 
   // Next trip date
   useEffect(() => {
-    if (!student?.driver_id || student?.trip_status !== "at home") return;
+    if (!rider?.driver_id || rider?.trip_status !== "at home") return;
 
-    const riderTimetable = student?.timetable || [];
+    const riderTimetable = rider?.timetable || [];
     if (!riderTimetable.length) {
       setNextTripText("لا توجد رحلة قادمة");
       return;
@@ -132,13 +130,13 @@ const StudentHomePage = ({student}) => {
     }
 
     setNextTripText(tripLabel);
-  }, [student?.trip_status, student?.timetable]);
+  }, [rider?.trip_status, rider?.timetable]);
 
   // Next return trip date
   useEffect(() => {
-    if (!student?.driver_id || student?.trip_status !== "at destination") return;
+    if (!rider?.driver_id || rider?.trip_status !== "at destination") return;
 
-    const riderTimetable = student?.timetable || [];
+    const riderTimetable = rider?.timetable || [];
     if (!riderTimetable.length) {
       setReturnTripText("لا توجد رحلة عودة");
       return;
@@ -199,8 +197,7 @@ const StudentHomePage = ({student}) => {
     }
 
     setReturnTripText(tripLabel);
-  }, [student?.trip_status, student?.timetable]);
-
+  }, [rider?.trip_status, rider?.timetable]);
 
   const animatedDriverLocation = useRef(new AnimatedRegion({
     latitude: 0,
@@ -237,8 +234,8 @@ const StudentHomePage = ({student}) => {
 
   // Fetch driver location
   useEffect(() => {
-    if (student.driver_id) {
-      const driverRef = doc(DB, 'drivers', student.driver_id)
+    if (rider.driver_id) {
+      const driverRef = doc(DB, 'drivers', rider.driver_id)
   
       const unsubscribe = onSnapshot(
         driverRef,
@@ -277,7 +274,7 @@ const StudentHomePage = ({student}) => {
       return () => unsubscribe();
     }
     setDriverCurrentLocationLoading(false)
-  }, [student.driver_id, driverCurrentLocation]);
+  }, [rider.driver_id, driverCurrentLocation]);
 
   // Function to check and update the origin location
   let lastOriginUpdateTime = Date.now();
@@ -310,16 +307,16 @@ const StudentHomePage = ({student}) => {
     }
   };
 
-  // Set destination based on student trip status
+  // Set destination based on rider trip status
   useEffect(() => {
-    if (student.trip_status === 'to destination') {
-      setDestination(student.destination_location)
+    if (rider.trip_status === 'to destination') {
+      setDestination(rider.destination_location)
       setDriverOriginLocation(driverCurrentLocation)
-    } else if (student.trip_status === 'to home') {
-      setDestination(student.home_location.coords);
+    } else if (rider.trip_status === 'to home') {
+      setDestination(rider.home_location);
       setDriverOriginLocation(driverCurrentLocation)
     }
-  }, [student.trip_status])
+  }, [rider.trip_status])
 
   // fit coordinate function
   const fitCoordinatesForCurrentTrip = () => {
@@ -342,60 +339,6 @@ const StudentHomePage = ({student}) => {
     }
   }, [mapReady,destination])
   
-  // Function to handle canceling the trip
-  const handleCancelTrip = async () => {
-    if (cancelText.trim() !== 'نعم') {
-      createAlert('لتاكيد الالغاء يرجى كتابة نعم');
-      return;
-    }
-  
-    try {
-      const batch = writeBatch(DB);
-      const riderDocRef = doc(DB, 'riders', student.id);
-  
-      // Step 1: Update Rider Document
-      batch.update(riderDocRef, { tomorrow_trip_canceled: true });
-  
-      // Step 2: Fetch Driver Document
-      const driverDocRef = doc(DB, 'drivers', student.driver_id);
-      const driverSnap = await getDoc(driverDocRef);
-  
-      if (!driverSnap.exists()) {
-        createAlert('لم يتم العثور على السائق');
-        return;
-      }
-  
-      const driverData = driverSnap.data();
-      const updatedLines = driverData.line.map((line) => {
-        if (line.line_destination === student.destination) {
-          return {
-            ...line,
-            riders: line.riders.map((rider) =>
-              rider.id === student.id
-                ? { ...rider, tomorrow_trip_canceled: true } // Step 4: Update student trip cancellation
-                : rider
-            ),
-          };
-        }
-        return line;
-      });
-  
-      batch.update(driverDocRef, { line: updatedLines });
-      await batch.commit();
-      setIsCanceling(false);
-      setCancelText('');
-    } catch (error) {
-      console.error("Error canceling trip:", error);
-      createAlert('حدث خطأ أثناء إلغاء الرحلة. حاول مرة أخرى.');
-    }
-  }
-
-  // Deny canceling the trip
-  const handleDenyCancelTrip = () => {
-    setIsCanceling(false);
-    setCancelText('');
-  }
-
   // Function to show only one-time route calculation
   const renderDirections = () => {
     if (driverOriginLocation && destination) {
@@ -442,9 +385,9 @@ const StudentHomePage = ({student}) => {
       </Marker.Animated>
 
       <Marker
-        key={`Destination ${student?.id}`}
+        key={`Destination ${rider?.id}`}
         coordinate={destination}
-        title={student?.trip_status === 'to destination' ? 'المدرسة' : 'المنزل'}
+        title={rider?.trip_status === 'to destination' ? 'المدرسة' : 'المنزل'}
         pinColor="red"
       />
     </MapView>
@@ -461,32 +404,29 @@ const StudentHomePage = ({student}) => {
     );
   }
 
-  // If the student is not assigned to a driver
-  if(!student.driver_id) {
+  // If the rider not joining a line yet
+  if(!rider.line_id) {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.student_container}>
-          <View style={styles.no_driver_animation_container}>
-            <LottieView
-              source={driverWaiting}
-              autoPlay
-              loop
-              style={{ width: 250, height: 250}}
-            />
-          </View>
-          <View style={styles.not_connected_to_driver}>
-            <Text style={styles.not_connected_to_driver_text}>جاري ربط الحساب بسائق</Text>
-          </View>
-        </View>
+        <LinesFeed rider={rider}/>
       </SafeAreaView>
     )
   }
 
-  // If the student is at home
-  if(student.driver_id && (todayJourneyStarted === false || student.trip_status === 'at home')) {
+  // If rider join a line not taken by a driver yet
+  if(rider.line_id && rider.driver_id === null) {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.student_container}>
+        <LineWithoutDriver rider={rider}/>
+      </SafeAreaView>
+    )
+  }
+
+  // If the rider is at home
+  if(rider.line_id && rider.driver_id && (todayJourneyStarted === false || rider.trip_status === 'at home')) {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.rider_container}>
           <View style={styles.next_trip_box}>
             <View style={styles.trip_ready_animation_container}>
               <LottieView
@@ -506,11 +446,11 @@ const StudentHomePage = ({student}) => {
     )
   }
 
-  // If the student is at school
-  if(student.driver_id && todayJourneyStarted !== false && student.trip_status === 'at destination') {
+  // If the rider is at school
+  if(rider.line_id && rider.driver_id && todayJourneyStarted !== false && rider.trip_status === 'at destination') {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.student_container}>
+        <View style={styles.rider_container}>
           <View style={styles.next_trip_box}>
             <View style={styles.trip_ready_animation_container}>
               <LottieView
@@ -530,32 +470,32 @@ const StudentHomePage = ({student}) => {
     )
   }
 
-  // If the student is going to school
-  if(student.driver_id && todayJourneyStarted !== false && student.trip_status === 'to destination'){
+  // If the rider is going to school
+  if(rider.line_id && rider.driver_id && todayJourneyStarted !== false && rider.trip_status === 'to destination'){
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.student_route_status_container}>
-         <View style={styles.student_route_status_box}>
-            <Text style={styles.student_route_status_text}>الطالب في الطريق الى المدرسة</Text>
+        <View style={styles.rider_route_status_container}>
+         <View style={styles.rider_route_status_box}>
+            <Text style={styles.rider_route_status_text}>الطالب في الطريق الى المدرسة</Text>
           </View>
         </View>
-        <View style={styles.student_map_container}>
+        <View style={styles.rider_map_container}>
           {renderMap()}
         </View>
       </SafeAreaView>
     )
   }
 
-  // If the student is going to school or going to home
-  if(student.driver_id && todayJourneyStarted !== false && student.trip_status === 'to home') {
+  // If the rider is going to home
+  if(rider.line_id && rider.driver_id && todayJourneyStarted !== false && rider.trip_status === 'to home') {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={styles.student_route_status_container}>
-          <View style={styles.student_route_status_box}>
-            <Text style={styles.student_route_status_text}>{student.picked_up ? 'الطالب في الطريق الى المنزل' : 'السائق في الاتجاه اليك'}</Text>
+        <View style={srider_route_status_container}>
+          <View style={styles.rider_route_status_box}>
+            <Text style={styles.rider_route_status_text}>{rider.picked_up ? 'الطالب في الطريق الى المنزل' : 'السائق في الاتجاه اليك'}</Text>
           </View>
         </View>
-        <View style={styles.student_map_container}>
+        <View style={styles.rider_map_container}>
           {renderMap()}
         </View>
       </SafeAreaView>
@@ -563,34 +503,17 @@ const StudentHomePage = ({student}) => {
   }
 }
 
-export default StudentHomePage
+export default RiderLineStatus
 
 const styles = StyleSheet.create({
   container:{
     flex:1,
   },
-  student_container:{
+  rider_container:{
     width:'100%',
     height:'100%',
     alignItems:'center',
     justifyContent:'center',
-  },
-  no_driver_animation_container:{
-    width:200,
-    height:200,
-    justifyContent:'center',
-    alignItems:'center',
-  },
-  not_connected_to_driver:{
-    width:'100%',
-    height:100,
-    justifyContent:'center',
-    alignItems:'center',
-  },
-  not_connected_to_driver_text:{
-    fontFamily: 'Cairo_700Bold',
-    color:colors.BLACK,
-    lineHeight:100
   },
   next_trip_box:{
     width:300,
@@ -627,78 +550,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo_700Bold',
     fontSize:15,
   },
-  cancel_trip_btn_container:{
-    width:300,
-    height:130,
-    justifyContent:'center',
-    alignItems:'center',
-  },
-  cancel_trip_btn:{
-    backgroundColor:colors.BLUE,
-    width:200,
-    height:40,
-    borderRadius:15,
-  },
-  cancel_trip_btn_text:{
-    lineHeight:40,
-    verticalAlign:'middle',
-    textAlign:'center',
-    fontFamily: 'Cairo_400Regular',
-    fontSize:15,
-    color:colors.WHITE,
-  },
-  cancel_trip_input:{
-    width:200,
-    padding:7,
-    borderRadius:15,
-    borderColor:'#ddd',
-    borderWidth:1,
-    marginTop:7,
-    textAlign:'center',
-    fontFamily: 'Cairo_400Regular',
-    fontSize:13,
-    color:colors.BLACK
-  },
-  confirm_deny_canceling_btn:{
-    flexDirection:'row-reverse',
-    alignItems:'center',
-    justifyContent:'space-around',
-  },
-  confirm_cancel_btn:{
-    backgroundColor:colors.BLUE,
-    width:80,
-    height:35,
-    borderRadius:15,
-    marginTop:7
-  },
-  deny_cancel_btn:{
-    width:80,
-    height:35,
-    borderWidth:1,
-    borderColor:colors.BLUE,
-    borderRadius:15,
-    marginTop:7
-  },
-  confirm_cancel_btn_text:{
-    lineHeight:35,
-    textAlign:'center',
-    fontFamily: 'Cairo_400Regular',
-    fontSize:15,
-    color:colors.WHITE
-  },
-  deny_cancel_btn_text:{
-    lineHeight:35,
-    textAlign:'center',
-    fontFamily: 'Cairo_400Regular',
-    fontSize:15,
-    color:'#16B1FF'
-  },
-  student_map_container:{
+  rider_map_container:{
     width:500,
     height:800,
     position:'relative',
   },
-  student_route_status_container:{
+  rider_route_status_container:{
     width:500,
     position:'absolute',
     top:80,
@@ -707,7 +564,7 @@ const styles = StyleSheet.create({
     alignItems:'center',
     justifyContent:'center',
   },
-  student_route_status_box:{
+  rider_route_status_box:{
     backgroundColor:colors.BLUE,
     width:250,
     height:50,
@@ -715,7 +572,7 @@ const styles = StyleSheet.create({
     alignItems:'center',
     justifyContent:'center'
   },
-  student_route_status_text:{
+  rider_route_status_text:{
     lineHeight:50,
     verticalAlign:'middle',
     textAlign:'center',
@@ -732,34 +589,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   }
 })
-
-
-/*
-{!student.tomorrow_trip_canceled && (
-            <View style={styles.cancel_trip_btn_container}>
-              <TouchableOpacity style={styles.cancel_trip_btn} onPress={() => setIsCanceling(true)}>
-                <Text style={styles.cancel_trip_btn_text}>الغاء الرحلة القادمة</Text>
-              </TouchableOpacity>
-              {isCanceling && (
-                <View style={styles.cancel_trip_confirmation}>
-                  <TextInput
-                    style={styles.cancel_trip_input}
-                    placeholderTextColor={colors.BLACK}
-                    value={cancelText}
-                    onChangeText={setCancelText}
-                    placeholder="للتاكيد اكتب كلمة نعم هنا"
-                  />
-                  <View style={styles.confirm_deny_canceling_btn}>
-                    <TouchableOpacity style={styles.confirm_cancel_btn} onPress={handleCancelTrip}>
-                      <Text style={styles.confirm_cancel_btn_text}>تأكيد</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.deny_cancel_btn} onPress={handleDenyCancelTrip}>
-                      <Text style={styles.deny_cancel_btn_text}>لا</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-*/
-

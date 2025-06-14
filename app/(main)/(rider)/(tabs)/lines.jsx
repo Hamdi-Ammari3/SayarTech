@@ -1,22 +1,40 @@
-import { StyleSheet, Text, View, ActivityIndicator,Image,ScrollView,TouchableOpacity } from 'react-native'
+import { StyleSheet,Text,View,ActivityIndicator,Image,ScrollView,TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useUser } from '@clerk/clerk-expo'
 import { useState } from 'react'
-import { Link } from 'expo-router'
+import { useRouter } from 'expo-router'
 import LottieView from "lottie-react-native"
 import { useRiderData } from '../../../stateManagment/RiderContext'
 import colors from '../../../../constants/Colors'
 import logo from '../../../../assets/images/logo.jpg'
 import addDataAnimation from '../../../../assets/animations/adding_data.json'
-import StudentHomePage from '../../../../components/StudentHomePage'
+import RiderLineStatus from '../../../../components/RiderLineStatus'
 
-const home = () => {
-  const { isLoaded } = useUser()
-  const {rider,fetchingRiderLoading} = useRiderData()
-  const [selectedStudent,setSelectedStudent] = useState(0)
+const lines = () => {
+  const {userData,fetchingUserDataLoading,rider,fetchingRiderLoading} = useRiderData()
+  const router = useRouter()
+  const [selectedRider,setSelectedRider] = useState(0)
+
+  //Redirect to add data screen
+  const redirectToAddDataPage = () => {
+    router.push({
+      pathname:"/addNewRider",
+      params: {
+        riderFamily:userData.user_family_name,
+        riderUserId:userData.user_id,
+        riderPhone:userData.phone_number,
+        riderNotification:userData.user_notification_token,
+      }
+    })
+  }
+
+  // Format the name to only the first word
+  const getFirstWord = (text) => {
+    if (!text) return '';
+    return text.trim().split(/\s+/)[0];
+  };
   
   // Wait untill data load
-  if (fetchingRiderLoading || !isLoaded) {
+  if (fetchingRiderLoading || fetchingUserDataLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -26,7 +44,7 @@ const home = () => {
     );
   }
 
-  // if the user have no registered students yet
+  // if the user have no registered riders yet
   if(!rider.length) {
     return(
       <SafeAreaView style={styles.container}>
@@ -43,10 +61,10 @@ const home = () => {
             />
           </View>
           <View style={styles.add_your_data_text_container}>
-            <Text style={styles.add_your_data_text}>الرجاء اضافة بياناتك</Text>
-            <Link href="/addData" style={styles.link_container}>
-              <Text style={styles.link_text}>اضف الآن</Text>
-            </Link>
+            <Text style={styles.add_your_data_text}>لا يوجد ركاب في حسابك</Text>
+            <TouchableOpacity style={styles.add_data_button} onPress={redirectToAddDataPage}>
+              <Text style={styles.add_data_button_text}>اضف الآن</Text>
+            </TouchableOpacity>
           </View>
         </View>  
       </SafeAreaView>
@@ -61,35 +79,35 @@ const home = () => {
           showsHorizontalScrollIndicator={false} 
           contentContainerStyle={styles.student_name_buttons_container}
         >
-          {rider.map((student,index) => (
+          {rider.map((rider,index) => (
            <TouchableOpacity
               key={index}
               style={[
-               styles.student_name_button,
-                selectedStudent === index && styles.active_student_name_button,
+                styles.student_name_button,
+                selectedRider === index && styles.active_student_name_button,
               ]}
-              onPress={() => setSelectedStudent(index)}
+              onPress={() => setSelectedRider(index)}
             >
               <Text style={[
                 styles.student_name_button_text,
-                selectedStudent === index && styles.active_student_name_button_text,
+                selectedRider === index && styles.active_student_name_button_text,
                 ]}
               >
-                {student.full_name}
+                {getFirstWord(rider.full_name)}
               </Text>
             </TouchableOpacity>
           ))}          
         </ScrollView>
       </View>
       <View style={styles.student_info_container}>
-        {rider[selectedStudent] && (
-          <StudentHomePage student={rider[selectedStudent]} selectedStudent={selectedStudent}/>
+        {rider[selectedRider] && (
+          <RiderLineStatus rider={rider[selectedRider]}/>
         )}
       </View>
    </SafeAreaView>
   )}
 
-export default home;
+export default lines;
 
 const styles = StyleSheet.create({
   container: {
@@ -128,25 +146,27 @@ const styles = StyleSheet.create({
   add_your_data_text:{
     fontFamily: 'Cairo_400Regular',
   },
-  link_container: {
-    backgroundColor: colors.PRIMARY,
-    width:100,
-    height:50,
-    textAlign:'center',
-    marginTop:10,
-    borderRadius: 20,
+  add_data_button:{
+    width:110,
+    height:40,
+    marginTop:20,
+    justifyContent:'center',
+    alignItems:'center',
+    backgroundColor:'rgba(190, 154, 78, 0.30)',
+    borderColor:colors.BLACK,
+    borderWidth:1,
+    borderRadius: 15,
   },
-  link_text: {
-    lineHeight:50,
-    color: colors.WHITE,
-    fontFamily: 'Cairo_700Bold',
+  add_data_button_text:{
     fontSize: 14,
+    fontFamily: 'Cairo_700Bold',
+    lineHeight: 35,
   },
   scrollViewContainer:{
     height:60,
     width:'100%',
     position:'absolute',
-    top:40,
+    top:30,
     left:0,
     zIndex:100,
     alignItems:'center',
@@ -161,7 +181,7 @@ const styles = StyleSheet.create({
     backgroundColor:colors.WHITE,
     borderColor:'#ddd',
     borderWidth:1,
-    minWidth:150,
+    minWidth:110,
     height:40,
     borderRadius:15,
     alignItems:'center',
@@ -175,8 +195,10 @@ const styles = StyleSheet.create({
     lineHeight:40,
   },
   active_student_name_button:{
-    backgroundColor:colors.PRIMARY,
-    borderColor:colors.PRIMARY,
+    //backgroundColor:colors.PRIMARY,
+    //borderColor:colors.PRIMARY,
+    backgroundColor:colors.BLUE,
+    borderColor:colors.BLUE,
   },
   active_student_name_button_text:{
     color:colors.WHITE,

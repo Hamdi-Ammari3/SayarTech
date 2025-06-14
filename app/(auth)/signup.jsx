@@ -1,4 +1,4 @@
-import React,{useState,useEffect,useRef} from 'react'
+import {useState,useEffect,useRef} from 'react'
 import { Text,View,StyleSheet,Image, Alert,ActivityIndicator,Platform,TouchableOpacity,TextInput,Modal,ScrollView,Keyboard,TouchableWithoutFeedback} from 'react-native'
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useSignUp,useSignIn } from '@clerk/clerk-expo'
@@ -21,9 +21,9 @@ import FontAwesome from '@expo/vector-icons/FontAwesome'
 // +1 2015550101 Google
 // +1 2015550102 Apple
 // +1 2015550104 Driver       doc_id => m6cCweDEgE2hs10ODDZa
-// +1 2015550105 Parent       doc_id => XxQmlNXsik6cPLWR8lUn
-// +1 2015550106 Student      doc_id => AsBQJWF0yxHZBTrtHOo0
-// +1 2015550107 Employee     doc_id => GsONchCseOizjLTvPQHu
+// +1 2015550105 Driver       doc_id => XxQmlNXsik6cPLWR8lUn
+// +1 2015550106 Rider      doc_id => AsBQJWF0yxHZBTrtHOo0
+// +1 2015550107 Rider     doc_id => GsONchCseOizjLTvPQHu
 
 
 export default function SignUpScreen() {
@@ -334,6 +334,7 @@ export default function SignUpScreen() {
         user_full_name: userName,
         user_family_name: userFamilyName,
         compte_owner_type:compteOwner,
+        account_balance:0,
         phone_number:`${countryCode} ${phone}`,
         user_notification_token: expoPushToken,
         user_privacy_policy:privacyAccepted,
@@ -419,7 +420,7 @@ export default function SignUpScreen() {
           <TextInput
             style={styles.customeInput}
             value={userName}
-            placeholder="الاسم الكامل"
+            placeholder="الاسم"
             placeholderTextColor={colors.BLACK}
             onChangeText={(text) => setUserName(text)}
           />
@@ -688,9 +689,7 @@ export default function SignUpScreen() {
               onPress={onSignUpPress}
               disabled={isSigningUp}
             >
-              <View style={styles.btnView}>
-                <Text style={styles.btntext}>تسجيل</Text>
-              </View>
+              <Text style={styles.btntext}>تسجيل</Text>
               
             </TouchableOpacity>
           )}
@@ -719,9 +718,7 @@ export default function SignUpScreen() {
               onPress={onPressVerify}
               disabled={isVerifying}
             >
-              <View style={styles.btnView}>
-                <Text style={styles.btntext}>تاكيد</Text>
-              </View>
+              <Text style={styles.btntext}>تاكيد</Text>
             </TouchableOpacity>
           )}
           <View style={styles.timer_container}>
@@ -769,31 +766,27 @@ const styles = StyleSheet.create({
     alignItems:'center',
   },
   button:{
-    width:280,
-    height:50,
-    marginBottom:10,
-    backgroundColor:colors.PRIMARY,
+    width:180,
+    height:40,
+    marginBottom:20,
+    backgroundColor:colors.BLUE,
     borderRadius:15,
     flexDirection:'row',
     alignItems:'center',
     justifyContent:'center'
-  },
-  btnView:{
-      alignItems:'center',
-      justifyContent:'center',
-    },  
-    btntext:{
-      fontFamily:'Cairo_700Bold',
-      fontSize:15,
-      color:colors.WHITE,
-      lineHeight:50,
+  },  
+  btntext:{
+    fontFamily:'Cairo_700Bold',
+    fontSize:15,
+    color:colors.WHITE,
+    lineHeight:40,
   },
   customeInput:{
     width:280,
     height:50,
     marginBottom:10,
     borderWidth:1,
-    borderColor:colors.PRIMARY,
+    borderColor:colors.BLACK,
     borderRadius:15,
     color:colors.BLACK,
     textAlign:'center',
@@ -804,7 +797,7 @@ const styles = StyleSheet.create({
     height:50,
     borderWidth:1,
     marginBottom:10,
-    borderColor:colors.PRIMARY,
+    borderColor:colors.BLACK,
     borderRadius:15,
     justifyContent:'center',
     alignItems:'center'
@@ -820,35 +813,22 @@ const styles = StyleSheet.create({
   dropdownTextStyle:{
     textAlign:'center',
   },
-  customeInput:{
-    width:280,
-    height:50,
-    marginBottom:10,
-    borderWidth:1,
-    borderColor:colors.PRIMARY,
-    borderRadius:15,
-    color:colors.BLACK,
-    textAlign:'center',
-    fontFamily:'Cairo_400Regular'
-  },
   input_with_picker:{
     flexDirection:'row',
     borderWidth:1,
-    borderColor:colors.PRIMARY,
+    borderColor:colors.BLACK,
     borderRadius:15,
     marginBottom:10
   },
   country_code_dropdown:{
     width:80,
     height:50,
-    backgroundColor:colors.PRIMARY,
     borderTopStartRadius:13,
     borderBottomStartRadius:13,
     justifyContent:'center',
     alignItems:'center'
   },
   country_code_dropdownStyle:{
-    color:colors.WHITE,
     fontFamily:'Cairo_700Bold',
     textAlign:'center',
     fontSize:14,
@@ -859,112 +839,7 @@ const styles = StyleSheet.create({
     height:50,
     textAlign:'center',
     fontFamily:'Cairo_400Regular'
-  },
-  referralBtn:{
-    width:280,
-    height:30,
-    marginBottom:10,
-    flexDirection:'row',
-    alignItems:'center',
-    justifyContent:'center',
-  },
-  referralBtnText:{
-    height:30,
-    fontFamily:'Cairo_700Bold',
-    fontSize:12,
-    color:'#295F98',
-    textAlign:'center',
-    verticalAlign:'middle',
-  },
-  rfCode_modal_container:{
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  rfCode_modal_box:{
-    width: 280,
-    height:200,
-    backgroundColor:colors.WHITE,
-    borderRadius: 10,
-    padding: 20,
-    alignItems: 'center',
-    justifyContent:'center'
-  },
-  rfCode_input:{
-    width:160,
-    height:50,
-    marginBottom:10,
-    borderWidth:1,
-    borderColor:colors.PRIMARY,
-    borderRadius:15,
-    color:colors.BLACK,
-    textAlign:'center',
-    fontFamily:'Cairo_400Regular'
-  },
-  rfCode_btn_container:{
-    width:160,
-    flexDirection:'row',
-    justifyContent:'space-between'
-  },
-  add_rfCode_btn:{
-    width:70,
-    height:50,
-    marginBottom:10,
-    backgroundColor:colors.PRIMARY,
-    borderRadius:15,
-    flexDirection:'row',
-    alignItems:'center',
-    justifyContent:'center'  
-  },
-  add_rfCode_btn_text:{
-    fontFamily:'Cairo_700Bold',
-    color:colors.WHITE
-  },  
-  deny_rfCode_btn:{
-    width:70,
-    height:50,
-    marginBottom:10,
-    borderWidth:1,
-    borderColor:colors.PRIMARY,
-    borderRadius:15,
-    flexDirection:'row',
-    alignItems:'center',
-    justifyContent:'center'  
-  },
-  deny_rfCode_btn_text:{
-    fontFamily:'Cairo_700Bold',
-    color:colors.PRIMARY
-  },
-  whatsapp_sms_container:{
-    width:200,
-    height:40,
-    flexDirection:'row-reverse',
-    justifyContent:'space-around',
-    alignItems:'center',
-  },
-  whatsapp_sms_check_btn:{
-    width:70,
-    height:40,
-    justifyContent:'center',
-    alignItems:'center',
-    borderRadius:15,
-    backgroundColor:colors.GRAY
-  },
-  whatsapp_sms_check_btn_active:{
-    width:70,
-    height:40,
-    justifyContent:'center',
-    alignItems:'center',
-    borderRadius:15,
-    backgroundColor:colors.PRIMARY
-  },
-  whatsapp_sms_check:{
-    width:70,
-    flexDirection:'row-reverse',
-    justifyContent:'space-between',
-    alignItems:'center',
-  },
+  }, 
   privacy_terms_approve_btn:{
     width:290,
     height:50,

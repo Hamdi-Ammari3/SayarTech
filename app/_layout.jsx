@@ -42,7 +42,6 @@ const tokenCache = {
   },
 }
 
-
 export default function RootLayout() {
 
 
@@ -60,17 +59,18 @@ export default function RootLayout() {
     return null;
   }
 
-
   return(
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <ClerkLoaded>
         <StatusBar style="auto"/>
         <Stack>
-            <Stack.Screen name="index" options={{headerShown:false}}/>
-            <Stack.Screen name="(auth)" options={{headerShown:false}}/>
-            <Stack.Screen name="(main)" options={{headerShown:false}}/>
-            <Stack.Screen name="tripResult" options={{headerShown:false}}/>
-          </Stack>
+          <Stack.Screen name="index" options={{headerShown:false}}/>
+          <Stack.Screen name="(auth)" options={{headerShown:false}}/>
+          <Stack.Screen name="(main)" options={{headerShown:false}}/>
+          <Stack.Screen name="tripResult" options={{headerShown:false}}/>
+          <Stack.Screen name="addNewRider" options={{headerShown:false}}/>
+          <Stack.Screen name="addDriverData" options={{headerShown:false}}/>
+        </Stack>
       </ClerkLoaded>
     </ClerkProvider> 
   )

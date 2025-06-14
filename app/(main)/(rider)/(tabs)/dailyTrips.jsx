@@ -1,5 +1,5 @@
 import { StyleSheet,Text,View,ActivityIndicator,Image,TouchableOpacity,Alert,Linking } from 'react-native'
-import React,{useEffect,useState,useRef} from 'react'
+import {useEffect,useState,useRef} from 'react'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Dropdown } from 'react-native-element-dropdown'
@@ -156,7 +156,6 @@ const dailyTrips = () => {
       const intercityTripSnap = await getDoc(intercityTripDocRef);
 
       if (!intercityTripSnap.exists()) {
-        console.log('IntercityTrip not found');
         createAlert('حدث خطا الرجاء المحاولة مرة ثانية')
         return;
       }

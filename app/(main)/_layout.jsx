@@ -1,15 +1,15 @@
-import { Stack } from "expo-router";
-
+import { Stack } from "expo-router"
+import {LinesProvider} from '../stateManagment/LinesContext'
 
 export default function MainLayout() {
 
   return(
-    <Stack>
-      <Stack.Screen name="(driver)" options={{headerShown:false}}/>
-      <Stack.Screen name="(rider)" options={{headerShown:false}}/>
-      <Stack.Screen name="(parent)" options={{headerShown:false}}/>
-      <Stack.Screen name="(student)" options={{headerShown:false}}/>
-      <Stack.Screen name="(employee)" options={{headerShown:false}}/>
-    </Stack>
+    <LinesProvider>
+      <Stack>
+        <Stack.Screen name="(driver)" options={{headerShown:false}}/>
+        <Stack.Screen name="(rider)" options={{headerShown:false}}/>
+        <Stack.Screen name="driverAddNewLine" options={{headerShown:false}}/>
+      </Stack>
+    </LinesProvider>
   )
 }

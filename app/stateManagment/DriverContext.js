@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 import { collection, onSnapshot,getDocs, query,where } from 'firebase/firestore';
 import {DB} from '../../firebaseConfig'
 import { useUser } from '@clerk/clerk-expo';
@@ -61,7 +61,7 @@ export const DriverProvider = ({ children }) => {
             id: doc.id,
             ...doc.data(),
           }))
-          .filter((driver) => driver.driver_user_id === user.id);
+          .filter((driver) => driver.user_id === user.id);
 
         setDriverData(driverList)
         setFetchingDriverDataLoading(false)

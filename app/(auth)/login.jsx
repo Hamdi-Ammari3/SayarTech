@@ -364,14 +364,9 @@ export default function Page() {
               onPress={guestModeSigninHandler}
               disabled={guestModeSigninLoading}
             >
-              <View style={styles.btnView}>
-                <Text style={styles.btntext}>Guest Mode</Text>
-              </View>
+              <Text style={styles.btntext}>Guest Mode</Text>
             </TouchableOpacity>
           )}
-          <Link href={'/signup'}>
-            <Text style={styles.link_text}>ليس لديك حساب؟ سجل الآن</Text>
-          </Link>
         </View>
       </SafeAreaView>
     )
@@ -404,9 +399,7 @@ export default function Page() {
               onPress={onVerifyPress}
               disabled={isVerifyingCode}
             >
-              <View style={styles.btnView}>
-                <Text style={styles.btntext}>دخول</Text>
-              </View>
+              <Text style={styles.btntext}>دخول</Text>
             </TouchableOpacity>
           )}
           
@@ -458,9 +451,7 @@ export default function Page() {
               onPress={handleSendOTP}
               disabled={isSigningIn}
             >
-              <View style={styles.btnView}>
-                <Text style={styles.btntext}>تأكيد</Text>
-              </View>
+              <Text style={styles.btntext}>تأكيد</Text>
             </TouchableOpacity>
           )}
           
@@ -486,7 +477,6 @@ const styles = StyleSheet.create({
     marginTop:50,
     justifyContent:'center',
     alignItems:'center',
-    //backgroundColor:'red'
   },
   logo_image:{
     height:180,
@@ -505,7 +495,7 @@ const styles = StyleSheet.create({
     height:50,
     marginBottom:10,
     borderWidth:1,
-    borderColor:colors.PRIMARY,
+    borderColor:colors.BLACK,
     borderRadius:15,
     color:colors.BLACK,
     textAlign:'center',
@@ -514,21 +504,19 @@ const styles = StyleSheet.create({
   input_with_picker:{
     flexDirection:'row',
     borderWidth:1,
-    borderColor:colors.PRIMARY,
+    borderColor:colors.BLACK,
     borderRadius:15,
     marginBottom:20
   },
   dropdown:{
     width:80,
     height:50,
-    backgroundColor:colors.PRIMARY,
     borderTopStartRadius:13,
     borderBottomStartRadius:13,
     justifyContent:'center',
     alignItems:'center'
   },
   dropdownStyle:{
-    color:colors.WHITE,
     fontFamily:'Cairo_700Bold',
     textAlign:'center',
     fontSize:14,
@@ -544,55 +532,21 @@ const styles = StyleSheet.create({
     fontFamily:'Cairo_400Regular',
     color:colors.BLACK,
   },
-  whatsapp_sms_container:{
-    width:200,
-    height:40,
-    marginBottom:20,
-    flexDirection:'row-reverse',
-    justifyContent:'space-around',
-    alignItems:'center',
-  },
-  whatsapp_sms_check_btn:{
-    width:70,
-    height:40,
-    justifyContent:'center',
-    alignItems:'center',
-    borderRadius:15,
-    backgroundColor:colors.GRAY
-  },
-  whatsapp_sms_check_btn_active:{
-    width:70,
-    height:40,
-    justifyContent:'center',
-    alignItems:'center',
-    borderRadius:15,
-    backgroundColor:colors.PRIMARY
-  },
-  whatsapp_sms_check:{
-    width:70,
-    flexDirection:'row-reverse',
-    justifyContent:'space-between',
-    alignItems:'center',
-  },
   button:{
-    width:280,
-    height:50,
-    marginBottom:10,
-    backgroundColor:colors.PRIMARY,
+    width:180,
+    height:45,
+    marginBottom:20,
+    backgroundColor:colors.BLUE,
     borderRadius:15,
     flexDirection:'row',
     alignItems:'center',
     justifyContent:'center'
-  },
-  btnView:{
-    alignItems:'center',
-    justifyContent:'center',
-  },  
+  }, 
   btntext:{
     fontFamily:'Cairo_700Bold',
     fontSize:15,
     color:colors.WHITE,
-    lineHeight:50,
+    lineHeight:45,
   },
   link_text:{
     fontFamily:'Cairo_700Bold',
@@ -630,24 +584,3 @@ const styles = StyleSheet.create({
     marginHorizontal:5,
   },
 })
-
-/*
-<View style={styles.whatsapp_sms_container}>
-            <View style={styles.whatsapp_sms_check}>
-              <TouchableOpacity 
-                style={[styles.whatsapp_sms_check_btn,whatsapp && styles.whatsapp_sms_check_btn_active]} 
-                onPress={whatsappChannelHandler}
-              >
-                <FontAwesome name="whatsapp" size={24} color={whatsapp ? colors.WHITE : colors.BLACK} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.whatsapp_sms_check}>
-              <TouchableOpacity 
-                style={[styles.whatsapp_sms_check_btn,sms && styles.whatsapp_sms_check_btn_active]} 
-                onPress={smsChannelHandler}
-              >
-                <AntDesign name="message1" size={21} color={sms ? colors.WHITE : colors.BLACK} />
-              </TouchableOpacity>
-            </View>       
-          </View>
-*/
