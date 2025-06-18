@@ -1,6 +1,6 @@
 import { View,Text,ActivityIndicator,StyleSheet,TouchableOpacity } from 'react-native'
 import { useEffect, useState } from 'react'
-import { doc, getDoc,writeBatch,arrayRemove } from 'firebase/firestore'
+import { doc, getDoc,writeBatch } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
 import colors from '../constants/Colors'
 
@@ -21,7 +21,7 @@ const LineWithoutDriver = ({rider}) => {
                     setLine({ id: lineSnap.id, ...lineSnap.data() })
                 }
             } catch (err) {
-                console.error("Error fetching line:", err)
+                console.log("Error fetching line:", err)
             } finally {
                 setLoading(false)
             }
@@ -80,7 +80,6 @@ const LineWithoutDriver = ({rider}) => {
             createAlert('تم مغادرة الخط بنجاح');
             
         } catch (error) {
-            console.error(err);
             createAlert('حدث خطأ أثناء مغادرة الخط');
         } finally {
             setLeavingLineLoading(false)

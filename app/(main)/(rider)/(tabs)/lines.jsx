@@ -101,7 +101,10 @@ const lines = () => {
       </View>
       <View style={styles.student_info_container}>
         {rider[selectedRider] && (
-          <RiderLineStatus rider={rider[selectedRider]}/>
+          <RiderLineStatus 
+            rider={rider[selectedRider]}
+            key={rider[selectedRider].id}
+          />
         )}
       </View>
    </SafeAreaView>
@@ -195,8 +198,6 @@ const styles = StyleSheet.create({
     lineHeight:40,
   },
   active_student_name_button:{
-    //backgroundColor:colors.PRIMARY,
-    //borderColor:colors.PRIMARY,
     backgroundColor:colors.BLUE,
     borderColor:colors.BLUE,
   },

@@ -335,6 +335,7 @@ export default function SignUpScreen() {
         user_family_name: userFamilyName,
         compte_owner_type:compteOwner,
         account_balance:0,
+        activeTripId:null,
         phone_number:`${countryCode} ${phone}`,
         user_notification_token: expoPushToken,
         user_privacy_policy:privacyAccepted,

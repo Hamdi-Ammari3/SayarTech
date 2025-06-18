@@ -259,7 +259,6 @@ const TripResult = () => {
       alert("تم حجز الرحلة بنجاح");
     
     } catch (error) {
-      console.log("Booking error:", error);
       alert("حدث خطأ أثناء الحجز، حاول مرة أخرى.");
     }  finally {
       setBookingTheTrip(false)

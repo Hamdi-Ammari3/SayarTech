@@ -7,15 +7,16 @@ import MapView, { Marker ,AnimatedRegion } from 'react-native-maps'
 import MapViewDirections from 'react-native-maps-directions'
 import { getDoc,doc,onSnapshot } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
+import dayjs from '../utils/dayjs'
 import LottieView from "lottie-react-native"
 import colors from '../constants/Colors'
 import tripReady from '../assets/animations/school_bus.json'
+import noRiderData from '../assets/animations/waiting_driver.json'
 import LineWithoutDriver from './LineWithoutDriver'
 import LinesFeed from './LinesFeed'
 
 const toArabicNumbers = (num) => num.toString().replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d])
 
-// ****  calculate the rider subscription fee on adding new rider page and create the bill when the line taken by a driver
 // ****  if we switch the line to driver B riders must track the new driver location and not the old one
 
 const RiderLineStatus = ({rider}) => {
@@ -36,14 +37,17 @@ const RiderLineStatus = ({rider}) => {
     Alert.alert(alerMessage)
   }
 
+  const now = new Date();
+  const endDate = rider?.service_period?.end_date?.toDate?.() || new Date(0);
+  const isSubscriptionExpired = now > endDate;
+
   // Rider today status
   useEffect(() => {
     const checkTodayJourney = async () => {
       try {
-        const iraqTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
-        const [month, day, year] = iraqTime.split(/[/, ]/);
-        const yearMonthKey = `${year}-${month.padStart(2, "0")}`;
-        const dayKey = day.padStart(2, "0");
+        const iraqNow = dayjs().utcOffset(180);
+        const yearMonthKey = `${iraqNow.year()}-${String(iraqNow.month() + 1).padStart(2, "0")}`;
+        const dayKey = String(iraqNow.date()).padStart(2, "0");
   
         const driverDoc = await getDoc(doc(DB, "drivers", rider?.driver_id));
         if (!driverDoc.exists()) {
@@ -56,7 +60,6 @@ const RiderLineStatus = ({rider}) => {
         setTodayJourneyStarted(journeyCheck);
       } catch (error) {
         createAlert("حدث خطأ أثناء التحقق من حالة الرحلة اليوم.");
-        console.log("Error checking today's journey:", error);
       }
     };
   
@@ -67,137 +70,151 @@ const RiderLineStatus = ({rider}) => {
 
   // Next trip date
   useEffect(() => {
-    if (!rider?.driver_id || rider?.trip_status !== "at home") return;
+    const fetchNextTrip = async () => {
+      if (!rider?.driver_id || rider?.trip_status !== "at home" || !rider?.line_id) return;
 
-    const riderTimetable = rider?.timetable || [];
-    if (!riderTimetable.length) {
-      setNextTripText("لا توجد رحلة قادمة");
-      return;
-    }
+      try {
+        const lineSnap = await getDoc(doc(DB, "lines", rider.line_id));
+        if (!lineSnap.exists()) {
+          setNextTripText("لا توجد رحلة قادمة");
+          return;
+        }
 
-    const now = new Date();
-    const todayIndex = now.getDay(); // 0=Sunday, ..., 6=Saturday
-    const sortedTimetable = [...riderTimetable].sort((a, b) => a.id - b.id);
-    let nextTripDay = null;
-    let tripLabel = "لا توجد رحلة قادمة";
+        const lineData = lineSnap.data();
+        const timetable = lineData?.timeTable || [];
 
-    const formatTimeWithPeriod = (date) => {
-      let hours = date.getHours();
-      let minutes = date.getMinutes();
-      const period = hours >= 12 ? "مساءً" : "صباحًا";
+        if (!timetable.length) {
+          setNextTripText("لا توجد رحلة قادمة");
+          return;
+        }
 
-      // Convert to 12-hour format
-      hours = hours % 12 || 12; // Convert 0 (midnight) and 12 (noon) correctly
+        const now = new Date();
+        const todayIndex = now.getDay(); // 0=Sunday, ..., 6=Saturday
+        const sortedTimetable = [...timetable].sort((a, b) => a.id - b.id);
 
-      return `${toArabicNumbers(hours.toString().padStart(2, "0"))}:${toArabicNumbers(minutes.toString().padStart(2, "0"))} ${period}`;
+        let nextTripDay = null;
+        let tripLabel = "لا توجد رحلة قادمة";
+
+        const formatTimeWithPeriod = (date) => {
+          let hours = date.getHours();
+          let minutes = date.getMinutes();
+          const period = hours >= 12 ? "مساءً" : "صباحًا";
+          hours = hours % 12 || 12;
+          return `${toArabicNumbers(hours.toString().padStart(2, "0"))}:${toArabicNumbers(minutes.toString().padStart(2, "0"))} ${period}`;
+        };
+
+        // Step 1: Check today's trip
+        const todaySchedule = sortedTimetable.find(day => day.dayIndex === todayIndex && day.active);
+        if (todaySchedule && todaySchedule.startTime) {
+          let startTimeDate = todaySchedule.startTime.toDate();
+          const nowHours = now.getHours();
+          const nowMinutes = now.getMinutes();
+
+          let startHours = startTimeDate.getHours();
+          let startMinutes = startTimeDate.getMinutes();
+
+          if (startHours > nowHours || (startHours === nowHours && startMinutes > nowMinutes)) {
+            nextTripDay = "اليوم";
+            tripLabel = `${nextTripDay} الساعة ${formatTimeWithPeriod(startTimeDate)}`;
+          }
+        }
+
+        // Step 2: Find the next upcoming trip if today's passed
+        if (!nextTripDay) {
+          for (let i = 1; i <= 7; i++) {
+            let nextIndex = (todayIndex + i) % 7;
+            const nextDay = sortedTimetable.find(day => day.dayIndex === nextIndex && day.active);
+            if (nextDay && nextDay.startTime) {
+              let startTimeDate = nextDay.startTime.toDate();
+              nextTripDay = i === 1 ? "غدا" : nextDay.day;
+              tripLabel = `${nextTripDay} الساعة ${formatTimeWithPeriod(startTimeDate)}`;
+              break;
+            }
+          }
+        }
+
+        setNextTripText(tripLabel);
+      } catch (err) {
+        setNextTripText("لا توجد رحلة قادمة");
+      }
     };
 
-    // Step 1: Check today's start time first
-    const todaySchedule = sortedTimetable.find(day => day.id === todayIndex && day.active);
-    if (todaySchedule && todaySchedule.startTime) {
-      let startTimeDate = todaySchedule.startTime.toDate();
+    fetchNextTrip();
+  }, [rider?.trip_status, rider?.driver_id, rider?.line_id]);
 
-      const nowHours = now.getHours();
-      const nowMinutes = now.getMinutes();
-
-      let startHours = startTimeDate.getHours();
-      let startMinutes = startTimeDate.getMinutes();
-
-      if (startHours > nowHours || (startHours === nowHours && startMinutes > nowMinutes)) {
-        nextTripDay = "اليوم";
-        tripLabel = `${nextTripDay} الساعة ${formatTimeWithPeriod(startTimeDate)}`;
-      }
-    }
-
-    // Step 2: If today's trip already passed, find the next available active day (looping over the week)
-    if (!nextTripDay) {
-      for (let i = 1; i <= 7; i++) { // Max 7 days search ensures looping back to Sunday
-        let nextIndex = (todayIndex + i) % 7; // Loop back after Saturday
-        const nextDay = sortedTimetable.find(day => day.id === nextIndex && day.active);
-
-        if (nextDay && nextDay.startTime) {
-          let startTimeDate = nextDay.startTime.toDate();
-          nextTripDay = i === 1 ? "غدا" : nextDay.day; // "غدا" for tomorrow, else use DB day name
-          tripLabel = `${nextTripDay} الساعة ${formatTimeWithPeriod(startTimeDate)}`;
-          break;
-        }
-      }
-    }
-
-    // Step 3: If no trip found, display "No upcoming trips"
-    if (!nextTripDay) {
-      tripLabel = "لا توجد رحلة قادمة";
-    }
-
-    setNextTripText(tripLabel);
-  }, [rider?.trip_status, rider?.timetable]);
-
-  // Next return trip date
+  // Next return to home trip date
   useEffect(() => {
-    if (!rider?.driver_id || rider?.trip_status !== "at destination") return;
+    const fetchReturnTrip = async () => {
+      if (!rider?.driver_id || rider?.trip_status !== "at destination" || !rider?.line_id) return;
 
-    const riderTimetable = rider?.timetable || [];
-    if (!riderTimetable.length) {
-      setReturnTripText("لا توجد رحلة عودة");
-      return;
-    }
+      try {
+        const lineSnap = await getDoc(doc(DB, "lines", rider.line_id));
+        if (!lineSnap.exists()) {
+          setReturnTripText("لا توجد رحلة عودة");
+          return;
+        }
 
-    const now = new Date();
-    const todayIndex = now.getDay(); // 0=Sunday, ..., 6=Saturday
-    const sortedTimetable = [...riderTimetable].sort((a, b) => a.id - b.id);
-    let returnTripDay = null;
-    let tripLabel = "لا توجد رحلة عودة";
+        const lineData = lineSnap.data();
+        const timetable = lineData?.timeTable || [];
 
-    const formatTimeWithPeriod = (date) => {
-      let hours = date.getHours();
-      let minutes = date.getMinutes();
-      const period = hours >= 12 ? "مساءً" : "صباحًا";
+        if (!timetable.length) {
+          setReturnTripText("لا توجد رحلة عودة");
+          return;
+        }
 
-      // Convert to 12-hour format
-      hours = hours % 12 || 12; // Convert 0 (midnight) and 12 (noon) correctly
+        const now = new Date();
+        const todayIndex = now.getDay(); // 0 = Sunday, ..., 6 = Saturday
+        const sortedTimetable = [...timetable].sort((a, b) => a.id - b.id);
+        let returnTripDay = null;
+        let tripLabel = "لا توجد رحلة عودة";
 
-      return `${toArabicNumbers(hours.toString().padStart(2, "0"))}:${toArabicNumbers(minutes.toString().padStart(2, "0"))} ${period}`;
+        const formatTimeWithPeriod = (date) => {
+          let hours = date.getHours();
+          let minutes = date.getMinutes();
+          const period = hours >= 12 ? "مساءً" : "صباحًا";
+          hours = hours % 12 || 12;
+          return `${toArabicNumbers(hours.toString().padStart(2, "0"))}:${toArabicNumbers(minutes.toString().padStart(2, "0"))} ${period}`;
+        };
+
+        // Step 1: Check today's return time first
+        const todaySchedule = sortedTimetable.find(day => day.dayIndex === todayIndex && day.active);
+        
+        if (todaySchedule && todaySchedule.endTime) {
+          let endTimeDate = todaySchedule.endTime.toDate();
+          const nowHours = now.getHours();
+          const nowMinutes = now.getMinutes();
+          const endHours = endTimeDate.getHours();
+          const endMinutes = endTimeDate.getMinutes();
+
+          if (endHours > nowHours || (endHours === nowHours && endMinutes > nowMinutes)) {
+            returnTripDay = "اليوم";
+            tripLabel = `${returnTripDay} الساعة ${formatTimeWithPeriod(endTimeDate)}`;
+          }
+        }
+
+        // Step 2: Find next available return time if today's has passed
+        if (!returnTripDay) {
+          for (let i = 1; i <= 7; i++) {
+            let nextIndex = (todayIndex + i) % 7;
+            const nextDay = sortedTimetable.find(day => day.dayIndex === nextIndex && day.active);
+
+            if (nextDay && nextDay.endTime) {
+              let endTimeDate = nextDay.endTime.toDate();
+              returnTripDay = i === 1 ? "غدا" : nextDay.day;
+              tripLabel = `${returnTripDay} الساعة ${formatTimeWithPeriod(endTimeDate)}`;
+              break;
+            }
+          }
+        }
+
+        setReturnTripText(tripLabel);
+      } catch (err) {
+        setReturnTripText("لا توجد رحلة عودة");
+      }
     };
 
-    // **Step 1: Check today's return time first**
-    const todaySchedule = sortedTimetable.find(day => day.id === todayIndex && day.active);
-    if (todaySchedule && todaySchedule.endTime) {
-      let endTimeDate = todaySchedule.endTime.toDate();
-
-      const nowHours = now.getHours();
-      const nowMinutes = now.getMinutes();
-
-      let endHours = endTimeDate.getHours();
-      let endMinutes = endTimeDate.getMinutes();
-
-      if (endHours > nowHours || (endHours === nowHours && endMinutes > nowMinutes)) {
-        returnTripDay = "اليوم";
-        tripLabel = `${returnTripDay} الساعة ${formatTimeWithPeriod(endTimeDate)}`;
-      }
-    }
-
-    // **Step 2: If today's return time has passed, find the next active return time (looping over the week)**
-    if (!returnTripDay) {
-      for (let i = 1; i <= 7; i++) { // Max 7-day search ensures looping back to Sunday
-        let nextIndex = (todayIndex + i) % 7; // Loop back after Saturday
-        const nextDay = sortedTimetable.find(day => day.id === nextIndex && day.active);
-
-        if (nextDay && nextDay.endTime) {
-          let endTimeDate = nextDay.endTime.toDate();
-          returnTripDay = i === 1 ? "غدا" : nextDay.day; // "غدا" for tomorrow, else use DB day name
-          tripLabel = `${returnTripDay} الساعة ${formatTimeWithPeriod(endTimeDate)}`;
-          break;
-        }
-      }
-    }
-
-    // **Step 3: If no return trip found, display "No return trip"**
-    if (!returnTripDay) {
-      tripLabel = "لا توجد رحلة عودة";
-    }
-
-    setReturnTripText(tripLabel);
-  }, [rider?.trip_status, rider?.timetable]);
+    fetchReturnTrip();
+  }, [rider?.trip_status, rider?.driver_id, rider?.line_id]);
 
   const animatedDriverLocation = useRef(new AnimatedRegion({
     latitude: 0,
@@ -236,7 +253,6 @@ const RiderLineStatus = ({rider}) => {
   useEffect(() => {
     if (rider.driver_id) {
       const driverRef = doc(DB, 'drivers', rider.driver_id)
-  
       const unsubscribe = onSnapshot(
         driverRef,
         (snapshot) => {
@@ -261,12 +277,10 @@ const RiderLineStatus = ({rider}) => {
               setDriverCurrentLocationLoading(false)
             }
           } else {
-            console.log("Driver document doesn't exist or lacks location.")
             setDriverCurrentLocationLoading(false)
           }
         },
         (error) => {
-          console.error('Error fetching driver location:', error)
           setDriverCurrentLocationLoading(false)
         }
       );
@@ -339,6 +353,7 @@ const RiderLineStatus = ({rider}) => {
     }
   }, [mapReady,destination])
   
+  /*
   // Function to show only one-time route calculation
   const renderDirections = () => {
     if (driverOriginLocation && destination) {
@@ -357,6 +372,9 @@ const RiderLineStatus = ({rider}) => {
     return null;
   };
 
+  //{renderDirections()}
+  */
+
   // Return map and marker based on the trip status
   const renderMap = () => (
     <MapView
@@ -366,14 +384,12 @@ const RiderLineStatus = ({rider}) => {
       initialRegion={{
         latitude: driverCurrentLocation?.latitude || 0,
         longitude: driverCurrentLocation?.longitude || 0,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
       }}
       loadingEnabled={true}
       style={styles.map}
     >
-      {renderDirections()}
-
       <Marker.Animated
         ref={markerRef}
         coordinate={animatedDriverLocation}
@@ -388,6 +404,40 @@ const RiderLineStatus = ({rider}) => {
         key={`Destination ${rider?.id}`}
         coordinate={destination}
         title={rider?.trip_status === 'to destination' ? 'المدرسة' : 'المنزل'}
+        pinColor="red"
+      />
+    </MapView>
+  );
+
+  // track driver only marker (driver start the trip didnt reach rider home yet)
+  const driverOnlyMarker = () => (
+    <MapView
+      ref={mapRef}
+      onMapReady={handleMapReady}
+      provider="google"
+      initialRegion={{
+        latitude: driverCurrentLocation?.latitude || 0,
+        longitude: driverCurrentLocation?.longitude || 0,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }}
+      loadingEnabled={true}
+      style={styles.map}
+    >
+      <Marker.Animated
+        ref={markerRef}
+        coordinate={animatedDriverLocation}
+        title="السائق"
+      >
+        <View>
+          {markerIcon()}
+        </View>
+      </Marker.Animated>
+
+      <Marker
+        key={`Destination ${rider?.id}`}
+        coordinate={rider.home_location}
+        //title={rider?.trip_status === 'to destination' ? 'المدرسة' : 'المنزل'}
         pinColor="red"
       />
     </MapView>
@@ -422,8 +472,40 @@ const RiderLineStatus = ({rider}) => {
     )
   }
 
+  //If rider subs expired
+  if(
+    rider.line_id &&
+    rider.driver_id &&
+    isSubscriptionExpired
+  ) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.rider_container}>
+          <View style={styles.next_trip_box}>
+            <View style={styles.trip_ready_animation_container}>
+              <LottieView
+                source={noRiderData}
+                autoPlay
+                loop
+                style={{ width: 250, height: 250}}
+              />
+            </View>
+            <View style={styles.next_trip_text_box}>
+              <Text style={styles.next_trip_text}>لقد انتهى اشتراكك. يرجى تجديد الاشتراك للاستمرار في استخدام الخدمة.</Text>
+            </View>
+          </View> 
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // If the rider is at home
-  if(rider.line_id && rider.driver_id && (todayJourneyStarted === false || rider.trip_status === 'at home')) {
+  if(
+    rider.line_id && 
+    rider.driver_id && 
+    isSubscriptionExpired === false &&
+    todayJourneyStarted === false
+  ) {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.rider_container}>
@@ -437,7 +519,9 @@ const RiderLineStatus = ({rider}) => {
               />
             </View>
             <View style={styles.next_trip_text_box}>
-              <Text style={styles.next_trip_text}>رحلتك القادمة الى المدرسة</Text>
+              <Text style={styles.next_trip_text}>
+                رحلتك القادمة إلى {rider.destination}
+              </Text>        
               <Text style={styles.next_trip_counter_text}>{nextTripText}</Text>
             </View>            
           </View> 
@@ -446,8 +530,70 @@ const RiderLineStatus = ({rider}) => {
     )
   }
 
+  // If the driver start the today journey but didnt pick the rider so he stay at home
+  if( 
+      rider.line_id && 
+      rider.driver_id && 
+      isSubscriptionExpired === false &&
+      todayJourneyStarted !== false && 
+      rider.trip_status === 'at home' &&
+      rider.checked_at_home === true 
+    ) {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.rider_container}>
+          <View style={styles.next_trip_box}>
+            <View style={styles.trip_ready_animation_container}>
+              <LottieView
+                source={tripReady}
+                autoPlay
+                loop
+                style={{ width: 250, height: 250}}
+              />
+            </View>
+            <View style={styles.next_trip_text_box}>
+              <Text style={styles.next_trip_text}>
+                رحلتك القادمة إلى {rider.destination}
+              </Text>  
+              <Text style={styles.next_trip_counter_text}>{nextTripText}</Text>
+            </View>            
+          </View> 
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  // If the driver start the today journey but didnt reach the rider home yet
+  if( 
+      rider.line_id && 
+      rider.driver_id && 
+      isSubscriptionExpired === false &&
+      todayJourneyStarted !== false && 
+      rider.trip_status === 'at home' &&
+      rider.checked_at_home === false
+    ) {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.rider_route_status_container}>
+          <View style={styles.rider_route_status_box}>
+            <Text style={styles.rider_route_status_text}>السائق بدا رحلة الذهاب</Text>
+          </View>
+        </View>
+        <View style={styles.rider_map_container}>
+          {driverOnlyMarker()}
+        </View>
+      </SafeAreaView>
+    )
+  }
+
   // If the rider is at school
-  if(rider.line_id && rider.driver_id && todayJourneyStarted !== false && rider.trip_status === 'at destination') {
+  if( 
+      rider.line_id &&
+      rider.driver_id && 
+      isSubscriptionExpired === false &&
+      todayJourneyStarted !== false &&
+      rider.trip_status === 'at destination'
+    ) {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.rider_container}>
@@ -471,12 +617,20 @@ const RiderLineStatus = ({rider}) => {
   }
 
   // If the rider is going to school
-  if(rider.line_id && rider.driver_id && todayJourneyStarted !== false && rider.trip_status === 'to destination'){
+  if(
+    rider.line_id && 
+    rider.driver_id && 
+    isSubscriptionExpired === false &&
+    todayJourneyStarted !== false && 
+    rider.trip_status === 'to destination'
+  ) {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.rider_route_status_container}>
          <View style={styles.rider_route_status_box}>
-            <Text style={styles.rider_route_status_text}>الطالب في الطريق الى المدرسة</Text>
+            <Text style={styles.rider_route_status_text}>
+              الراكب في الطريق إلى {rider.destination}
+            </Text>
           </View>
         </View>
         <View style={styles.rider_map_container}>
@@ -486,13 +640,20 @@ const RiderLineStatus = ({rider}) => {
     )
   }
 
+  /*
   // If the rider is going to home
-  if(rider.line_id && rider.driver_id && todayJourneyStarted !== false && rider.trip_status === 'to home') {
+  if(
+    rider.line_id && 
+    rider.driver_id && 
+    isSubscriptionExpired === false &&
+    todayJourneyStarted !== false && 
+    rider.trip_status === 'to home'
+  ) {
     return(
       <SafeAreaView style={styles.container}>
-        <View style={srider_route_status_container}>
+        <View style={styles.rider_route_status_container}>
           <View style={styles.rider_route_status_box}>
-            <Text style={styles.rider_route_status_text}>{rider.picked_up ? 'الطالب في الطريق الى المنزل' : 'السائق في الاتجاه اليك'}</Text>
+            <Text style={styles.rider_route_status_text}>الراكب في الطريق الى المنزل</Text>
           </View>
         </View>
         <View style={styles.rider_map_container}>
@@ -501,6 +662,27 @@ const RiderLineStatus = ({rider}) => {
       </SafeAreaView>
     )
   }
+*/
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.rider_container}>
+        <View style={styles.next_trip_box}>
+          <View style={styles.trip_ready_animation_container}>
+            <LottieView
+              source={noRiderData}
+              autoPlay
+              loop
+              style={{ width: 250, height: 250}}
+            />
+          </View>
+          <View style={styles.next_trip_text_box}>
+            <Text style={styles.next_trip_text}>لا توجد بيانات متاحة للراكب حاليا</Text>
+          </View>
+        </View> 
+      </View>
+    </SafeAreaView>
+  );
 }
 
 export default RiderLineStatus
@@ -518,7 +700,6 @@ const styles = StyleSheet.create({
   next_trip_box:{
     width:300,
     height:350,
-    marginTop:0,
     borderRadius:15,
     alignItems:'center',
     justifyContent:'center',
@@ -530,7 +711,8 @@ const styles = StyleSheet.create({
     alignItems:'center',
   },
   next_trip_text_box:{
-    height:70,
+    height:60,
+    marginTop:40,
     justifyContent:'space-between',
     alignItems:'center',
   },
@@ -540,7 +722,7 @@ const styles = StyleSheet.create({
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
-    fontSize:15,
+    fontSize:14,
   },
   next_trip_counter_text:{
     width:300,
@@ -548,7 +730,7 @@ const styles = StyleSheet.create({
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_700Bold',
-    fontSize:15,
+    fontSize:14,
   },
   rider_map_container:{
     width:500,
@@ -558,27 +740,32 @@ const styles = StyleSheet.create({
   rider_route_status_container:{
     width:500,
     position:'absolute',
-    top:80,
+    top:60,
     left:0,
     zIndex:100,
     alignItems:'center',
     justifyContent:'center',
   },
   rider_route_status_box:{
-    backgroundColor:colors.BLUE,
-    width:250,
-    height:50,
+    width:320,
+    height:45,
     borderRadius:15,
     alignItems:'center',
-    justifyContent:'center'
+    justifyContent:'center',
+    backgroundColor:colors.WHITE,
+    shadowColor:'#000',
+    shadowOffset:{width:0,height:2},
+    shadowOpacity:0.3,
+    shadowRadius:4,
+    elevation:5,
   },
   rider_route_status_text:{
-    lineHeight:50,
+    lineHeight:45,
     verticalAlign:'middle',
     textAlign:'center',
     fontFamily: 'Cairo_400Regular',
     fontSize:15,
-    color:colors.WHITE,
+    color:colors.BLACK,
   },
   map: {
     flex:1,

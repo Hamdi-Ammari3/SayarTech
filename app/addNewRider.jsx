@@ -108,7 +108,6 @@ const addData = () => {
               try {
                 location = await Location.getCurrentPositionAsync({});
               } catch (err) {
-                console.warn("First attempt to get location failed, retrying...");
                 await new Promise(resolve => setTimeout(resolve, 2000)); // wait and retry
                 location = await Location.getCurrentPositionAsync({});
               }
@@ -131,7 +130,6 @@ const addData = () => {
       ]
     );
   }
-
 
   //Save location value
   const saveLocationValue = async() => {
@@ -177,7 +175,7 @@ const addData = () => {
     if (!dateSelected) return createAlert("يرجى إدخال تاريخ الميلاد")
     if (!studentSex) return createAlert("يرجى تحديد الجنس")
     if (!homeCoords) return createAlert("يرجى تحديد عنوان المنزل")
-    //if(!destination) return createAlert('يرجى ادخال مكان الدراسة / العمل')
+    if(!destination) return createAlert('يرجى ادخال مكان الدراسة / العمل')
 
     setAddingNewStudentLoading(true)
 
@@ -193,8 +191,8 @@ const addData = () => {
         sex:studentSex,
         home_address:homeAddress,
         home_location:homeCoords,
-        //destination:destination,
-        //destination_location:destinationLocation,
+        destination:destination,
+        destination_location:destinationLocation,
         destination:'مدرسة التفوق',
         destination_location:{latitude:33.50686613699644,longitude:10.477269748175827},
         distance:distanceInKm,
@@ -203,7 +201,7 @@ const addData = () => {
         line_id:null,
         driver_id:null,
         trip_status:'at home',
-        picked_up:false,
+        checked_at_home:false,
       }
 
       const studentsCollectionRef = collection(DB,'riders')

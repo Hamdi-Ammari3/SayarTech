@@ -3,7 +3,7 @@ import { Alert,StyleSheet,Text,View,ActivityIndicator,TouchableOpacity,FlatList,
 import haversine from 'haversine'
 import Checkbox from 'expo-checkbox'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { doc,writeBatch,onSnapshot,collection,arrayUnion,getDoc } from 'firebase/firestore'
+import { doc,writeBatch,onSnapshot,collection,arrayUnion,getDoc,Timestamp } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
 import { Dropdown } from 'react-native-element-dropdown'
 import dayjs from "dayjs"
@@ -86,7 +86,6 @@ const LinesFeed = ({rider}) => {
                 });
                 return () => unsubscribe()
             } catch (error) {
-                console.log(error)
                 setFetchingLinesLoading(false)
             }
         }
@@ -491,7 +490,6 @@ const LinesFeed = ({rider}) => {
             await batch.commit();
             createAlert('تم إنشاء الخط بنجاح');
         } catch (err) {
-            console.log(err.message);
             createAlert('حدث خطأ أثناء إنشاء الخط');
         } finally{
             setAddingNewLineLoading(false)
@@ -542,8 +540,24 @@ const LinesFeed = ({rider}) => {
         try {
             const riderRef = doc(DB, 'riders', rider.id)
             const lineRef = doc(DB, 'lines', line.id)
+            const userRef = doc(DB, 'users', rider.user_doc_id)
     
             const batch = writeBatch(DB)
+
+            const userSnap = await getDoc(userRef);
+            if (!userSnap.exists()) {
+                return createAlert('❌ تعذر العثور على حساب المستخدم.');
+            }
+            const userData = userSnap.data();
+            const currentBalance = userData.account_balance || 0;
+
+            const driverCommission = line.standard_driver_commission || 50000;
+            const companyCommission = line.standard_company_commission || 6000;
+            const totalLineCost = driverCommission + companyCommission;
+
+            if (currentBalance < totalLineCost) {
+                return createAlert(`الرصيد غير كافٍ للانضمام لهذا الخط. المبلغ المطلوب هو ${totalLineCost.toLocaleString()} د.ع. يرجى تعبئة الرصيد.`);
+            }
     
             // Prepare rider data to add to line
             const riderData = {
@@ -558,40 +572,64 @@ const LinesFeed = ({rider}) => {
                     latitude: rider.home_location.latitude,
                     longitude: rider.home_location.longitude,
                 },
-                driver_commission: line.standard_driver_commission || 50000,
-                company_commission:line.standard_company_commission || 6000
-            };
+                driver_commission: driverCommission,
+                company_commission:companyCommission
+            };    
     
-            // Step 1: Push rider to line's riders array
-            batch.update(lineRef, {
-                riders: arrayUnion(riderData)
-            });
-    
-            // Step 2: Update rider document with line_id
-            batch.update(riderRef, {
-                line_id: line.id,
-                driver_commission: line.standard_driver_commission || 50000,
-                company_commission:line.standard_company_commission || 6000
-            });
-    
-            // Step 3: If line has a driver assigned, push rider to driver.lines
+            // If line has a driver assigned, push rider to driver.lines
             if (line.driver_id) {
+                const now = new Date();
+                const end = new Date();
+                end.setDate(now.getDate() + 30);
+
+                const startTimestamp = Timestamp.fromDate(now);
+                const endTimestamp = Timestamp.fromDate(end);
+
+                riderData.service_period = {
+                    start_date: startTimestamp,
+                    end_date: endTimestamp,
+                };
+
                 const driverRef = doc(DB, 'drivers', line.driver_id);
     
-                // Construct the minimal line structure the driver needs
-                const updatedLine = {
-                    ...line,
-                    riders: [...(line.riders || []), riderData], // Add the new rider
-                };
-    
-                // Update driver lines array
-                batch.update(driverRef, {
-                    lines: arrayUnion(updatedLine)
+                // 1 pdate line's riders array
+                batch.update(lineRef, {
+                    riders: arrayUnion(riderData)
                 });
     
-                // Update rider document with driver_id
+                // 2 Update driver's lines array
+                const driverSnap = await getDoc(driverRef);
+                if (!driverSnap.exists()) return createAlert('❌ لم يتم العثور على السائق.');
+                const driverData = driverSnap.data();
+                const driverLines = driverData.lines || [];
+
+                const updatedLines = driverLines.map(l => {
+                    if (l.id === line.id) {
+                        const exists = l.riders?.some(r => r.id === rider.id);
+                        if (!exists) {
+                            return {
+                                ...l,
+                                riders: [...(l.riders || []), riderData]
+                            };
+                        }
+                    }
+                    return l;
+                });
+
+                batch.update(driverRef, {
+                    lines: updatedLines
+                });
+    
+                // 3 Update rider document with driver_id
                 batch.update(riderRef, {
-                    driver_id: line.driver_id
+                    line_id: line.id,
+                    driver_id: line.driver_id,
+                    driver_commission: driverCommission,
+                    company_commission:companyCommission,
+                    service_period: {
+                        start_date: startTimestamp,
+                        end_date: endTimestamp,
+                    },
                 });
 
                 //Send notification (if token exists)
@@ -602,12 +640,29 @@ const LinesFeed = ({rider}) => {
                         `${line.name} راكب جديد انضم إلى الخط`
                     );
                 }
+            } else {
+                //Push rider to line's riders array
+                batch.update(lineRef, {
+                    riders: arrayUnion(riderData)
+                });
+    
+                //Update rider document with line_id
+                batch.update(riderRef, {
+                    line_id: line.id,
+                    driver_commission: driverCommission,
+                    company_commission:companyCommission,
+                    temporary_hold_amount:totalLineCost
+                });
             }
+
+            // Deduct from user's account balance
+            batch.update(userRef, {
+                account_balance: currentBalance - totalLineCost,
+            });
     
             await batch.commit();
             createAlert('تم الانضمام إلى الخط بنجاح');
         } catch (error) {
-            (error);
             createAlert('حدث خطأ أثناء الانضمام إلى الخط');
         } finally {
             setJoiningLineLoading(false)
@@ -622,7 +677,7 @@ const LinesFeed = ({rider}) => {
             return 'أقل من 6 سنوات';
         }
 
-        if (minAge === 19 && maxAge === 100) {
+        if (minAge === 19 && maxAge === 999) {
             return 'أكبر من 18 سنة';
         }
 
@@ -996,7 +1051,7 @@ const styles = StyleSheet.create({
     justifyContent:'center',
   },
   lines_pick_type_and_add_line:{
-    marginTop:35,
+    marginTop:45,
     marginBottom:20,
     flexDirection:'row-reverse',
     alignItems:'center',

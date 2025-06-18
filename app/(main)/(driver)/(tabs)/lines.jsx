@@ -7,6 +7,7 @@ import { DB } from '../../../../firebaseConfig'
 import LottieView from "lottie-react-native"
 import { useDriverData } from '../../../stateManagment/DriverContext'
 import { useUser } from '@clerk/clerk-expo'
+import dayjs from '../../../../utils/dayjs'
 import colors from '../../../../constants/Colors'
 import logo from '../../../../assets/images/logo.jpg'
 import startEngineImage from '../../../../assets/images/push-button.png'
@@ -49,183 +50,216 @@ const lines = () => {
       }
     })
   }
-
+  
   // Find the today date
   useEffect(() => {
     const getTodayDate = () => {
-      const iraqTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
-      const [month, day, year] = iraqTime.split(/[/, ]/); // Extract parts manually
-      const iraqDate = new Date(`${year}-${month}-${day}T00:00:00`); // Construct valid date
-  
-      const options = { weekday: "long", day: "2-digit", month: "long", year: "numeric" };
-      const formattedDate = iraqDate.toLocaleDateString("ar-IQ", options);
-      setTodayDate(formattedDate);
-  
-      // Extract year-month and day keys for tracking
-      const yearMonthKey = `${year}-${month.padStart(2, "0")}`; // "YYYY-MM"
-      const dayKey = day.padStart(2, "0"); // "DD"
-  
-      // Check if today's journey has started
+      const iraqNow = dayjs().utcOffset(180);
+
+      // Keys for dailyTracking
+      const yearMonthKey = `${iraqNow.year()}-${String(iraqNow.month() + 1).padStart(2, "0")}`;
+      const dayKey = String(iraqNow.date()).padStart(2, "0");
+
+      // Check if today’s journey started
       const dailyTracking = driverData[0]?.dailyTracking || {};
       const journeyCheck = dailyTracking?.[yearMonthKey]?.[dayKey]?.start_the_journey || false;
       setJourneyStarted(journeyCheck);
-    };
-  
-    getTodayDate();
-  }, [driverDailyTracking])
 
-  // Start the today jouney  
+      // Display Arabic-formatted date string
+      const iraqDate = new Date(iraqNow.format('YYYY-MM-DD'));
+      const options = { weekday: "long", day: "2-digit", month: "long", year: "numeric" };
+      const formattedDate = iraqDate.toLocaleDateString("ar-IQ", options);
+      setTodayDate(formattedDate);
+    };
+
+    getTodayDate();
+  }, [driverDailyTracking]);
+
+  // Handle notification sending
+  const sendNotification = async (token, title, body) => {
+    try {
+      const message = {
+        to: token,
+        sound: 'default',
+        title: title,
+        body: body 
+      };
+
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(message),
+      });
+    } catch (error) {
+      console.log("Error sending notification:", error);
+    }
+  }
+
   const startTodayJourney = async () => {
     try {
       setStartJourneyLoading(true);
       const batch = writeBatch(DB);
       const driverRef = doc(DB, "drivers", driverData[0].id);
 
-      const iraqTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
-      const [month, day, year] = iraqTime.split(/[/, ]/);
-      const iraqDate = new Date(`${year}-${month}-${day}T00:00:00`);
-      const iraqiTodayDate = new Date().toLocaleDateString("fr-CA", { timeZone: "Asia/Baghdad" });
+      // Use dayjs for today's Iraq time
+      const iraqNow = dayjs().utcOffset(180);
+      const yearMonthKey = `${iraqNow.year()}-${String(iraqNow.month() + 1).padStart(2, "0")}`;
+      const dayKey = String(iraqNow.date()).padStart(2, "0");
+      const todayIndex = iraqNow.day(); // 0 = Sunday
 
-      const yearMonthKey = `${year}-${month.padStart(2, "0")}`; // "YYYY-MM"
-      const dayKey = day.padStart(2, "0"); // "DD"
-      const todayIndex = iraqDate.getDay() // day index from 0 to 6
-    
-      // Function to get YYYY-MM-DD from Firestore timestamp
-      const toDateOnlyString = (timestamp) => new Date(timestamp.seconds * 1000).toISOString().split("T")[0];
+      const iraqiTodayDateOnly = iraqNow.format("YYYY-MM-DD");
 
-      // Filter valid lines for today
-      const activeLinesToday = driverData[0].lines.filter((line) => {
-        const todaySchedule = line.timeTable?.find((day) => day.dayIndex === todayIndex);
+      // Convert Firestore Timestamp to "YYYY-MM-DD" string
+      const toDateOnly = (timestamp) => dayjs(timestamp.toDate()).tz("Asia/Baghdad").format("YYYY-MM-DD");
 
-        // Skip line if substitute driver is handling it today
-        if (line.subs_driver && line.desactive_periode) {
-          const { start, end } = line.desactive_periode;
-          const startDate = toDateOnlyString(start);
-          const endDate = toDateOnlyString(end);
-          if (iraqiTodayDate >= startDate && iraqiTodayDate <= endDate) {
-            return false; // Don't include this line today
-          }
-        }
+      // Step 1: Filter active lines for today
+      const activeLinesToday = driverData[0].lines
+        .map((line) => {
+          const todaySchedule = line.timeTable?.find((d) => d.dayIndex === todayIndex);
 
-        // Skip line if its active_periode has not started yet
-        if (line.original_driver && line.active_periode) {
-          const { start, end } = line.active_periode;
-          const startDate = toDateOnlyString(start);
-          const endDate = toDateOnlyString(end);
-
-          // If today is before the start of the active period, exclude it
-          if (iraqiTodayDate < startDate) {
-            return false;
+          // 1. Exclude if subs driver handles it today
+          if (line.subs_driver && line.desactive_periode) {
+            const start = toDateOnly(line.desactive_periode.start);
+            const end = toDateOnly(line.desactive_periode.end);
+            if (iraqiTodayDateOnly >= start && iraqiTodayDateOnly <= end) return null;
           }
 
-          // If the active period has ended, exclude it (but don't delete it)
-          if (iraqiTodayDate > endDate) {
-            return false;
+          // 2. Exclude if active period has not started or ended
+          if (line.original_driver && line.active_periode) {
+            const start = toDateOnly(line.active_periode.start);
+            const end = toDateOnly(line.active_periode.end);
+            if (iraqiTodayDateOnly < start || iraqiTodayDateOnly > end) return null;
           }
-        }
 
-        // Include only active lines with students
-        return todaySchedule?.active && line.riders?.length > 0;
-      });
-  
-      if (activeLinesToday?.length === 0) {
+          // 3. Filter riders with active subscription
+          const validRiders = (line.riders || []).filter((rider) => {
+            if (!rider.service_period || !rider.service_period.end_date) return false;
+
+            //const start = toDateOnly(rider.service_period.start_date);
+            const end = toDateOnly(rider.service_period.end_date);
+
+            return iraqiTodayDateOnly <= end;
+          });
+
+          if (!todaySchedule?.active || validRiders.length === 0) return null;
+
+          return {
+            ...line,
+            riders: validRiders,
+          };
+        })
+        .filter(Boolean); // Remove nulls
+
+      if (activeLinesToday.length === 0) {
         alert("لا يوجد خطوط لهذا اليوم");
-        setStartJourneyLoading(false)
+        setStartJourneyLoading(false);
         return;
       }
 
+      // Step 2: Sort active lines by today's start time
       const getTodayStartTimeInMinutes = (line) => {
-        const todaySchedule = line.timeTable?.find((d) => d.dayIndex === todayIndex);
-        if (!todaySchedule?.startTime) return Infinity;
-        const date = new Date(todaySchedule.startTime.seconds * 1000);
-        return date.getHours() * 60 + date.getMinutes();
+        const schedule = line.timeTable?.find((d) => d.dayIndex === todayIndex);
+        if (!schedule?.startTime) return Infinity;
+        const start = dayjs(schedule.startTime.toDate()).tz("Asia/Baghdad");
+        return start.hour() * 60 + start.minute();
       };
-  
-      // Sort active lines by start time
-      activeLinesToday.sort((a, b) => getTodayStartTimeInMinutes(a) - getTodayStartTimeInMinutes(b))
-  
-      // Get existing tracking object
+      activeLinesToday.sort((a, b) => getTodayStartTimeInMinutes(a) - getTodayStartTimeInMinutes(b));
+
+      // Step 3: Load or initialize dailyTracking
       const existingTracking = driverData[0].dailyTracking || {};
       if (!existingTracking[yearMonthKey]) existingTracking[yearMonthKey] = {};
       if (!existingTracking[yearMonthKey][dayKey]) {
         existingTracking[yearMonthKey][dayKey] = { start_the_journey: null };
       }
 
-      // Prevent resetting if journey already started
       if (existingTracking[yearMonthKey][dayKey].start_the_journey) {
-        alert("لقد بدأت رحلتك بالفعل اليوم.")
-        setStartJourneyLoading(false)
+        alert("لقد بدأت رحلتك بالفعل اليوم.");
+        setStartJourneyLoading(false);
         return;
       }
 
-      // Store the start journey event
-      const iraqRealTime = new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Baghdad", hour12: false }).slice(0, 5); // "HH:MM"
+      const iraqStartTime = iraqNow.format("HH:mm");
 
-      // Build today's tracking lines with status
-      const todayTrackingLines = activeLinesToday.map((line) => {
-        return {
-          id: line.id,
-          name: line.name,   
-          first_phase:{
-            destination: line.destination,
-            destination_location: line.destination_location,
-            phase_finished: false,
-            riders: line.riders.map((rider) => ({
-              id: rider.id,
-              name: rider.name,
-              family_name: rider.family_name,
-              home_location: rider.home_location || null,
-              notification_token: rider.notification_token || null,
-              phone_number: rider.phone_number || null,
-              picked_up: false,
-            })),
-          },
-          second_phase: {
-            phase_finished: false,
-            riders: line.riders.map((rider) => ({
-              id: rider.id,
-              name: rider.name,
-              family_name: rider.family_name,
-              home_location: rider.home_location || null,
-              notification_token: rider.notification_token || null,
-              phone_number: rider.phone_number || null,
-              dropped_off: false,
-            })),
-          },
-        };
-      });
+      // Step 4: Build today_lines array for tracking
+      const todayTrackingLines = activeLinesToday.map((line) => ({
+        id: line.id,
+        name: line.name,
+        first_phase: {
+          destination: line.destination,
+          destination_location: line.destination_location,
+          phase_finished: false,
+          riders: line.riders.map((rider) => ({
+            id: rider.id,
+            name: rider.name,
+            family_name: rider.family_name,
+            home_location: rider.home_location || null,
+            notification_token: rider.notification_token || null,
+            phone_number: rider.phone_number || null,
+            checked_at_home:false,
+            picked_up: false,
+          })),
+        },
+        second_phase: {
+          phase_finished: false,
+          riders: line.riders.map((rider) => ({
+            id: rider.id,
+            name: rider.name,
+            family_name: rider.family_name,
+            home_location: rider.home_location || null,
+            notification_token: rider.notification_token || null,
+            phone_number: rider.phone_number || null,
+            dropped_off: false,
+          })),
+        },
+      }));
 
       existingTracking[yearMonthKey][dayKey] = {
-        start_the_journey: iraqRealTime,
+        start_the_journey: iraqStartTime,
         today_lines: todayTrackingLines,
       };
-  
-      // Update Firestore with batch
+
+      // Step 5: Update Firestore
       batch.update(driverRef, {
         dailyTracking: existingTracking,
       });
 
-      // Reset trip status for all riders in today's active lines
+      // Step 6: Reset trip status for all valid riders
       for (const line of activeLinesToday) {
         for (const rider of line.riders) {
-          const riderRef = doc(DB, 'riders', rider.id);
+          const riderRef = doc(DB, "riders", rider.id);
           batch.update(riderRef, {
-            trip_status: 'at home',
-            picked_up: false
+            trip_status: "at home",
+            checked_at_home:false,
+            picked_up: false,
           });
         }
       }
-  
-      // Commit batch updates
-      await batch.commit();
 
+      // Step 7: Notify all riders inside today's active lines
+      for (const line of activeLinesToday) {
+        for (const rider of line.riders) {
+          if (rider.notification_token) {
+            await sendNotification(
+              rider.notification_token,
+              "تنبيه الرحلة",
+              `بدأ السائق رحلته اليوم في خط ${line.name}، يرجى الاستعداد`
+            );
+          }
+        }
+      }
+
+      await batch.commit();
     } catch (error) {
       alert("حدث خطأ أثناء بدء الرحلة.");
-      console.log('error', error)
+      console.log("startTodayJourney error", error);
     } finally {
-      setStartJourneyLoading(false)
+      setStartJourneyLoading(false);
     }
-  }
+  };
 
   //Loading State
   if( !isLoaded || fetchingDriverDataLoading || fetchingUserDataLoading) {
@@ -238,7 +272,7 @@ const lines = () => {
     )
   }
 
-  // if the driver haven't yet added his info
+  // Driver haven't yet added his info
   if(!driverData?.length) {
     return(
       <SafeAreaView style={styles.container}>
@@ -265,8 +299,36 @@ const lines = () => {
     )
   }
 
-  //if the driver have no lines in his account
-  if(driverData?.length > 0 && driverData[0]?.lines?.length === 0) {
+  // Driver service type not lines
+  if(driverData?.length > 0 && driverData[0]?.service_type !== "خطوط") {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.add_your_data_container}>
+          <View style={styles.logo}>
+            <Image source={logo} style={styles.logo_image}/>
+          </View>
+          <View style={styles.animation_container}>
+            <LottieView
+              source={driverWaiting}
+              autoPlay
+              loop
+              style={{ width: 250, height: 250}}
+            />
+          </View>
+          <View>
+            <Text style={styles.service_unavailable_text}>هذه الخدمة غير متوفرة في حسابك</Text>
+          </View>
+        </View>  
+      </SafeAreaView>
+    )
+  }
+
+  // Driver have no lines in his account
+  if(
+      driverData?.length > 0 && 
+      driverData[0]?.service_type === "خطوط" &&
+      driverData[0]?.lines?.length === 0
+  ) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.add_your_data_container}>
@@ -293,7 +355,12 @@ const lines = () => {
   }
 
   // if the driver didnt start the today journey
-  if(driverData?.length > 0 && driverData[0]?.lines?.length > 0 && journeyStarted === false) {
+  if(
+      driverData?.length > 0 && 
+      driverData[0]?.service_type === "خطوط" &&
+      driverData[0]?.lines?.length > 0 && 
+      journeyStarted === false
+  ) {
     return(
       <SafeAreaView style={styles.container}>
         <View style={styles.start_today_trip_container}>
@@ -328,10 +395,9 @@ const lines = () => {
           contentContainerStyle={styles.line_name_buttons_container}
         >
           {driverData[0]?.dailyTracking && (() => {
-            const iraqTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
-            const [month, day, year] = iraqTime.split(/[/, ]/);
-            const yearMonthKey = `${year}-${month.padStart(2, "0")}`;
-            const dayKey = day.padStart(2, "0") || "01"; // fallback
+            const iraqNow = dayjs().utcOffset(180);
+            const yearMonthKey = `${iraqNow.year()}-${String(iraqNow.month() + 1).padStart(2, "0")}`;
+            const dayKey = String(iraqNow.date()).padStart(2, "0");
 
             const todayLines = driverData[0]?.dailyTracking?.[yearMonthKey]?.[dayKey]?.today_lines || []
 
@@ -360,15 +426,15 @@ const lines = () => {
       </View>
       <View style={styles.student_info_container}>
         {(() => {
-          const iraqTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
-          const [month, day, year] = iraqTime.split(/[/, ]/);
-          const yearMonthKey = `${year}-${month.padStart(2, "0")}`;
-          const dayKey = day.padStart(2, "0");
+          const iraqNow = dayjs().utcOffset(180);
+          const yearMonthKey = `${iraqNow.year()}-${String(iraqNow.month() + 1).padStart(2, "0")}`;
+          const dayKey = String(iraqNow.date()).padStart(2, "0");
   
           const todayLines = driverData[0]?.dailyTracking?.[yearMonthKey]?.[dayKey]?.today_lines || []
 
           return todayLines[selectedLine] && (
             <LinePage
+              key={todayLines[selectedLine].id}
               line={todayLines[selectedLine]}
               selectedLine={selectedLine}
               todayLines = {todayLines}
@@ -428,6 +494,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Cairo_700Bold',
     lineHeight: 35,
+  },
+  service_unavailable_text:{
+    width:300,
+    lineHeight:40,
+    borderRadius:15,
+    textAlign:'center',
+    fontFamily: 'Cairo_400Regular',
+    backgroundColor:colors.GRAY
   },
   no_lines_box:{
     width:'100%',
@@ -521,170 +595,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 })
-
-/*
-// Get today date in YYYY-MM-DD format (Baghdad timezone)
-  const getTodayDate = () => {
-    const iraqiTodayDate = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Baghdad" }); // YYYY-MM-DD
-    const [month, day, year] = iraqiTodayDate.split(/[/, ]/); // Extract parts manually
-    const iraqDate = new Date(`${year}-${month}-${day}T00:00:00`); // Construct valid date
-    const options = { weekday: "long", day: "2-digit", month: "long", year: "numeric" };
-    const formattedDate = iraqDate.toLocaleDateString("ar-IQ", options);
-    setTodayDate(formattedDate);
-    return iraqiTodayDate;
-  };
-
-  // Check if today's journey has started
-  const checkIfJourneyStarted = async () => {
-    if (!driverId) return;
-    const todayKey = getTodayDate();
-    const todayLines = driverData?.[0]?.todayLines || {};
-    const todayLineEntry = todayLines[todayKey];
-
-    if (todayLineEntry && todayLineEntry[0].today_line_id) {
-      setJourneyStarted(true);
-    } else {
-      setJourneyStarted(false);
-    }
-  };
-
-  // Check journey status
-  useEffect(() => {
-    checkIfJourneyStarted()
-  }, [driverId])
-
-  // Start the today jouney  
-  const startTodayJourney = async () => {
-    try {
-      setStartJourneyLoading(true)
-      const batch = writeBatch(DB)
-      const driverRef = doc(DB, "drivers", driverData[0]?.id)
-
-      const iraqiTodayDate = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Baghdad" })
-      const [month, day, year] = iraqiTodayDate.split(/[/, ]/)
-      const iraqDate = new Date(`${year}-${month}-${day}T00:00:00`)
-      const todayIndex = iraqDate.getDay()
-
-      // Fetch all line documents referenced by driver
-      const lineIds = driverData[0]?.lines || [];
-      const activeLinesToday = [];
-
-      for (const lineId of lineIds) {
-        const lineRef = doc(DB, 'lines', lineId)
-        const lineDoc = await getDoc(lineRef)
-        if (!lineDoc.exists()) continue
-
-        const lineData = lineDoc.data();
-        const todaySchedule = lineData.timeTable?.find(dayObj => dayObj.dayIndex === todayIndex);
-
-        if (todaySchedule?.active && lineData.riders?.length > 0) {
-          activeLinesToday.push({ id: lineId, ...lineData });
-        }
-      }
-
-      if (activeLinesToday.length === 0) {
-        Alert.alert('لا يوجد خطوط نشطة لهذا اليوم');
-        setStartJourneyLoading(false);
-        return;
-      }
-
-      // Sort active lines by today start time
-      const getTodayStartTimeInMinutes = (line) => {
-        const todaySchedule = line.timeTable?.find(d => d.dayIndex === todayIndex);
-        if (!todaySchedule?.startTime) return Infinity;
-        const date = new Date(todaySchedule.startTime.seconds * 1000);
-        return date.getHours() * 60 + date.getMinutes();
-      }
-
-      activeLinesToday.sort((a, b) => getTodayStartTimeInMinutes(a) - getTodayStartTimeInMinutes(b))
-      const todayLineDocIds = {}
-
-      for (const line of activeLinesToday) {
-        const newTodayLineRef = doc(collection(DB, 'todayLines'))
-        const todayLineData = {
-          date: iraqiTodayDate,
-          line_id: line.id,
-          line_name: line.name,
-          destination: line.destination,
-          driver_initiated_id: driverId,
-          first_phase: {
-            destination_location: line.destination_location,
-            driver_id: null,
-            phase_finished: false,
-            riders: line.riders.map((rider) => ({
-              id: rider.id,
-              name: rider.name,
-              family_name:rider.family_name,
-              notification_token: rider.notification_token || null,
-              phone_number: rider.phone_number || null,
-              home_location: rider.home_location || null,
-              picked_up: false,
-            })),
-          },
-          second_phase: {
-            driver_id: null,
-            phase_finished: false,
-            riders:[]
-          }
-        }
-
-        batch.set(newTodayLineRef, todayLineData)
-        todayLineDocIds[line.id] = newTodayLineRef.id
-
-        // Safely update the line's dailyStatus object
-        const lineRef = doc(DB, 'lines', line.id)
-        const lineSnap = await getDoc(lineRef)
-        if (!lineSnap.exists()) continue
-
-        const existingDailyStatus = lineSnap.data().dailyStatus || {}
-        existingDailyStatus[iraqiTodayDate] = newTodayLineRef.id
-
-        batch.update(lineRef, {
-          dailyStatus: existingDailyStatus
-        }) 
-      }
-
-      // Safely update the driver’s todayLines object
-      const driverSnap = await getDoc(driverRef);
-      if (!driverSnap.exists()) throw new Error("Driver doc not found");
-      const existingTodayLines = driverSnap.data().todayLines || {};
-
-      const todayLineArray = []
-      for (const line of activeLinesToday) {
-        todayLineArray.push({
-          today_line_id: todayLineDocIds[line.id],
-          //paycheck: 0,
-          //payed: false,
-          //phases: []
-        });
-      }
-
-      // Update just the date key inside todayLines
-      existingTodayLines[iraqiTodayDate] = todayLineArray;
-
-      batch.update(driverRef, {
-        todayLines: existingTodayLines
-      });
-
-      // Reset all riders’ trip_status
-      for (const line of activeLinesToday) {
-        for (const rider of line.riders) {
-          const riderRef = doc(DB, 'riders', rider.id);
-          batch.update(riderRef, {
-            trip_status: 'at home',
-            picked_up: false,
-          });
-        }
-      }
-  
-      // Commit batch updates
-      await batch.commit();
-
-    } catch (error) {
-      alert("حدث خطأ أثناء بدء الرحلة.");
-      console.log('error', error)
-    } finally {
-      setStartJourneyLoading(false)
-    }
-  }
-*/

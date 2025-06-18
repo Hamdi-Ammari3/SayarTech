@@ -2,7 +2,7 @@ import { useState,useEffect } from 'react'
 import { StyleSheet,Text,View,ActivityIndicator,Image,TouchableOpacity,Modal,ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Link,useRouter } from 'expo-router'
-import dayjs from 'dayjs'
+import dayjs from '../../../../utils/dayjs'
 import { useDriverData } from '../../../stateManagment/DriverContext'
 import AntDesign from '@expo/vector-icons/AntDesign'
 import colors from '../../../../constants/Colors'
@@ -21,9 +21,8 @@ const home = () => {
     const getCompletedTripsCount = () => {
       if (!driverDailyTracking) return setCompletedTripsCount(0);
 
-      const iraqTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
-      const [month, , year] = iraqTime.split(/[/, ]/);
-      const yearMonthKey = `${year}-${month.padStart(2, "0")}`;
+      const iraqTime = dayjs().utcOffset(180)
+      const yearMonthKey = `${iraqTime.year()}-${String(iraqTime.month() + 1).padStart(2, "0")}`
 
       const monthData = driverDailyTracking[yearMonthKey];
       if (!monthData) return setCompletedTripsCount(0);
@@ -55,16 +54,16 @@ const home = () => {
         return setUnpaidTicketsCount(0);
       }
 
-      const now = new Date();
-      const currentMonth = now.getMonth(); // 0-indexed
-      const currentYear = now.getFullYear();
+      const iraqNow = dayjs().utcOffset(180)
+      const currentMonth = iraqNow.month(); // 0-indexed
+      const currentYear = iraqNow.year();
 
       const unpaidTickets = driverData[0].tickets.filter(ticket => {
-        const ticketDate = new Date(ticket.date);
+        const ticketDate = dayjs(ticket.date);
         return (
           ticket.payed === false &&
-          ticketDate.getMonth() === currentMonth &&
-          ticketDate.getFullYear() === currentYear
+          ticketDate.month() === currentMonth &&
+          ticketDate.year() === currentYear
         );
       });
 
@@ -90,7 +89,7 @@ const home = () => {
     })
   }
 
-  //Redirect to add data screen
+  //Redirect to add new line screen
   const redirectToFindLinesPage = () => {
     router.push({
       pathname:"/driverAddNewLine",
@@ -130,6 +129,7 @@ const home = () => {
             </View>
           </View>
           <View style={styles.all_sections_container}>
+
             <View style={styles.sections_container}>
               <View style={styles.sections_box}>
                 <Link href="/lines" asChild>
@@ -146,6 +146,7 @@ const home = () => {
                 </Link>
               </View>
             </View>
+
             <View style={styles.sections_container}>
               <View style={styles.reward_box}>
                 {driverData[0] ? (
@@ -155,7 +156,11 @@ const home = () => {
                       <Text style={styles.section_text}>{driverData[0]?.lines?.length}</Text>
                     </View>
                     <View style={styles.driver_manageLines_buttons}>
-                      {driverData?.length > 0 && (driverData[0].lines?.length || 0) < 2 && (
+                      {
+                        driverData?.length > 0 && 
+                        (driverData[0].lines?.length || 0) < 2 && 
+                        driverData[0].service_type === 'خطوط' && 
+                      (
                         <TouchableOpacity style={styles.add_lines_button} onPress={redirectToFindLinesPage}>
                           <Text style={styles.add_lines_button_text}>اضف خط جديد</Text>
                         </TouchableOpacity>
@@ -210,14 +215,19 @@ const home = () => {
                                     <Text style={styles.line_name}>{selectedLine?.riders?.length} ركاب</Text>
                                   </View>
                                   <View style={styles.line_name_box}>
-                                    <Text style={styles.line_name}>50,000 دينار</Text>
+                                    <Text style={styles.line_name}>
+                                      {(selectedLine?.riders || []).reduce((sum, rider) => sum + (rider.driver_commission || 0), 0).toLocaleString()} د.ع
+                                    </Text>
                                   </View>
                                   <View style={styles.line_startTime_container}>   
                                     {selectedLine?.timeTable?.map(li => (
                                       <View key={li.dayIndex} style={styles.line_startTime_day}>
-                                        <Text style={styles.line_startTime_name}>{li?.arabic_day}</Text>
+                                        <Text style={styles.line_startTime_name}>{li?.day}</Text>
                                         <Text style={styles.line_startTime_name}>
                                           {li.active ? dayjs(li?.startTime?.toDate()).format("HH:mm") : "--"}                  
+                                        </Text>
+                                        <Text style={styles.line_startTime_name}>
+                                          {li.active ? dayjs(li?.endTime?.toDate()).format("HH:mm") : "--"}                  
                                         </Text>
                                       </View>              
                                     ))}
@@ -239,6 +249,7 @@ const home = () => {
                 )}     
               </View>
             </View>
+
             {driverData[0] && (
               <View style={styles.sections_container}>
                 <View style={styles.reward_box}>
@@ -299,21 +310,19 @@ const styles = StyleSheet.create({
     },
     all_sections_container:{
       width:'100%',
-      height:500,
       marginTop:30,
-      justifyContent:'space-between',
-      alignItems:'center',
-    },
-    sections_container:{
-      width:'100%',
-      height:150,
-      flexDirection:'row-reverse',
       justifyContent:'center',
       alignItems:'center',
     },
+    sections_container:{
+      flexDirection:'row-reverse',
+      justifyContent:'center',
+      alignItems:'center',
+      marginBottom:25,
+    },
     sections_box:{
-      width:150,
-      height:120,
+      width:155,
+      height:100,
       paddingHorizontal:30,
       borderRadius: 15,
       marginHorizontal: 15,
@@ -329,7 +338,7 @@ const styles = StyleSheet.create({
     },
     reward_box:{
       width:330,
-      height:150,
+      height:155,
       paddingHorizontal:20,
       borderRadius: 15,
       backgroundColor:'rgba(190, 154, 78, 0.30)',
@@ -435,7 +444,7 @@ const styles = StyleSheet.create({
     },
     line_name_box:{
       width:300,
-      height:60,
+      height:65,
       justifyContent:'center',
       alignItems:'center',
       borderBottomColor:colors.GRAY,

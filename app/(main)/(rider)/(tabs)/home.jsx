@@ -1,7 +1,9 @@
 import {useState} from 'react'
-import { StyleSheet,Text,View,ActivityIndicator,Image,TouchableOpacity,Modal } from 'react-native'
+import { StyleSheet,Text,View,ActivityIndicator,Image,TouchableOpacity,Modal,Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter,Link } from 'expo-router'
+import { doc,writeBatch,getDoc,Timestamp } from 'firebase/firestore'
+import { DB } from '../../../../firebaseConfig'
 import * as Clipboard from 'expo-clipboard';
 import { useRiderData } from '../../../stateManagment/RiderContext'
 import colors from '../../../../constants/Colors'
@@ -15,6 +17,11 @@ const home = () => {
   const router = useRouter()
   const [currentRiderIndex, setCurrentRiderIndex] = useState(0)
   const [openAccountBalanceModal,setOpenAccountBalanceModal] = useState(false)
+  const [renewingSubsLoading,setRenewingSubsLoading] = useState(false)
+
+  const createAlert = (alerMessage) => {
+    Alert.alert(alerMessage)
+  }
 
   //Redirect to add data screen
   const redirectToAddDataPage = () => {
@@ -32,7 +39,7 @@ const home = () => {
 
   // Calculate total subs fee amount
   const formatAccountBalanceFee = (amount) => {
-    return amount.toLocaleString('ar-IQ', {
+    return amount?.toLocaleString('ar-IQ', {
       style: 'currency',
       currency: 'IQD',
       minimumFractionDigits: 0,
@@ -79,12 +86,116 @@ const home = () => {
 
     const total = riderData.driver_commission + riderData.company_commission;
 
-    return total.toLocaleString('ar-IQ', {
+    return total?.toLocaleString('ar-IQ', {
       style: 'currency',
       currency: 'IQD',
       minimumFractionDigits: 0,
     });
   };
+
+  //Re-new subs
+  const renewSubscription = async (isExpired) => {
+    setRenewingSubsLoading(true)
+
+    try {
+      const currentRider = rider[currentRiderIndex];
+
+      const riderRef = doc(DB, 'riders', currentRider.id);
+      const lineRef = doc(DB, 'lines', currentRider.line_id);
+      const userRef = doc(DB, 'users', currentRider.user_doc_id);
+
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return createAlert('❌ تعذر العثور على حساب المستخدم.');
+      }
+
+      const userData = userSnap.data();
+      const currentBalance = userData.account_balance || 0;
+
+      const driverCommission = currentRider.driver_commission || 50000;
+      const companyCommission = currentRider.company_commission || 6000;
+      const totalLineCost = driverCommission + companyCommission;
+
+      if (currentBalance < totalLineCost) {
+        return createAlert(`الرصيد غير كافٍ للتجديد. المبلغ المطلوب هو ${totalLineCost.toLocaleString()} د.ع. يرجى تعبئة الرصيد.`);
+      }
+
+      const batch = writeBatch(DB);
+
+      const now = new Date();
+      let newStart, newEnd;
+
+      if (isExpired) {
+        newStart = now;
+        newEnd = new Date();
+        newEnd.setDate(now.getDate() + 30);
+      } else {
+        const oldEnd = currentRider.service_period?.end_date?.toDate?.() || now;
+        newStart = currentRider.service_period?.start_date?.toDate?.() || now;
+        newEnd = new Date(oldEnd);
+        newEnd.setDate(oldEnd.getDate() + 30);
+      }
+
+      const startTimestamp = Timestamp.fromDate(newStart);
+      const endTimestamp = Timestamp.fromDate(newEnd);
+
+      const updatedPeriod = {
+        start_date: startTimestamp,
+        end_date: endTimestamp,
+      };
+
+      // Update rider document
+      batch.update(riderRef, {
+        service_period: updatedPeriod,
+      });
+
+      // Update rider service periode inside line doc
+      const lineSnap = await getDoc(lineRef);
+      if (lineSnap.exists()) {
+        const lineData = lineSnap.data();
+        const updatedLineRiders = (lineData.riders || []).map(r =>
+          r.id === currentRider.id ? { ...r, service_period: updatedPeriod } : r
+        );
+        batch.update(lineRef, {
+          riders: updatedLineRiders,
+        });
+
+        // Update rider service periode inside driver doc
+        if (lineData.driver_id) {
+          const driverRef = doc(DB, 'drivers', lineData.driver_id);
+          const driverSnap = await getDoc(driverRef);
+          if (driverSnap.exists()) {
+            const driverData = driverSnap.data();
+            const updatedDriverLines = (driverData.lines || []).map(line => {
+              if (line.id !== lineRef.id) return line;
+              const updatedRiders = (line.riders || []).map(r =>
+                r.id === currentRider.id ? { ...r, service_period: updatedPeriod } : r
+              );
+              return { ...line, riders: updatedRiders };
+            });
+
+            batch.update(driverRef, {
+              lines: updatedDriverLines,
+            });
+          }
+        }
+      }
+
+      // Deduct balance
+      batch.update(userRef, {
+        account_balance: currentBalance - totalLineCost,
+      });
+
+      await batch.commit();
+
+      alert('✅ تم تجديد الاشتراك بنجاح');
+
+    } catch (error) {
+      alert('❌ حدث خطأ أثناء تجديد الاشتراك');
+    } finally{
+      setRenewingSubsLoading(false)
+    }
+  }
 
   // Switch to next rider 
   const nextRider = () => {
@@ -175,13 +286,13 @@ const home = () => {
                             <Feather name="copy" size={24} color="black" />
                           </TouchableOpacity>                        
                           <Text style={styles.add_balance_copy_info_box_text}>{userData.id}</Text>
-                          <Text style={styles.add_balance_copy_info_box_text}>المعرف الخاص:</Text>
+                          <Text style={styles.add_balance_copy_info_box_text}>المعرف الخاص بك:</Text>
                         </View>
                         <View style={styles.add_balance_copy_info_box}>
-                          <TouchableOpacity onPress={() => handleCopy("4542789630586155")}>
+                          <TouchableOpacity onPress={() => handleCopy("07837996677")}>
                             <Feather name="copy" size={24} color="black" />
                           </TouchableOpacity>   
-                          <Text style={styles.add_balance_copy_info_box_text}>4542789630586155</Text>
+                          <Text style={styles.add_balance_copy_info_box_text}>07837996677</Text>
                           <Text style={styles.add_balance_copy_info_box_text}>حساب الشركة:</Text>
                         </View>
                       </View>
@@ -217,15 +328,37 @@ const home = () => {
                   {rider[currentRiderIndex].line_id && (
                     <Text style={styles.section_text}>الاشتراك الشهري: {formatTotalSubscriptionFee(rider[currentRiderIndex])}</Text>
                   )}                 
-                  {rider[currentRiderIndex].driver_id && (
-                    <>
-                      <Text style={styles.section_text}>اشتراك صالح الى غاية</Text>
-                      <Text style={styles.section_text}>يرجى الدفع قبل</Text>
-                      <TouchableOpacity style={styles.add_riders_button}>
-                        <Text style={styles.add_riders_button_text}>ادفع الان</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
+                  {rider[currentRiderIndex].driver_id && rider[currentRiderIndex].service_period && (() => {
+                    const now = new Date();
+                    const endDate = rider[currentRiderIndex].service_period.end_date?.toDate?.() || new Date(0);
+                    const isExpired = now > endDate;
+
+                    return isExpired ? (
+                      <>
+                        <Text style={styles.section_text}>يرجى تجديد الاشتراك للاستمرار في استخدام الخدمة</Text>
+                        <TouchableOpacity
+                          style={styles.pay_bill_button}
+                          onPress={() => renewSubscription(true)} // expired = true
+                          disabled={renewingSubsLoading}
+                        >
+                          <Text style={styles.add_riders_button_text}>{renewingSubsLoading ? '...' : 'جدد الآن'}</Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.section_text}>
+                          اشتراك صالح إلى غاية: {endDate.toLocaleDateString("ar-EG")}
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.pay_bill_button}
+                          onPress={() => renewSubscription(false)} // expired = false
+                          disabled={renewingSubsLoading}
+                        >
+                          <Text style={styles.add_riders_button_text}>{renewingSubsLoading ? '...' : 'جدد الآن'}</Text>
+                        </TouchableOpacity>
+                      </>
+                    );
+                  })()}
                 </View>
                 <TouchableOpacity onPress={nextRider} style={styles.arrow_button}>
                   <Ionicons name="chevron-forward" size={24} color="black" />
@@ -400,7 +533,7 @@ const styles = StyleSheet.create({
     },
     rider_info_box:{
       width:340,
-      height:270,
+      height:250,
       borderRadius: 15,
       backgroundColor:'rgba(190, 154, 78, 0.30)',
       flexDirection: 'row', 
@@ -423,7 +556,7 @@ const styles = StyleSheet.create({
     pay_bill_button:{
       width:120,
       height:45,
-      marginTop:5,
+      marginTop:10,
       justifyContent:'center',
       alignItems:'center',
       backgroundColor: colors.WHITE,

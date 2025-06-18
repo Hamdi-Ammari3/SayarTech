@@ -6,6 +6,7 @@ import MapViewDirections from 'react-native-maps-directions'
 import haversine from 'haversine'
 import { doc,updateDoc,writeBatch } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
+import dayjs from '../utils/dayjs'
 import { useDriverData } from '../app/stateManagment/DriverContext'
 import colors from '../constants/Colors'
 import AntDesign from '@expo/vector-icons/AntDesign'
@@ -20,7 +21,7 @@ const LinePage = ({line}) => {
     const [selectedRider, setSelectedRider] = useState(null)
     const [isMarkingRider, setIsMarkingRider] = useState(false)
     const [firstTripRemainingRiders, setFirstTripRemainingRiders] = useState(
-        line?.first_phase?.riders?.filter(r => !r.picked)?.length
+        line?.first_phase?.riders?.filter(r => !r.checked_at_home)?.length
     )
     const [secondTripRemainingRiders, setSecondTripRemainingRiders] = useState(
         line?.second_phase?.riders?.filter(r => !r.dropped_off)?.length
@@ -163,12 +164,11 @@ const LinePage = ({line}) => {
 
     // Get iraqi time and driver daily tracking object
     const getIraqTimeAndTracking = (driverData) => {
-        const iraqTimeString = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
-        const [month, day, year] = iraqTimeString.split(/[/, ]/);
-        const yearMonthKey = `${year}-${month.padStart(2, "0")}`; // "YYYY-MM"
-        const dayKey = day.padStart(2, "0"); // "DD"
-        const iraqRealTime = new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Baghdad", hour12: false }).slice(0, 5); // "HH:MM"
-    
+        const iraqNow = dayjs().utcOffset(180);
+        const yearMonthKey = `${iraqNow.year()}-${String(iraqNow.month() + 1).padStart(2, "0")}`;
+        const dayKey = String(iraqNow.date()).padStart(2, "0");
+        const iraqRealTime = iraqNow.format("HH:mm");
+
         // Get existing dailyTracking object
         const existingTracking = driverData[0].dailyTracking || {};
         if (!existingTracking[yearMonthKey]) existingTracking[yearMonthKey] = {};
@@ -233,6 +233,7 @@ const LinePage = ({line}) => {
                 if (rider.id === selectedRider.id) {
                     return {
                         ...rider,
+                        checked_at_home:true,
                         picked_up: status,
                         picked_up_time: iraqRealTime,
                     };
@@ -253,11 +254,12 @@ const LinePage = ({line}) => {
 
             // Update rider document in riders collection
             batch.update(riderDoc, {
-                picked_up: status,
+                checked_at_home:true,
+                //picked_up: status,
                 trip_status: status ? 'to destination' : 'at home',
             })
 
-            setFirstTripRemainingRiders(updatedLine.first_phase.riders.filter(r => !r.picked_up).length)  
+            setFirstTripRemainingRiders(updatedLine.first_phase.riders.filter(r => !r.checked_at_home).length)  
 
             // Update the specific line inside dailyTracking
             const updatedTracking = {
@@ -328,7 +330,7 @@ const LinePage = ({line}) => {
                 await sendNotification(
                     selectedRider.notification_token,
                     "وصل إلى المنزل",
-                    `${selectedRider.name} وصل إلى المنزل بسلام`
+                    `${selectedRider.name} وصل إلى المنزل الان`
                 );
             }
 
@@ -451,7 +453,7 @@ const LinePage = ({line}) => {
         if (line.first_phase.phase_finished === false) {
             return (
                 <>
-                    {line.first_phase.riders.filter(r => !r.picked_up).map((r, idx) => (
+                    {line.first_phase.riders.filter(r => !r.checked_at_home).map((r, idx) => (
                         <Marker
                             key={`first-${r.id || idx}`}
                             coordinate={{
@@ -581,7 +583,7 @@ const LinePage = ({line}) => {
                                 <Text style={styles.rider_name}>{formatRiderName(selectedRider.name,selectedRider.family_name)}</Text>
                                 <TouchableOpacity
                                     style={styles.pick_button_denied} 
-                                    onPress={() => pickRider(true)}
+                                    onPress={() => pickRider(false)}
                                     disabled={isMarkingRider}
                                 >
                                     <Text style={styles.pick_button_text}>{isMarkingRider ? '...' :'لم يصعد'}</Text>

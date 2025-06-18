@@ -11,6 +11,7 @@ import colors from '../../../../constants/Colors'
 import logo from '../../../../assets/images/logo.jpg'
 import addDataAnimation from '../../../../assets/animations/adding_data.json'
 import driverWaiting from '../../../../assets/animations/waiting_driver.json'
+import InactiveTripData from '../../../../components/InactiveTripData'
 
 const dailyTrips = () => {
   const {userData,fetchingUserDataLoading,driverData,fetchingDriverDataLoading} = useDriverData()
@@ -109,28 +110,30 @@ const dailyTrips = () => {
     )
   }
 
-  return(
-    <SafeAreaView style={styles.container}>
-      <View style={styles.add_your_data_container}>
-        <View style={styles.logo}>
-          <Image source={logo} style={styles.logo_image}/>
-        </View>
-        <View style={styles.animation_container}>
-          <LottieView
-            source={driverWaiting}
-            autoPlay
-            loop
-            style={{ width: 250, height: 250}}
-          />
-        </View>
-        <View>
-          <Text style={styles.service_unavailable_text}>هذه الخدمة غير متوفرة في الوقت الحالي</Text>
-        </View>
-      </View>  
-    </SafeAreaView>
-  )
+  // Driver service type not daily trips
+  if(driverData?.length > 0 && driverData[0]?.service_type !== "رحلات يومية بين المدن") {
+    return(
+      <SafeAreaView style={styles.container}>
+        <View style={styles.add_your_data_container}>
+          <View style={styles.logo}>
+            <Image source={logo} style={styles.logo_image}/>
+          </View>
+          <View style={styles.animation_container}>
+            <LottieView
+              source={driverWaiting}
+              autoPlay
+              loop
+              style={{ width: 250, height: 250}}
+            />
+          </View>
+          <View>
+            <Text style={styles.service_unavailable_text}>هذه الخدمة غير متوفرة في حسابك</Text>
+          </View>
+        </View>  
+      </SafeAreaView>
+    )
+  }
 
-  /*
   const isCarFull = activeTripData?.seats_booked >= activeTripData?.seats_capacity
 
   if (driverData[0]?.activeTripId) {
@@ -181,7 +184,6 @@ const dailyTrips = () => {
       </SafeAreaView>
     )
   }
-    */
 }
 
 export default dailyTrips

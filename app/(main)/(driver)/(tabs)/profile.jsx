@@ -63,6 +63,11 @@ const profile = () => {
     );
   };
 
+  const handleDeleteAccount = () => {
+    
+  }
+
+  /*
   const handleDeleteAccount = async () => {
     try {
       setDeleteAccountLoading(true);
@@ -92,6 +97,7 @@ const profile = () => {
       setDeleteAccountLoading(false);
     }
   };
+  */
 
   const openPrivacyPolicy = () => {
     Linking.openURL('https://sayartech.com/privacy-policy');
@@ -210,7 +216,7 @@ const profile = () => {
         </TouchableOpacity>
         <TouchableOpacity style={styles.profile_main_box_button} onPress={confirmDeleteAccount}>
           <Text style={styles.profile_main_box_button_text}>حذف الحساب</Text>
-          <Ionicons name="trash-outline" size={24} color="black" />
+          <Ionicons name="trash-outline" size={24} color="#DC2525" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>

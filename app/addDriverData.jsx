@@ -66,7 +66,6 @@ const addData = () => {
         {name: 'صالون',seats:4},
         {name:'ميني باص ١٢ راكب',seats:12},
         {name:'ميني باص ١٨ راكب',seats:18},
-        {name:'٧ راكب (جي ام سي / تاهو)',seats:7},
     ]
 
     // Handle the car type change
@@ -272,13 +271,13 @@ const addData = () => {
     //Add New Driver
     const addNewDriverHandler = async () => {
         if (!serviceType) return createAlert('الرجاء تحديد نوع الخدمة')
-        if (!personalImage) return createAlert('الرجاء اضافة الصورة الشخصية')
+        //if (!personalImage) return createAlert('الرجاء اضافة الصورة الشخصية')
         if (!dateSelected) return createAlert("يرجى إدخال تاريخ الميلاد")
         if (!homeCoords) return createAlert('يرجى تحديد الموقع')
         if (!carType) return createAlert('يرجى تحديد نوع السيارة')
         if (!carModel) return createAlert('يرجى ادخال موديل السيارة')
         if (!carPlate) return createAlert('يرجى ادخال رقم لوحة السيارة')
-        if (!carImage) return createAlert('الرجاء اضافة صورة السيارة')
+        //if (!carImage) return createAlert('الرجاء اضافة صورة السيارة')
             
         setAddingDriverDataLoading(true)
   
@@ -306,8 +305,8 @@ const addData = () => {
                 car_model:carModel,
                 car_plate:carPlate,
                 car_seats: carSeats,
-                personal_image: personalImageUrl,
-                car_image: carImageUrl,
+                //personal_image: personalImageUrl,
+                //car_image: carImageUrl,
                 lines:[],
                 riders_rating:[],
                 team_rating:[],
@@ -333,6 +332,7 @@ const addData = () => {
 
         } catch (error) {
             createAlert('. يرجى المحاولة مرة أخرى')
+            console.log(error)
         } finally{
             setAddingDriverDataLoading(false)
             router.push('/(main)/(driver)/(tabs)/home')       

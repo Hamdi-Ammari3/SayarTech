@@ -96,7 +96,7 @@ const RiderTripMap = ({tripData,userData}) => {
             }
             },
             (error) => {
-            console.error('Error fetching driver location:', error)
+            console.log('Error fetching driver location:', error)
             setDriverCurrentLocationLoading(false)
             }
         );

@@ -5,7 +5,7 @@ import { useLocalSearchParams,useRouter  } from 'expo-router'
 import { useLinesData } from '../stateManagment/LinesContext'
 import MapView, { Marker } from 'react-native-maps'
 import colors from '../../constants/Colors'
-import { doc,writeBatch,arrayUnion} from 'firebase/firestore'
+import { doc,writeBatch,arrayUnion,Timestamp} from 'firebase/firestore'
 import {DB} from '../../firebaseConfig'
 import { Dropdown } from 'react-native-element-dropdown'
 import LottieView from "lottie-react-native"
@@ -86,6 +86,32 @@ const driverAddNewLine = () => {
     setSelectedLine(null)
   }
 
+  // Send notification to riders of picked line
+  const sendNotification = async (token, title, body) => {
+    try {
+      const message = {
+        to: token,
+        sound: 'default',
+        title: title,
+        body: body,
+      };
+
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(message),
+      });
+      console.log("notification send")
+      console.log('token',token)
+    } catch (error) {
+      console.log("Error sending notification:", error);
+    }
+  };
+
   // Assign the line to a driver
   const assignLineToDriver = async (line) => {
     if (!parsedDriverData || !line) return;
@@ -93,18 +119,60 @@ const driverAddNewLine = () => {
     setAssigningLineLoading(true);
 
     try {
+      const now = new Date();
+      const end = new Date();
+      end.setDate(now.getDate() + 30);
+      
+      const startTimestamp = Timestamp.fromDate(now);
+      const endTimestamp = Timestamp.fromDate(end);
+
       const batch = writeBatch(DB);
 
       const driverRef = doc(DB, "drivers", parsedDriverData.id);
       const lineRef = doc(DB, "lines", line.id);
 
+      // Collect notification tokens
+      const riderNotificationTokens = [];
+
+      // Prepare updated rider list
+      const updatedRiders = (line.riders || []).map((rider) => {
+        const updatedRider = {
+          ...rider,
+          service_period: {
+            start_date: startTimestamp,
+            end_date: endTimestamp,
+          },
+        };
+
+        if (rider.notification_token) {
+          riderNotificationTokens.push({
+            token: rider.notification_token,
+            name: rider.name,
+          });
+        }
+
+        // Update rider document in DB
+        const riderRef = doc(DB, "riders", rider.id);
+        batch.update(riderRef, {
+          driver_id: parsedDriverData.id,
+          temporary_hold_amount: 0,
+          service_period: {
+            start_date: startTimestamp,
+            end_date: endTimestamp,
+          },
+        });
+
+        return updatedRider;
+      });
+
+      // Create updated line data for driver's copy
       const copiedLineData = {
         id: line.id,
         name: line.name,
         destination: line.destination,
         destination_location: line.destination_location,
         timeTable: line.timeTable,
-        riders: line.riders,
+        riders: updatedRiders,
       };
 
       // 1. Add line to driver's "lines" array
@@ -112,33 +180,35 @@ const driverAddNewLine = () => {
         lines: arrayUnion(copiedLineData),
       });
 
-      // 2. Update line with driver info
+      // 2. Update line with driver info and riders with service period
       batch.update(lineRef, {
         driver_id: parsedDriverData.id,
         driver_notification_token: parsedDriverData.notification_token,
         driver_phone_number: parsedDriverData.phone_number,
-      });
-
-      // 3. Update all riders in the line
-      (line.riders || []).forEach((rider) => {
-        const riderRef = doc(DB, "riders", rider.id);
-        batch.update(riderRef, {
-          driver_id: parsedDriverData.id,
-        });
+        riders: updatedRiders,
       });
 
       await batch.commit();
+
+      // 🔔 Send notifications to all riders
+      for (const rider of riderNotificationTokens) {
+        await sendNotification(
+          rider.token,
+          "تم تعيين سائق لخطك",
+          `${rider.name}، تم الآن تعيين السائق لخط ${line.name}. استعد للرحلة!`
+        );
+      }
+      createAlert("تم إضافة الخط بنجاح");
     } catch (error) {
       createAlert("خطأ", "حدث خطأ أثناء إضافة الخط. حاول مرة أخرى.");
-      console.error("Error assigning line to driver:", error);
     } finally {
-      setAssigningLineLoading(false);
-      createAlert("تم إضافة الخط بنجاح");
+      router.push('/(main)/(driver)/(tabs)/home') 
+      setAssigningLineLoading(false)
     }
   }
 
   // Loading or fetching user data from DB
-  if (fetchingLinesLoading) {
+  if (fetchingLinesLoading || assigningLineLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -213,6 +283,12 @@ const driverAddNewLine = () => {
               <View style={styles.logo}>
                 <Image source={logo} style={styles.logo_image}/>
               </View>
+              <View style={styles.arrowBackFunctionNextLogo}>
+                <TouchableOpacity style={styles.arrowBackFunction} onPress={comeBackToHome}>
+                  <FontAwesome5 name="arrow-circle-left" size={24} color="black" />
+                </TouchableOpacity>
+              </View>
+              
               <View style={styles.animation_container}>
                 <LottieView
                   source={driverWaiting}
@@ -364,6 +440,12 @@ const styles = StyleSheet.create({
     height:200,
     alignItems:'center',
     justifyContent:'center',
+    position:'relative',
+  },
+  arrowBackFunctionNextLogo:{
+    position:'absolute',
+    top:80,
+    left:0
   },
   logo_image:{
     height:180,

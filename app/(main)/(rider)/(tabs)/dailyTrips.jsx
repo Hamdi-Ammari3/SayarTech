@@ -248,7 +248,6 @@ const dailyTrips = () => {
       });
 
     } catch (error) {
-      console.log('Error during trip search:', error);
       createAlert('حدث خطا الرجاء المحاولة مرة ثانية')
     } finally{
       setSearchingTrip(false)
@@ -330,7 +329,6 @@ const dailyTrips = () => {
     
       } catch (error) {
         setCancelingTrip(false)
-        console.log("Cancel trip error:", error);
         alert("حدث خطأ أثناء إلغاء الحجز، حاول مرة أخرى.");
       } finally{
         setCancelingTrip(false)
@@ -408,7 +406,6 @@ const dailyTrips = () => {
   
         Alert.alert('تم الحفظ', 'تم حفظ التذكرة في معرض الصور داخل ألبوم Safe - سيف');
       } catch (error) {
-        console.error('خطأ أثناء حفظ التذكرة:', error);
         Alert.alert('خطأ', 'حدث خطأ أثناء حفظ التذكرة.');
       }
     };
