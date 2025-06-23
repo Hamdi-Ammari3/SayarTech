@@ -3,7 +3,7 @@ import { Alert,StyleSheet,Text,View,ActivityIndicator,TouchableOpacity,FlatList,
 import haversine from 'haversine'
 import Checkbox from 'expo-checkbox'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { doc,writeBatch,onSnapshot,collection,arrayUnion,getDoc,Timestamp } from 'firebase/firestore'
+import { doc,writeBatch,onSnapshot,collection,arrayUnion,getDoc,Timestamp,getDocs } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
 import { Dropdown } from 'react-native-element-dropdown'
 import dayjs from "dayjs"
@@ -11,6 +11,8 @@ import colors from '../constants/Colors'
 import AntDesign from '@expo/vector-icons/AntDesign'
 
 const LinesFeed = ({rider}) => {
+    const [institutions, setInstitutions] = useState([])
+    const [fetchingInstitutions, setFetchingInstitutions] = useState(true)
     const [groupedLines,setGroupedLines] = useState([])
     const [lines,setLines] = useState(null)
     const [fetchingLinesLoading,setFetchingLinesLoading] = useState(false)
@@ -27,6 +29,26 @@ const LinesFeed = ({rider}) => {
     const createAlert = (alerMessage) => {
         Alert.alert(alerMessage)
     }
+
+    //Fetch B2B institutions
+    useEffect(() => {
+        const fetchInstitutions = async () => {
+            try {
+                const snapshot = await getDocs(collection(DB, 'institutions'));
+                const fetchedInstitutions = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setInstitutions(fetchedInstitutions);
+            } catch (error) {
+                console.log("Failed to fetch institutions:", error);
+            } finally {
+                setFetchingInstitutions(false);
+            }
+        };
+
+        fetchInstitutions();
+    }, [])
 
     // Fetch lines data 
     useEffect(() => {
@@ -409,8 +431,11 @@ const LinesFeed = ({rider}) => {
                 return createAlert('❌ تعذر حساب السعر بناءً على العمر والمسافة.');
             }
 
+            const isInstitutionRider = institutions.some(inst => inst.name === rider.destination)
+
             // Define commissions
             const companyCommission = 6000;
+
             const totalLineCost = driverCommission + companyCommission;
 
             // Get user account to check balance
@@ -424,7 +449,7 @@ const LinesFeed = ({rider}) => {
             const userData = userSnap.data();
             const currentBalance = userData.account_balance || 0;
 
-            if (currentBalance < totalLineCost) {
+            if (!isInstitutionRider && currentBalance < totalLineCost) {
                 return createAlert(`الرصيد غير كافٍ لإنشاء الخط. المبلغ المطلوب هو ${totalLineCost.toLocaleString()} د.ع. يرجى تعبئة الرصيد.`);
             }
 
@@ -477,15 +502,17 @@ const LinesFeed = ({rider}) => {
             // Update the rider with the new line ID
             batch.update(riderRef, {
                 line_id: lineRef.id,
-                temporary_hold_amount: totalLineCost,
+                temporary_hold_amount: isInstitutionRider ? 0 : totalLineCost,
                 driver_commission: driverCommission || 50000,
                 company_commission:6000
             });
 
             // Deduct from user's account balance
-            batch.update(userRef, {
-                account_balance: currentBalance - totalLineCost,
-            });
+            if (!isInstitutionRider) {
+                batch.update(userRef, {
+                    account_balance: currentBalance - totalLineCost,
+                });
+            }
     
             await batch.commit();
             createAlert('تم إنشاء الخط بنجاح');
@@ -551,11 +578,14 @@ const LinesFeed = ({rider}) => {
             const userData = userSnap.data();
             const currentBalance = userData.account_balance || 0;
 
+            // Check if rider is from an institution
+            const isInstitutionRider = institutions.some(inst => inst.name === line.destination);
+
             const driverCommission = line.standard_driver_commission || 50000;
             const companyCommission = line.standard_company_commission || 6000;
             const totalLineCost = driverCommission + companyCommission;
 
-            if (currentBalance < totalLineCost) {
+            if (!isInstitutionRider && currentBalance < totalLineCost) {
                 return createAlert(`الرصيد غير كافٍ للانضمام لهذا الخط. المبلغ المطلوب هو ${totalLineCost.toLocaleString()} د.ع. يرجى تعبئة الرصيد.`);
             }
     
@@ -579,9 +609,16 @@ const LinesFeed = ({rider}) => {
             // If line has a driver assigned, push rider to driver.lines
             if (line.driver_id) {
                 const now = new Date();
-                const end = new Date();
-                end.setDate(now.getDate() + 30);
+                let end = new Date();
 
+                if(isInstitutionRider) {
+                    const currentYear = now.getFullYear()
+                    const endYear = now.getMonth() >= 5 ? currentYear + 1 : currentYear
+                    end = new Date(endYear, 5, 15);
+                } else {
+                    end.setDate(now.getDate() + 30);
+                }
+                
                 const startTimestamp = Timestamp.fromDate(now);
                 const endTimestamp = Timestamp.fromDate(end);
 
@@ -651,14 +688,16 @@ const LinesFeed = ({rider}) => {
                     line_id: line.id,
                     driver_commission: driverCommission,
                     company_commission:companyCommission,
-                    temporary_hold_amount:totalLineCost
+                    temporary_hold_amount: isInstitutionRider ? 0 : totalLineCost
                 });
             }
 
             // Deduct from user's account balance
-            batch.update(userRef, {
-                account_balance: currentBalance - totalLineCost,
-            });
+            if(!isInstitutionRider) {
+                batch.update(userRef, {
+                    account_balance: currentBalance - totalLineCost,
+                })
+            }
     
             await batch.commit();
             createAlert('تم الانضمام إلى الخط بنجاح');
@@ -696,7 +735,7 @@ const LinesFeed = ({rider}) => {
     };
 
     //Loading ...
-    if (fetchingLinesLoading) {
+    if (fetchingLinesLoading || fetchingInstitutions) {
         return(
             <View style={styles.loading_container}>
                 <ActivityIndicator size="large" color={colors.PRIMARY} />

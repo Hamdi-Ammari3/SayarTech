@@ -86,7 +86,7 @@ export const RiderProvider = ({ children }) => {
             }
         );
         return () => unsubscribe();
-    }, [user]);
+    }, [user])
 
     // Fetch intercity trips
     useEffect(() => {
@@ -119,7 +119,7 @@ export const RiderProvider = ({ children }) => {
           }}>
           {children}
         </RiderContext.Provider>
-      );
+    )
 }
 
 // Custom hook to use driver context

@@ -1,8 +1,8 @@
-import {useState} from 'react'
+import {useState,useEffect} from 'react'
 import { StyleSheet,Text,View,ActivityIndicator,Image,TouchableOpacity,Modal,Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter,Link } from 'expo-router'
-import { doc,writeBatch,getDoc,Timestamp } from 'firebase/firestore'
+import { doc,writeBatch,getDoc,Timestamp,getDocs,collection } from 'firebase/firestore'
 import { DB } from '../../../../firebaseConfig'
 import * as Clipboard from 'expo-clipboard';
 import { useRiderData } from '../../../stateManagment/RiderContext'
@@ -18,10 +18,31 @@ const home = () => {
   const [currentRiderIndex, setCurrentRiderIndex] = useState(0)
   const [openAccountBalanceModal,setOpenAccountBalanceModal] = useState(false)
   const [renewingSubsLoading,setRenewingSubsLoading] = useState(false)
+  const [institutions, setInstitutions] = useState([])
+  const [fetchingInstitutions, setFetchingInstitutions] = useState(true)
 
   const createAlert = (alerMessage) => {
     Alert.alert(alerMessage)
   }
+
+  //Fetch B2B institutions
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      try {
+        const snapshot = await getDocs(collection(DB, 'institutions'));
+        const fetchedInstitutions = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setInstitutions(fetchedInstitutions);
+      } catch (error) {
+        console.error("Failed to fetch institutions:", error);
+      } finally {
+        setFetchingInstitutions(false);
+      }
+    }
+    fetchInstitutions()
+  }, [])
 
   //Redirect to add data screen
   const redirectToAddDataPage = () => {
@@ -212,7 +233,7 @@ const home = () => {
   }
 
   //Loading 
-  if (fetchingUserDataLoading ||fetchingRiderLoading) {
+  if (fetchingUserDataLoading ||fetchingRiderLoading || fetchingInstitutions) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>
@@ -332,6 +353,7 @@ const home = () => {
                     const now = new Date();
                     const endDate = rider[currentRiderIndex].service_period.end_date?.toDate?.() || new Date(0);
                     const isExpired = now > endDate;
+                    const isInstitutionRider = institutions.some(inst => inst.name === rider[currentRiderIndex].destination);
 
                     return isExpired ? (
                       <>
@@ -349,13 +371,15 @@ const home = () => {
                         <Text style={styles.section_text}>
                           اشتراك صالح إلى غاية: {endDate.toLocaleDateString("ar-EG")}
                         </Text>
-                        <TouchableOpacity
-                          style={styles.pay_bill_button}
-                          onPress={() => renewSubscription(false)} // expired = false
-                          disabled={renewingSubsLoading}
-                        >
-                          <Text style={styles.add_riders_button_text}>{renewingSubsLoading ? '...' : 'جدد الآن'}</Text>
-                        </TouchableOpacity>
+                        {!isInstitutionRider && (
+                          <TouchableOpacity
+                            style={styles.pay_bill_button}
+                            onPress={() => renewSubscription(false)} // expired = false
+                            disabled={renewingSubsLoading}
+                          >
+                            <Text style={styles.add_riders_button_text}>{renewingSubsLoading ? '...' : 'جدد الآن'}</Text>
+                          </TouchableOpacity>
+                        )}                      
                       </>
                     );
                   })()}

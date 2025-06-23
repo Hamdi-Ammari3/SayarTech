@@ -1,14 +1,37 @@
 import { View,Text,ActivityIndicator,StyleSheet,TouchableOpacity } from 'react-native'
 import { useEffect, useState } from 'react'
-import { doc, getDoc,writeBatch } from 'firebase/firestore'
+import { doc,getDoc,writeBatch,getDocs,collection } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
 import colors from '../constants/Colors'
 
 const LineWithoutDriver = ({rider}) => {
+    const [institutions, setInstitutions] = useState([])
+    const [fetchingInstitutions, setFetchingInstitutions] = useState(true)
     const [line, setLine] = useState(null)
     const [loading, setLoading] = useState(false)
     const [leavingLineLoading,setLeavingLineLoading] = useState(false)
 
+    //Fetch B2B institutions
+    useEffect(() => {
+        const fetchInstitutions = async () => {
+            try {
+                const snapshot = await getDocs(collection(DB, 'institutions'));
+                const fetchedInstitutions = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setInstitutions(fetchedInstitutions);
+            } catch (error) {
+                console.log("Failed to fetch institutions:", error);
+            } finally {
+                setFetchingInstitutions(false);
+            }
+        };
+    
+        fetchInstitutions();
+    }, [])
+
+    //Fetch line
     useEffect(() => {
         const fetchLine = async () => {
             if (!rider?.line_id) return;
@@ -55,6 +78,9 @@ const LineWithoutDriver = ({rider}) => {
             const currentBalance = userData.account_balance || 0;
             const newBalance = currentBalance + rider.temporary_hold_amount;
 
+            // Check if rider is from an institution
+            const isInstitutionRider = institutions.some(inst => inst.name === line.destination);
+
             const batch = writeBatch(DB);
 
             // Step 1: Remove rider from line.riders array
@@ -72,9 +98,11 @@ const LineWithoutDriver = ({rider}) => {
             });
 
             // Step3: Update user account balance
-            batch.update(userRef, {
-                account_balance: newBalance,
-            });
+            if(!isInstitutionRider) {
+                batch.update(userRef, {
+                    account_balance: newBalance,
+                })
+            }
 
             await batch.commit();
             createAlert('تم مغادرة الخط بنجاح');
@@ -94,7 +122,7 @@ const LineWithoutDriver = ({rider}) => {
     });
 
 
-    if (loading) {
+    if (loading || fetchingInstitutions) {
         return(
             <View style={styles.container}>
                 <ActivityIndicator size="large" color={colors.PRIMARY} />

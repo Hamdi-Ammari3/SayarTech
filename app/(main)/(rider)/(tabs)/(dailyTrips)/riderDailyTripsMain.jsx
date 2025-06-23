@@ -38,7 +38,7 @@ const dailyTrips = () => {
 
     const now = new Date()
 
-    const riderTripIDs = userData.intercityTrips.map(t => t.id)
+    const riderTripIDs = userData?.intercityTrips?.map(t => t.id)
 
     return intercityTrips
     .filter(trip => {
@@ -57,7 +57,7 @@ const dailyTrips = () => {
   const myTrips = useMemo(() => {
     if (!userData?.intercityTrips || !intercityTrips?.length) return []; 
 
-    const riderTripIDs = userData.intercityTrips.map(t => t.id);
+    const riderTripIDs = userData?.intercityTrips?.map(t => t.id);
 
     return intercityTrips
       .filter(trip => riderTripIDs.includes(trip.id))
@@ -170,7 +170,7 @@ const dailyTrips = () => {
                   <Text style={styles.tripBox_footer_text}>{formatTripAmount(item?.seat_price)}</Text>
                 </View>
                 <View style={[styles.tripBox_footer_section, styles.withSeparator]}>
-                  <Text style={styles.tripBox_footer_text_title}>المقاعد</Text> 
+                  <Text style={styles.tripBox_footer_text_title}>مقاعد متاحة</Text> 
                   <Text style={styles.tripBox_footer_text}>{Number(item?.seats_available - item?.seats_booked)}</Text>
                 </View>
                 <View style={styles.tripBox_footer_section}>

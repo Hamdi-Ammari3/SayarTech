@@ -6,6 +6,7 @@ import MapView, { Marker ,AnimatedRegion } from 'react-native-maps'
 import { doc,onSnapshot,arrayUnion,arrayRemove,writeBatch,increment,updateDoc,getDoc } from 'firebase/firestore'
 import { DB } from '../../../../../firebaseConfig'
 import {useRiderData} from '../../../../stateManagment/RiderContext'
+import * as Clipboard from 'expo-clipboard';
 import dayjs from "dayjs"
 import colors from '../../../../../constants/Colors'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
@@ -16,6 +17,7 @@ import EvilIcons from '@expo/vector-icons/EvilIcons'
 import AntDesign from '@expo/vector-icons/AntDesign'
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import FontAwesome from '@expo/vector-icons/FontAwesome'
+import Feather from '@expo/vector-icons/Feather'
 import Svg, {Circle} from 'react-native-svg'
 
 const intercityTripDetails = () => {
@@ -90,6 +92,12 @@ const intercityTripDetails = () => {
       currency: 'IQD',
       minimumFractionDigits: 0,
     })
+  }
+
+  //Copy feed account info
+  const handleCopy = async (text) => {
+    await Clipboard.setStringAsync(text)
+    Alert.alert('تم النسخ', 'تم نسخ الرقم إلى الحافظة')
   }
 
   const isAlreadyJoined = tripData?.riders?.some(r => r.id === userData.id)
@@ -483,8 +491,13 @@ const intercityTripDetails = () => {
               <Text style={styles.trip_text_start_point}>{tripData?.driver_name}</Text>
               <Text style={styles.trip_text_start_point}>-</Text>
               <Text style={styles.trip_text_start_point}>{tripData?.driver_phone}</Text>
+              <TouchableOpacity 
+                style={{marginRight:10}}
+                onPress={() => handleCopy(tripData?.driver_phone)}
+              >
+                <Feather name="copy" size={24} color="black" />
+              </TouchableOpacity>  
             </View>
-            
           </View>
           <View style={styles.location_icon_box}>
             <FontAwesome name="user" size={22} color="black" />

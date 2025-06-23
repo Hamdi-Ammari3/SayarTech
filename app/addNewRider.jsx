@@ -91,24 +91,26 @@ const addData = () => {
         {
           text: "موافق",
           onPress: async () => {
-            setLoadingLocation(true); // start loading indicator
+            setLoadingLocation(true);
+            setOpenLocationModal(true); 
             try {
               // Request permission
               const { status } = await Location.requestForegroundPermissionsAsync();
 
               if (status !== "granted") {
                 createAlert("عذراً، لا يمكننا الوصول إلى موقعك بدون إذن");
+                setOpenLocationModal(false);
                 return;
               }
 
               // Give time for GPS to initialize after enabling
-              await new Promise(resolve => setTimeout(resolve, 3000)); // wait 3 seconds
+              await new Promise(resolve => setTimeout(resolve, 1000));
 
               let location;
               try {
                 location = await Location.getCurrentPositionAsync({});
               } catch (err) {
-                await new Promise(resolve => setTimeout(resolve, 2000)); // wait and retry
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 location = await Location.getCurrentPositionAsync({});
               }
 
@@ -118,10 +120,9 @@ const addData = () => {
               };
 
               setHomeCoords(coords);
-              setOpenLocationModal(true); // open modal AFTER getting location
-
             } catch (error) {
               createAlert("تعذر الحصول على الموقع. حاول مرة أخرى.");
+              setOpenLocationModal(false);
             } finally {
               setLoadingLocation(false); // stop loading indicator
             }
@@ -175,7 +176,7 @@ const addData = () => {
     if (!dateSelected) return createAlert("يرجى إدخال تاريخ الميلاد")
     if (!studentSex) return createAlert("يرجى تحديد الجنس")
     if (!homeCoords) return createAlert("يرجى تحديد عنوان المنزل")
-    if(!destination) return createAlert('يرجى ادخال مكان الدراسة / العمل')
+    if (!destination) return createAlert('يرجى ادخال مكان الدراسة / العمل')
 
     setAddingNewStudentLoading(true)
 
@@ -193,8 +194,6 @@ const addData = () => {
         home_location:homeCoords,
         destination:destination,
         destination_location:destinationLocation,
-        destination:'مدرسة التفوق',
-        destination_location:{latitude:33.50686613699644,longitude:10.477269748175827},
         distance:distanceInKm,
         company_commission:0,
         driver_commission:0,
@@ -281,7 +280,13 @@ const addData = () => {
                 textAlign:'center',
                 fontFamily:'Cairo_400Regular',
               },
-              listView: { backgroundColor: 'white' },
+              listView: { 
+                backgroundColor: 'white' ,
+                maxHeight: 200,
+                borderRadius: 10,
+                zIndex: 10,
+                elevation: 5,
+              },
             }}
           />
         </View>
@@ -395,7 +400,7 @@ const addData = () => {
                       }}
                     />
                     <View style={styles.centerPin}>
-                      <FontAwesome6 name="map-pin" size={24} color="blue" />
+                      <FontAwesome6 name="map-pin" size={24} color="red" />
                     </View>
                   </>
                 )}

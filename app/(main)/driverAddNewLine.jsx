@@ -5,7 +5,7 @@ import { useLocalSearchParams,useRouter  } from 'expo-router'
 import { useLinesData } from '../stateManagment/LinesContext'
 import MapView, { Marker } from 'react-native-maps'
 import colors from '../../constants/Colors'
-import { doc,writeBatch,arrayUnion,Timestamp} from 'firebase/firestore'
+import { doc,writeBatch,arrayUnion,Timestamp,getDocs,collection} from 'firebase/firestore'
 import {DB} from '../../firebaseConfig'
 import { Dropdown } from 'react-native-element-dropdown'
 import LottieView from "lottie-react-native"
@@ -21,6 +21,8 @@ const driverAddNewLine = () => {
   const {driverData} = useLocalSearchParams()
   const parsedDriverData = JSON.parse(driverData)
   
+  const [institutions, setInstitutions] = useState([])
+  const [fetchingInstitutions, setFetchingInstitutions] = useState(true)
   const [groupedLines,setGroupedLines] = useState([])
   const [availableDestinations, setAvailableDestinations] = useState([])
   const [selectedDestination, setSelectedDestination] = useState(null)
@@ -36,6 +38,25 @@ const driverAddNewLine = () => {
   const comeBackToHome = () => {
     router.push('/(driver)/(tabs)/home')
   }
+
+  //Fetch B2B institutions
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      try {
+        const snapshot = await getDocs(collection(DB, 'institutions'));
+        const fetchedInstitutions = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setInstitutions(fetchedInstitutions);
+      } catch (error) {
+        console.error("Failed to fetch institutions:", error);
+      } finally {
+        setFetchingInstitutions(false);
+      }
+    }
+    fetchInstitutions()
+  }, [])
 
   // Fetch available lines
   useEffect(() => {
@@ -105,8 +126,6 @@ const driverAddNewLine = () => {
         },
         body: JSON.stringify(message),
       });
-      console.log("notification send")
-      console.log('token',token)
     } catch (error) {
       console.log("Error sending notification:", error);
     }
@@ -119,9 +138,19 @@ const driverAddNewLine = () => {
     setAssigningLineLoading(true);
 
     try {
+      // Check if rider is from an institution
+      const isInstitutionRider = institutions.some(inst => inst.name === line.destination);
+
       const now = new Date();
-      const end = new Date();
-      end.setDate(now.getDate() + 30);
+      let end = new Date();
+
+      if(isInstitutionRider) {
+        const currentYear = now.getFullYear()
+        const endYear = now.getMonth() >= 5 ? currentYear + 1 : currentYear
+        end = new Date(endYear, 5, 15);
+      } else {
+        end.setDate(now.getDate() + 30);
+      }
       
       const startTimestamp = Timestamp.fromDate(now);
       const endTimestamp = Timestamp.fromDate(end);
@@ -201,6 +230,7 @@ const driverAddNewLine = () => {
       createAlert("تم إضافة الخط بنجاح");
     } catch (error) {
       createAlert("خطأ", "حدث خطأ أثناء إضافة الخط. حاول مرة أخرى.");
+      console.log(error)
     } finally {
       router.push('/(main)/(driver)/(tabs)/home') 
       setAssigningLineLoading(false)
@@ -208,7 +238,7 @@ const driverAddNewLine = () => {
   }
 
   // Loading or fetching user data from DB
-  if (fetchingLinesLoading || assigningLineLoading) {
+  if (fetchingLinesLoading || assigningLineLoading || fetchingInstitutions) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.spinner_error_container}>

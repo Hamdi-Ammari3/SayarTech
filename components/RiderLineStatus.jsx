@@ -37,6 +37,8 @@ const RiderLineStatus = ({rider}) => {
     Alert.alert(alerMessage)
   }
 
+  console.log(rider?.id)
+
   const now = new Date();
   const endDate = rider?.service_period?.end_date?.toDate?.() || new Date(0);
   const isSubscriptionExpired = now > endDate;
