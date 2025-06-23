@@ -36,7 +36,7 @@ const TabsLayout = () => {
 
         {/* 🟦 Section Daily Trips */}
         <Tabs.Screen 
-          name='dailyTrips' 
+          name='(dailyTrips)' 
           options={{
             headerShown:false,
             title: 'بين المدن',

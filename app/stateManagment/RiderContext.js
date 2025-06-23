@@ -15,6 +15,9 @@ export const RiderProvider = ({ children }) => {
 
     const [rider, setRider] = useState([])
     const [fetchingRiderLoading,setFetchingRiderLoading] = useState(true)
+
+    const [intercityTrips,setInterCityTrips] = useState([])
+    const [fetchingIntercityTrips,setFetchingIntercityTrips] = useState(false)
       
     const [error, setError] = useState(null)
 
@@ -85,6 +88,24 @@ export const RiderProvider = ({ children }) => {
         return () => unsubscribe();
     }, [user]);
 
+    // Fetch intercity trips
+    useEffect(() => {
+        const linesInfoCollectionRef = collection(DB, 'intercityTrips')
+        const unsubscribe = onSnapshot(
+            linesInfoCollectionRef,
+            async(querySnapshot) => {
+                const linesList = querySnapshot.docs
+                .map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }))
+                setInterCityTrips(linesList)
+                setFetchingIntercityTrips(false)
+            }
+        )
+    return () => unsubscribe();
+  },[])
+
     return (
         <RiderContext.Provider
           value={{ 
@@ -92,6 +113,8 @@ export const RiderProvider = ({ children }) => {
             fetchingUserDataLoading,              
             rider,
             fetchingRiderLoading,
+            intercityTrips,
+            fetchingIntercityTrips,
             error 
           }}>
           {children}

@@ -244,7 +244,7 @@ const home = () => {
               </Link>
             </View>
             <View style={styles.sections_box}>
-              <Link href="/dailyTrips" asChild>
+              <Link href="/(dailyTrips)/riderDailyTripsMain" asChild>
                 <TouchableOpacity>
                   <Text style={styles.section_text}>رحلات يومية بين المدن</Text>
                 </TouchableOpacity>

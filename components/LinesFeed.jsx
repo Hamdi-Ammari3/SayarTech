@@ -255,7 +255,7 @@ const LinesFeed = ({rider}) => {
     // Check if there is active days to render the copy to all btn
     const hasActiveDays = schoolTimetable.some((item) => item.active);
 
-    //Close add new line modal
+    //Open add new line modal
     const openAddNewLineModal = () => {
         setShowAddNewLineModal(true)
     }

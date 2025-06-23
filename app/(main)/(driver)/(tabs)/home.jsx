@@ -139,7 +139,7 @@ const home = () => {
                 </Link>
               </View>
               <View style={styles.sections_box}>
-                <Link href="/dailyTrips" asChild>
+                <Link href="/(dailyTrips)/driverDailyTripsMain" asChild>
                   <TouchableOpacity>
                     <Text style={styles.section_text}>رحلات يومية بين المدن</Text>
                   </TouchableOpacity>
@@ -151,10 +151,19 @@ const home = () => {
               <View style={styles.reward_box}>
                 {driverData[0] ? (
                   <>
-                    <View style={styles.riders_count_box}>
-                      <Text style={styles.section_text}>عدد الخطوط في حسابك</Text>
-                      <Text style={styles.section_text}>{driverData[0]?.lines?.length}</Text>
-                    </View>
+
+                    {driverData[0].service_type === 'خطوط' ? (
+                      <View style={styles.riders_count_box}>
+                        <Text style={styles.section_text}>عدد الخطوط في حسابك</Text>
+                        <Text style={styles.section_text}>{driverData[0]?.lines?.length}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.riders_count_box}>
+                        <Text style={styles.section_text}>عدد الرحلات في حسابك</Text>
+                        <Text style={styles.section_text}>{driverData[0]?.intercityTrips?.length}</Text>
+                      </View>
+                    )}
+
                     <View style={styles.driver_manageLines_buttons}>
                       {
                         driverData?.length > 0 && 
@@ -256,7 +265,7 @@ const home = () => {
                   {driverData[0].service_type === 'خطوط' ? (
                     <Text style={styles.section_text}>عدد رحلات الخطوط المكتملة هذا الشهر: {completedTripsCount}</Text>
                   ) : (
-                    <Text style={styles.section_text}>عدد تذاكر الرحلات اليومية هذا الشهر: {unpaidTicketsCount}</Text>
+                    <Text style={styles.section_text}>عدد الرحلات المنتهية: {unpaidTicketsCount}</Text>
                   )}
                 </View>
               </View>

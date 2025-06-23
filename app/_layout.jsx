@@ -67,7 +67,6 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{headerShown:false}}/>
           <Stack.Screen name="(auth)" options={{headerShown:false}}/>
           <Stack.Screen name="(main)" options={{headerShown:false}}/>
-          <Stack.Screen name="tripResult" options={{headerShown:false}}/>
           <Stack.Screen name="addNewRider" options={{headerShown:false}}/>
           <Stack.Screen name="addDriverData" options={{headerShown:false}}/>
         </Stack>

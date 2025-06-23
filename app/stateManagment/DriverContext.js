@@ -15,6 +15,9 @@ export const DriverProvider = ({ children }) => {
 
   const [userData, setUserData] = useState(null)
   const [fetchingUserDataLoading, setFetchingUserDataLoading] = useState(true)
+
+  const [intercityTrips,setInterCityTrips] = useState([])
+  const [fetchingIntercityTrips,setFetchingIntercityTrips] = useState(false)
   
   const [error, setError] = useState(null)
 
@@ -75,13 +78,34 @@ export const DriverProvider = ({ children }) => {
     return () => unsubscribe();
   }, [user]);
 
+  // Fetch intercity trips
+  useEffect(() => {
+    const linesInfoCollectionRef = collection(DB, 'intercityTrips')
+    const unsubscribe = onSnapshot(
+      linesInfoCollectionRef,
+      async(querySnapshot) => {
+        const linesList = querySnapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        setInterCityTrips(linesList)
+        setFetchingIntercityTrips(false)
+      }
+    )
+    return () => unsubscribe();
+  },[])
+
   return (
     <DriverContext.Provider value={{ 
       userData,
       fetchingUserDataLoading,
       driverData, 
       fetchingDriverDataLoading,
-      error }}>
+      intercityTrips,
+      fetchingIntercityTrips,
+      error 
+    }}>
       {children}
     </DriverContext.Provider>
   );
